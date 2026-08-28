@@ -18,7 +18,7 @@
 
 **Feature Name:** artifacts
 **ID Prefix:** ARTF
-**Summary:** First-class artifact handling across the whole stack: messages reference content by ID + hash, artifacts are stored on the Edge filesystem and Relay object store, transfer over sync is hashed and deduplicated, and large artifacts support resumable transfer over low bandwidth. Builds on every storage component.
+**Summary:** First-class artifact handling across the whole stack: messages reference content by ID + hash, artifacts are stored on the Edge filesystem and in Relay PostgreSQL (BYTEA), transfer over sync is hashed and deduplicated, and large artifacts support resumable transfer over low bandwidth. Builds on every storage component.
 **Dependencies:** protocol, local-edge, synchronisation, cloud-relay, offline-pwa
 **Priority:** Must
 
@@ -49,7 +49,8 @@ Attachment pickers in the PWA Compose and Task views (photo via camera/file pick
 ## 5. Implementation Tasks
 
 - [ ] Artifact store on Edge (filesystem, content-hash named, deduplicated)
-- [ ] Artifact store on Relay (object-storage provider interface)
+- [ ] Artifact store on Relay (PostgreSQL BYTEA via `ArtifactStore` interface; S3-compatible adapter optional later)
+- [ ] Authenticated artifact-serving endpoints on Edge (`GET /artifacts/{id}`, filesystem) and Relay (BYTEA, streaming); artifact `filename`/`MIME type`/`hash` metadata travels with the message so the receiving app can render or interpret content (PWA renders by MIME; FlowForge consumes via `ArtifactReceived`)
 - [ ] Artifact transfer in the sync protocol: hash verification on both sides, deduplication (skip if hash known)
 - [ ] Resumable chunked upload/download for large artifacts
 - [ ] Configurable size limits and per-gateway quotas (surfaced in PWA)

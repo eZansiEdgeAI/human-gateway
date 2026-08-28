@@ -9,7 +9,7 @@
 **Target Platform:**
 - **Edge Gateway:** .NET/ASP.NET Core service on Linux (Raspberry Pi, old PC) or Windows; SQLite storage; local REST API.
 - **Client:** React + TypeScript PWA running in modern mobile/desktop browsers, installable, offline-capable via Service Worker + IndexedDB.
-- **Cloud Relay:** ASP.NET Core service; PostgreSQL; object storage; containerised (Docker) deployment over HTTPS.
+- **Cloud Relay:** ASP.NET Core service; PostgreSQL (message metadata + artifact bytes via BYTEA); containerised (Docker) deployment over HTTPS.
 - **First consumer:** FlowForge (an Agent Workforce Platform) — workflow `human-input` / `human-approval` nodes delivered through HumanGateway.
 
 **Key Constraints:**
@@ -96,7 +96,7 @@ This section summarises `docs/research/communication-research.md` (authoritative
 | Edge storage | SQLite (Microsoft.Data.Sqlite) | 10.x (in-box with .NET 10) | Zero-admin embedded store; survives power loss |
 | Relay runtime | ASP.NET Core | .NET 10 (LTS) | Shared skills with Edge; container-friendly |
 | Relay database | PostgreSQL | 18 (current, supported to 2030-11) | Durable relational store for messages/gateways |
-| Relay object store | Azure Blob Storage or S3-compatible | n/a (service) | Artifact storage; swappable provider |
+| Relay artifact store | PostgreSQL BYTEA via `ArtifactStore` interface | PG 18 (in-database) | Zero-cost default (no paid storage service); S3-compatible adapter optional later |
 | Client UI | React | 19.2.8 | Industry-standard component model |
 | Client language | TypeScript | 7.x (native compiler; 5.x line acceptable fallback) | Type safety across protocol types; pin version in Open Questions |
 | Client build | Vite + @vitejs/plugin-react | 8.2.2 / 6.1.1 | Fast, PWA-friendly build tooling |
@@ -146,7 +146,7 @@ From the user's perspective, "done" means: a teacher can send and receive messag
 | Edge storage | SQLite (Microsoft.Data.Sqlite) + local filesystem for artifacts | 10.x |
 | Edge sync | Background worker performing outbound HTTPS sync | in-process |
 | Relay | ASP.NET Core minimal API | .NET 10 (LTS) |
-| Relay storage | PostgreSQL + object storage (Azure Blob / S3-compatible) | PG 18 |
+| Relay storage | PostgreSQL (message metadata + artifact bytes via BYTEA) | PG 18 |
 | Client | React + TypeScript PWA (Vite build) | React 19.2.8, TS 7.x, Vite 8.2.2 |
 | Client offline | Service Worker + IndexedDB outbox + local cache | platform |
 | Protocol | Transport-agnostic JSON schemas (in `schemas/`) | v1 |
@@ -228,7 +228,7 @@ human-gateway/
 ### 8.5 Cloud Relay
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| FR-28 | Relay stores messages/tasks in PostgreSQL and artifacts in object storage | Must |
+| FR-28 | Relay stores messages/tasks and artifact bytes in PostgreSQL (BYTEA via `ArtifactStore` interface) | Must |
 | FR-29 | Relay exposes a sync API that requires no inbound connectivity at the school | Must |
 | FR-30 | Gateway registration and rendezvous for remote web access | Must |
 | FR-31 | Multiple disconnected schools exchange messages through the cloud | Must |
@@ -276,6 +276,7 @@ human-gateway/
 | NF-07 | **Accessibility:** WCAG 2.1 AA for the PWA UI (see §11) | Should |
 | NF-08 | **Compatibility:** PWA runs on current Chrome/Edge/Firefox/Safari mobile and desktop | Must |
 | NF-09 | **Observability:** structured logs on Edge and Relay; sync health surfaced to admins | Should |
+| NF-10 | **Operational cost:** default deployment requires no paid cloud services; Relay artifact storage reuses existing PostgreSQL (no object-store dependency) | Must |
 
 ---
 
@@ -366,7 +367,7 @@ WAITING_FOR_SYNC ─▶ (retry) ─▶ SYNCING ... ─▶ FAILED (after max retr
 - **Exit:** messages survive connectivity loss and eventually reach their destination exactly-once.
 
 ### Phase 4: Cloud Relay
-- [ ] Scaffold `HumanGateway.Relay` (ASP.NET Core + PostgreSQL + object storage)
+- [ ] Scaffold `HumanGateway.Relay` (ASP.NET Core + PostgreSQL; artifact bytes stored as BYTEA)
 - [ ] Gateway registration and rendezvous
 - [ ] Sync endpoint (push/pull cursors, artifact transfer, ack)
 - [ ] Docker Compose environment (Edge + Relay + DB)
@@ -461,7 +462,7 @@ The project is considered complete when all of the following are true:
 |------------|------|---------------------|------------|
 | .NET 10 SDK / runtime | runtime | Cannot build/run Edge & Relay | Pin LTS; CI images pinned |
 | PostgreSQL 18 | service | Relay store unavailable | Use Docker Compose for dev; containerised prod |
-| Object storage (Azure Blob / S3) | service | Artifact store unavailable | Provider-agnostic interface; local/MinIO fallback in dev |
+| PostgreSQL artifact bytes | storage | Relay artifact capacity/throughput limited to app-served egress | BYTEA storage (default); S3-compatible `ArtifactStore` adapter available for high-scale deployments |
 | React 19 / TypeScript 7 / Vite 8 | npm | Client toolchain issues | Pin versions; TS 5.x fallback if ecosystem lags (Open Q) |
 | Service Worker / IndexedDB | platform | Older browsers lack support | Target current Chrome/Edge/Firefox/Safari; feature-detect |
 | FlowForge | external repo | Integration surface changes | Depend on published interfaces (`WorkflowRunner`, `PendingHumanTask`); pin commit for integration tests |
@@ -485,6 +486,7 @@ The project is considered complete when all of the following are true:
 | Item | Description | Potential Version |
 |------|-------------|-------------------|
 | SMS / USSD / WhatsApp / Email adapters | Additional transport channels via adapter interface | v2 |
+| S3 / Blob artifact store adapter | Optional `ArtifactStore` implementation for high-scale or archival deployments; offloads egress from the app server | v2 |
 | Resumable large-artifact streaming | Chunked/resumable transfers fully specified | v2 |
 | End-to-end encryption of message content | Protect content from the Relay | v2 |
 | Multi-gateway per school / gateway failover | High-availability edge | v3 |
@@ -502,7 +504,7 @@ The project is considered complete when all of the following are true:
 | 1 | Which TypeScript major to pin? | 7.x (native compiler); fall back to 5.x if ecosystem compatibility issues arise |
 | 2 | Service Worker strategy: Workbox vs hand-rolled? | Workbox for cache management; hand-rolled only if dependency weight unacceptable |
 | 3 | Authentication method for local users at the Edge? | Simple local username+password with signed session tokens (v1); OIDC federation later |
-| 4 | Relay object store provider in production? | S3-compatible API (e.g., MinIO for dev); Azure Blob as deployable option |
+| 4 | Relay artifact storage in production? | PostgreSQL BYTEA (default); S3-compatible adapter optional for high-scale deployments |
 | 5 | Deployment target for the Relay? | Containerised via Docker Compose (dev) → any container host (prod); cloud-native later |
 | 6 | Should local Edge auth be required in the PoC (Phase 1–2)? | Not required for LAN-only PoC; required from Phase 5 |
 | 7 | Max artifact size default? | 50 MB default, configurable per gateway |
