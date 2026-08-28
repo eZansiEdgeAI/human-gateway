@@ -87,7 +87,7 @@ Always consult the following documents for authoritative project requirements:
 ### FlowForge Tests (flowforge-integration §6)
 
 30. Provider translation logic (Vitest; request/response mapping fixtures)
-31. Integration: real FlowForge workflow with `human-input` + `human-approval`; assert resume
+31. Integration: contract-based - drive the provider against a stub implementing the published `WorkflowRunner` / `PendingHumanTask` interface (`human-input` + `human-approval`); assert resume (no real FlowForge runtime; live E2E out of scope)
 32. Comparison: Console vs HumanGateway provider headlessly; identical workflow outcome
 33. Expired interactions surface `HumanInteractionExpired`
 
@@ -96,7 +96,7 @@ Always consult the following documents for authoritative project requirements:
 34. 100% of offline user stories pass with Internet disabled
 35. 0 lost / 0 duplicate messages in the chaos suite
 36. All messages converge within one sync cycle after reconnect
-37. FlowForge round-trip resumes workflow with artifacts intact
+37. FlowForge round-trip resumes workflow with artifacts intact (via provider-contract stub, not a live FlowForge runtime)
 38. Manual E2E suite green on target browsers/Pi
 
 ---
@@ -137,7 +137,8 @@ If validation fails, fix and re-run before committing.
 ## Constraints
 
 - Follow each feature's testing strategy table (see Responsibilities for per-feature scope)
-- Assert product vision §11 success metrics (offline capability, exactly-once, convergence, FlowForge round-trip, E2E green)
+- Assert product vision §11 success metrics (offline capability, exactly-once, convergence, FlowForge round-trip via provider-contract stub, E2E green)
+- Live FlowForge runtime E2E is **out of scope** - FlowForge integration is validated exclusively via a stub implementing the published `WorkflowRunner` / `PendingHumanTask` interface; no pinned commit
 - No lost / no duplicate messages in the chaos suite (NF-05)
 - Verify current stable versions of xUnit, Vitest, Playwright, Testcontainers before adding
 - Commit with descriptive messages referencing the task/requirement
@@ -165,4 +166,4 @@ If validation fails, fix and re-run before committing.
 - **artifact-engineer** - End-to-end artifact, dedup, resume tests
 - **pwa-engineer** - Playwright + offline flows on the device matrix
 - **security-engineer** - Security negative tests
-- **workflow-engineer** - FlowForge round-trip + headless comparison tests
+- **workflow-engineer** - FlowForge round-trip (via provider-contract stub) + headless comparison tests

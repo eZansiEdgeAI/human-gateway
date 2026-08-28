@@ -90,7 +90,7 @@ This section summarises `docs/research/communication-research.md` (authoritative
 | Client offline | Service Worker + IndexedDB (Workbox or hand-rolled) | standard web platform | Offline cache + local outbox |
 | Client tests | Vitest | 4.1.11 | Unit/component testing |
 | Development | Docker / Docker Compose (v2) | tooling | Reproducible Edge+Relay+DB environment |
-| FlowForge | TypeScript monorepo; `WorkflowRunner` + `PendingHumanTask` (`kind: 'input' | 'approval'`) | current main | Reference consumer; headless `--answers` mode exists for baseline comparison |
+| FlowForge | TypeScript monorepo; `WorkflowRunner` + `PendingHumanTask` (`kind: 'input' | 'approval'`) | current main | Reference consumer; headless `--answers` mode exists for baseline comparison; tested via published-interface contract, no pinned commit |
 
 ### 5.3 Design principles
 - Durable synchronisation requires: durable message IDs, sequence numbers, cursors, delivery states, content hashes, idempotent operations.
@@ -212,7 +212,7 @@ No telemetry or analytics are planned in v1 (privacy-preserving default). Succes
 | Offline capability | 100% of offline user stories pass with Internet disabled | Integration/chaos tests |
 | Exactly-once delivery | 0 lost / 0 duplicate messages observed in chaos suite | Chaos test assertions |
 | Convergence after outage | All messages converge within one sync cycle after reconnect | Sync tests |
-| FlowForge round-trip | Human response resumes workflow with artifacts intact | Integration test |
+| FlowForge round-trip | Human response resumes workflow with artifacts intact | Contract test against a provider-contract stub, not a live FlowForge runtime (live E2E out of scope) |
 | E2E reliability | Manual E2E suite green on target browsers/Pi | Manual/E2E runs |
 
 ---
@@ -227,7 +227,7 @@ No telemetry or analytics are planned in v1 (privacy-preserving default). Succes
 | PostgreSQL artifact bytes | storage | Relay artifact capacity/throughput limited to app-served egress | BYTEA storage (default); S3-compatible `ArtifactStore` adapter available for high-scale deployments |
 | React 19 / TypeScript 7 / Vite 8 | npm | Client toolchain issues | Pin versions; TS 5.x fallback if ecosystem lags (Open Q) |
 | Service Worker / IndexedDB | platform | Older browsers lack support | Target current Chrome/Edge/Firefox/Safari; feature-detect |
-| FlowForge | external repo | Integration surface changes | Depend on published interfaces (`WorkflowRunner`, `PendingHumanTask`); pin commit for integration tests |
+| FlowForge | external repo | Integration surface changes | Depend on published interfaces (`WorkflowRunner`, `PendingHumanTask`); contract-based tests, no pinned commit |
 | Docker / Docker Compose | dev tooling | Dev environment harder | Provide bare-metal scripts as fallback |
 
 ### 12.2 Risks
@@ -236,7 +236,7 @@ No telemetry or analytics are planned in v1 (privacy-preserving default). Succes
 | Sync algorithm bugs cause loss/duplication | Medium | High (core value prop) | Schemas-first; property/chaos tests before Relay integration |
 | Low-bandwidth artifact sync is too slow | Medium | Medium | Resumable transfer, dedup, size limits; content-hash only-when-changed |
 | Edge hardware too weak for concurrent clients | Low | Medium | Load-test on Pi; horizontal tuning; cheap UX |
-| FlowForge interface drift during integration | Medium | Medium | Pin FlowForge commit; adapter interface isolates changes |
+| FlowForge interface drift during integration | Medium | Medium | Adapter interface isolates changes; contract-based tests against the published interface |
 | PWA offline correctness (service worker cache pitfalls) | Medium | Medium | Versioned caches; explicit cache-busting strategy; chaos/E2E tests |
 | Scope creep into workflow/auth/audit territory | Medium | High | Non-goals enforced (§3.2); boundary principle in §5 |
 | Security of a device anyone can walk up to | Medium | High | Local authn + TLS; outbound-only; per-conversation authz |

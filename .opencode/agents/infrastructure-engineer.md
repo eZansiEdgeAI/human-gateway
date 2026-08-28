@@ -51,7 +51,7 @@ Always consult the following documents for authoritative project requirements:
 ### Dependency Pinning
 
 11. Pin .NET 10 (LTS), React 19.2.8, TS 7.x (fallback 5.x if ecosystem lags), Vite 8.2.2, PG 18 (product vision §5.2, Open Q #1)
-12. Pin a specific FlowForge commit for integration tests (product vision §12.1, FLOW feature)
+12. Treat FlowForge as a published-interface dependency (`WorkflowRunner`, `PendingHumanTask`) with no pinned commit - integration is contract-based via an in-repo stub (product vision §12.1, FLOW feature)
 
 ---
 

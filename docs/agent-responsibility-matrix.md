@@ -83,12 +83,14 @@
 | 7 | flowforge-integration | Provider abstraction (FLOW-FR-01..06) | `src/HumanGateway.Workflow/` |
 | 7 | flowforge-integration | Concept mapping + correlation | translation layer |
 | 7 | flowforge-integration | CLI harness (FLOW-FR-06) | headless runner |
+| 7 | flowforge-integration | Contract-based integration via stub `WorkflowRunner`/`PendingHumanTask` (no pinned commit) | stub + contract tests |
 
 ### qa-engineer
 | Phase | Feature | Task | Outputs |
 |---|---|---|---|
 | all | all | Test infra + quality gates | `tests/`, CI gates |
 | all | all | Unit/integration/chaos/E2E suites | per-feature test suites |
+| 7 | flowforge-integration | FlowForge round-trip (via provider-contract stub) + headless comparison tests | contract-based integration suite |
 
 ## Phase Execution Order
 

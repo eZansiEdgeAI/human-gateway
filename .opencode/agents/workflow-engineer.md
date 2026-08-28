@@ -50,7 +50,7 @@ Always consult the following documents for authoritative project requirements:
 ### Headless Harness
 
 7. CLI/test harness to drive the provider headlessly (`--answers`-style) for comparison with FlowForge's built-in headless mode (FLOW-FR-06)
-8. Pin a FlowForge commit for integration tests (flowforge-integration §5, product vision §12.1)
+8. Add contract-based integration tests against a stub `WorkflowRunner` / `PendingHumanTask` implementing the published interface shape (no pinned FlowForge commit) (flowforge-integration §5, product vision §12.1)
 
 ### Boundary
 
@@ -63,14 +63,14 @@ Always consult the following documents for authoritative project requirements:
 1. Implement the `HumanInteractionProvider` abstraction first, then the Console baseline, then the HumanGateway provider
 2. Implement concept mapping (FLOW-FR-04) before the CLI harness
 3. Correlate `PendingHumanTask` through the message envelope using the HumanTask schema from protocol-engineer
-4. Pin the FlowForge commit before integration tests (product vision §12.1)
+4. Define/verify the published interface contract (via a stub `WorkflowRunner` / `PendingHumanTask`) before integration tests (product vision §12.1)
 5. Use plan-validate-execute for the headless harness - plan the `--answers` flow, validate against the Console provider outcome, then implement
 
 ## Validation
 
 After completing a deliverable:
 - [ ] Run `npm test` (Vitest) - provider translation logic, request/response mapping fixtures (flowforge-integration §6)
-- [ ] Run integration: a real FlowForge workflow with `human-input` + `human-approval`; assert resume (flowforge-integration §6)
+- [ ] Run integration: drive the provider against a stub `WorkflowRunner` / `PendingHumanTask` (`human-input` + `human-approval`); assert resume (flowforge-integration §6)
 - [ ] Run comparison: same workflow headlessly with Console vs HumanGateway provider; identical outcome (flowforge-integration §6, FLOW-FR-06)
 - [ ] Verify artifact attached to a human response arrives intact via `ArtifactReceived` (flowforge-integration §6)
 - [ ] Verify expired interactions surface `HumanInteractionExpired` and the workflow handles it (flowforge-integration §6)
@@ -85,7 +85,7 @@ If validation fails, fix and re-run before committing.
 - **Prefer a consumer-only adapter** - upstream FlowForge changes only if unavoidable; design the provider so HumanGateway changes are isolated (flowforge-integration Open Q #1, product vision Open Q #12).
 - **Provider is a monorepo project**, not a packaged FlowForge package in v1 (flowforge-integration Open Q #2).
 - **Correlation is everything** - `nodeId`, `role`, `prompt`, `subject` must survive the full HumanGateway round-trip so FlowForge can enforce its own authz/audit (FLOW-FR-05, SP-09).
-- **Pin the FlowForge commit** - the integration surface (WorkflowRunner, PendingHumanTask) can change; pinned commit isolates drift (product vision §12.1).
+- **Target the published interface shape, not a pinned commit** - the integration surface (WorkflowRunner, PendingHumanTask) can drift; rely on the in-repo stub implementing the published interface, never a pinned FlowForge commit. Live FlowForge runtime E2E is **out of scope** (product vision §12.1).
 - **`description:` must be double-quoted YAML** in generated files (forge frontmatter gate).
 
 ---
@@ -97,6 +97,7 @@ If validation fails, fix and re-run before committing.
 - Support `human-input` and `human-approval` with `PendingHumanTask` correlation (FLOW-FR-05)
 - Headless harness comparable to FlowForge `--answers` (FLOW-FR-06)
 - Do not duplicate workflow engine/state/authz/audit responsibilities (NG1, SP-09)
+- Live FlowForge runtime E2E is **out of scope** - validate exclusively via a stub implementing the published `WorkflowRunner` / `PendingHumanTask` interface; no FlowForge commit is pinned
 - Verify current stable FlowForge interfaces before implementing (WorkflowRunner, PendingHumanTask)
 - Commit with descriptive messages referencing the task/requirement
 - Follow orchestrator instructions for progress tracking when working in orchestrated execution

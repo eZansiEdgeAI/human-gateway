@@ -390,7 +390,7 @@ WAITING_FOR_SYNC ─▶ (retry) ─▶ SYNCING ... ─▶ FAILED (after max retr
 - [ ] `HumanGatewayInteractionProvider`: translate requests → messages and responses → workflow events
 - [ ] Map `HumanInteractionRequested / HumanResponseReceived / HumanInteractionCompleted / ArtifactReceived / HumanInteractionExpired`
 - [ ] CLI/test harness for headless comparison against `ConsoleHumanInteractionProvider`
-- **Exit:** a FlowForge `human-input` / `human-approval` node is delivered through HumanGateway and resumes the workflow with the human response and artifacts.
+- **Exit:** a `human-input` / `human-approval` interaction is delivered through the provider contract and resumes the workflow with the human response and artifacts. Live FlowForge runtime E2E is **out of scope**; validated via a stub implementing the published `WorkflowRunner` / `PendingHumanTask` interface (no pinned commit).
 
 ### Phase 8: Additional Channels (future)
 - [ ] Design transport-adapter interface (stubs in `adapters/`)
@@ -404,7 +404,7 @@ WAITING_FOR_SYNC ─▶ (retry) ─▶ SYNCING ... ─▶ FAILED (after max retr
 | Level | Scope | Tools / Approach |
 |-------|-------|------------------|
 | Unit | Protocol validation, core sync logic, idempotency, delivery state machine | xUnit (Edge/Relay), Vitest (Client) |
-| Integration | Edge↔PWA over LAN; Edge↔Relay sync; artifact transfer; FlowForge provider round-trip | Testcontainers / Docker Compose, mock HTTP |
+| Integration | Edge↔PWA over LAN; Edge↔Relay sync; artifact transfer; FlowForge provider round-trip (via provider-contract stub) | Testcontainers / Docker Compose, mock HTTP |
 | Sync/chaos | Deliberate network failure scenarios | Chaos scripts controlling connectivity, restarts, reordering, duplication |
 | Manual/E2E | Teacher and admin journeys on real browsers/devices | Playwright or exploratory testing |
 | Cross-platform | Old desktop + Android browsers; Raspberry Pi target | Manual matrix |
@@ -420,7 +420,7 @@ WAITING_FOR_SYNC ─▶ (retry) ─▶ SYNCING ... ─▶ FAILED (after max retr
 8. Artifact transfer interrupted → resumable transfer completes; hash verified.
 9. Device remains offline for several days → long-disconnect convergence.
 10. Multiple clients synchronise simultaneously → no lost updates, consistent cursors.
-11. FlowForge workflow pauses at `waitingForHuman` → resumes correctly after a delayed response; expiry handled.
+11. FlowForge provider round-trip (via a stub `WorkflowRunner` implementing the published interface) resumes correctly after a delayed response; expiry handled. Live FlowForge runtime E2E is **out of scope** — integration is validated exclusively through the published interface contract, no pinned commit.
 
 **Defining acceptance criterion:** *A school can disappear from the network for an extended period and, when connectivity returns, the system reliably converges without losing or duplicating messages.*
 
@@ -434,7 +434,7 @@ No telemetry or analytics are planned in v1 (privacy-preserving default). Succes
 | Offline capability | 100% of Phase 1–2 user stories pass with Internet disabled | Integration/chaos tests |
 | Exactly-once delivery | 0 lost / 0 duplicate messages observed in chaos suite | Chaos test assertions |
 | Convergence after outage | All messages converge within one sync cycle after reconnect | Sync tests |
-| FlowForge round-trip | Human response resumes workflow with artifacts intact | Integration test |
+| FlowForge round-trip | Human response resumes workflow with artifacts intact | Contract test against a provider-contract stub, not a live FlowForge runtime (live E2E out of scope) |
 | E2E reliability | Manual E2E suite green on target browsers/Pi | Manual/E2E runs |
 
 ---
@@ -449,7 +449,7 @@ The project is considered complete when all of the following are true:
 5. A Relay accepts registered gateways and supports multiple disconnected schools exchanging messages through the cloud.
 6. All Edge↔Relay traffic is authenticated (gateway identity), authorised (per-conversation/task/artifact), and encrypted in transit; artifacts are hash-verified.
 7. An authenticated remote user can access the service over the web and respond to tasks routed back to the school.
-8. The FlowForge `HumanGatewayInteractionProvider` round-trips a `human-input` and a `human-approval` node, returning the human response and any artifacts, and the workflow resumes; expiry is handled.
+8. The FlowForge `HumanGatewayInteractionProvider` round-trips a `human-input` and a `human-approval` interaction via a stub implementing the published `WorkflowRunner` / `PendingHumanTask` interface, returning the human response and any artifacts, and the workflow (provider contract) resumes; expiry is handled. Live FlowForge runtime E2E is **out of scope** (no pinned commit).
 9. The chaos test suite covering scenarios 1–11 in §15 passes with the defining acceptance criterion met.
 10. The PWA meets the accessibility requirements in §11 at WCAG 2.1 AA (target).
 
@@ -465,7 +465,7 @@ The project is considered complete when all of the following are true:
 | PostgreSQL artifact bytes | storage | Relay artifact capacity/throughput limited to app-served egress | BYTEA storage (default); S3-compatible `ArtifactStore` adapter available for high-scale deployments |
 | React 19 / TypeScript 7 / Vite 8 | npm | Client toolchain issues | Pin versions; TS 5.x fallback if ecosystem lags (Open Q) |
 | Service Worker / IndexedDB | platform | Older browsers lack support | Target current Chrome/Edge/Firefox/Safari; feature-detect |
-| FlowForge | external repo | Integration surface changes | Depend on published interfaces (`WorkflowRunner`, `PendingHumanTask`); pin commit for integration tests |
+| FlowForge | external repo | Integration surface changes | Depend on published interfaces (`WorkflowRunner`, `PendingHumanTask`); contract-based tests, no pinned commit |
 | Docker / Docker Compose | dev tooling | Dev environment harder | Provide bare-metal scripts as fallback |
 
 ### 18.2 Risks
@@ -474,7 +474,7 @@ The project is considered complete when all of the following are true:
 | Sync algorithm bugs cause loss/duplication | Medium | High (core value prop) | Schemas-first; property/chaos tests before Relay integration |
 | Low-bandwidth artifact sync is too slow | Medium | Medium | Resumable transfer, dedup, size limits; content-hash only-when-changed |
 | Edge hardware too weak for concurrent clients | Low | Medium | Load-test on Pi; horizontal tuning; cheap UX |
-| FlowForge interface drift during integration | Medium | Medium | Pin FlowForge commit; adapter interface isolates changes |
+| FlowForge interface drift during integration | Medium | Medium | Adapter interface isolates changes; contract-based tests against the published interface |
 | PWA offline correctness (service worker cache pitfalls) | Medium | Medium | Versioned caches; explicit cache-busting strategy; chaos/E2E tests |
 | Scope creep into workflow/auth/audit territory | Medium | High | Non-goals enforced (§3.2); boundary principle in §5 |
 | Security of a device anyone can walk up to | Medium | High | Local authn + TLS; outbound-only; per-conversation authz |
