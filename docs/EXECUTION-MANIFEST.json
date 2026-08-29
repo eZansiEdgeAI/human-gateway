@@ -209,7 +209,7 @@
           "id": "LOCAL-EDGE-1.4",
           "title": "[ ] Implement local REST API endpoints",
           "description": "[ ] Implement local REST API endpoints: conversations, messages, tasks, artifacts, sync status",
-          "ownerAgent": "pwa-engineer",
+          "ownerAgent": "edge-engineer",
           "dependencies": [
             "LOCAL-EDGE-1.3"
           ],
