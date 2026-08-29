@@ -1,0 +1,22 @@
+[
+  {
+    "id": "01JZ7F6G7H8I9J0K1L2M3N4O5P",
+    "username": "teacher.okafo",
+    "displayName": "Ms. Okafor",
+    "passwordVerifier": "$argon2id$v=19$m=65536,t=3,p=4$c2FsdHNhbHQ$c2FsdC1oYXNoLXNhbHQtc2FsdC1oYXNo",
+    "status": "ACTIVE",
+    "lastLoginAt": "2026-08-28T09:15:00Z",
+    "createdAt": "2026-08-28T08:00:00Z",
+    "updatedAt": "2026-08-28T09:15:00Z"
+  },
+  {
+    "id": "01JZ7F7H8I9J0K1L2M3N4O5P6Q",
+    "username": "reviewer-01",
+    "displayName": "Reviewer One",
+    "passwordVerifier": "$2b$12$abcdefghijklmnopqrstuvwxyz1234567890ABCD",
+    "status": "DISABLED",
+    "disabledAt": "2026-08-28T11:00:00Z",
+    "createdAt": "2026-08-28T08:00:00Z",
+    "updatedAt": "2026-08-28T11:00:00Z"
+  }
+]

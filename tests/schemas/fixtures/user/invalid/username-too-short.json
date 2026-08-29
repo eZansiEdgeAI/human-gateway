@@ -1,0 +1,8 @@
+{
+  "id": "01JZ7F6G7H8I9J0K1L2M3N4O5P",
+  "username": "ab",
+  "displayName": "Ms. Okafor",
+  "passwordVerifier": "$argon2id$v=19$m=65536,t=3,p=4$c2FsdHNhbHQ$c2FsdC1oYXNoLXNhbHQtc2FsdC1oYXNo",
+  "status": "ACTIVE",
+  "createdAt": "2026-08-28T08:00:00Z"
+}

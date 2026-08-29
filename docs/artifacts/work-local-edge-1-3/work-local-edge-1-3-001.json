@@ -1,0 +1,18 @@
+{
+  "type": "work.local-edge-1.3",
+  "category": "work",
+  "taskId": "LOCAL-EDGE-1.3",
+  "producedBy": "edge-engineer",
+  "status": "complete",
+  "summary": "The durable inbox/outbox (LOCAL-EDGE-1.3) is already implemented and passing, but my validation checklist has one item not yet covered anywhere in the repo: a real crash-consistency test (kill -9 duri",
+  "inputs": [
+    "work-local-edge-1-2-001"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "The durable inbox/outbox (LOCAL-EDGE-1.3) is already implemented and passing, but my validation checklist has one item not yet covered anywhere in the repo: a real crash-consistency test (kill -9 during write → restart → message present exactly once). I'll add that, wire the probe into the solution, and update the Edge README status.\nThe durable inbox/outbox deliverable (LOCAL-EDGE-1.3) is complete and verified end-to-end.\n\n## What was already in place (verified, not re-authored)\n\nThe core durab"
+  },
+  "nextActions": [],
+  "artifactId": "work-local-edge-1-3-001",
+  "createdAt": "2026-08-29T00:34:49.986Z"
+}

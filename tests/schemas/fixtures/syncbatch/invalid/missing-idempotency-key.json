@@ -1,0 +1,37 @@
+{
+  "batchId": "01JZ7F3H9I0J1K2L3M4N5O6P7Q",
+  "gatewayId": "01JZ7F3I0J1K2L3M4N5O6P7Q8R",
+  "direction": "PUSH",
+  "sinceCursor": null,
+  "cursor": "cur-a1b4",
+  "sequenceStart": 101,
+  "sequenceEnd": 101,
+  "items": [
+    {
+      "kind": "message",
+      "sequence": 101,
+      "message": {
+        "id": "01JZ7F3B8N9M2XKQ5R4T6VWY8A",
+        "sender": {
+          "address": "human:teacher@school.example",
+          "kind": "human",
+          "displayName": "Ms. Okafor"
+        },
+        "recipients": [
+          {
+            "address": "agent:flowforge-8c2f1a9d",
+            "kind": "agent",
+            "displayName": "Assessment Agent"
+          }
+        ],
+        "conversationId": "01JZ7F3C4D5E6F7G8H9I0J1K2L",
+        "payload": {
+          "body": "Idempotency key missing."
+        },
+        "createdAt": "2026-08-28T09:15:00Z",
+        "contentHash": "sha256:b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2"
+      }
+    }
+  ],
+  "createdAt": "2026-08-28T09:20:00Z"
+}

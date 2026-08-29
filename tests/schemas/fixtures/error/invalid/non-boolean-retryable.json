@@ -1,0 +1,5 @@
+{
+  "code": "RATE_LIMITED",
+  "message": "retryable must be a boolean",
+  "retryable": "yes"
+}

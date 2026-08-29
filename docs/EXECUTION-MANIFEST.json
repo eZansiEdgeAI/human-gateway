@@ -1,0 +1,1181 @@
+{
+  "version": "1.0",
+  "generatedAt": "2026-08-29T00:08:22.084Z",
+  "granularity": "fine",
+  "sourceLayout": "features",
+  "repoRoot": "/home/mcfuzzysquirrel/Projects/human-gateway",
+  "harnessRoot": ".opencode",
+  "prdPath": "/home/mcfuzzysquirrel/Projects/human-gateway/docs/product-vision.md",
+  "visionPath": "/home/mcfuzzysquirrel/Projects/human-gateway/docs/product-vision.md",
+  "featureOrder": [
+    "protocol",
+    "local-edge",
+    "offline-pwa",
+    "synchronisation",
+    "cloud-relay",
+    "artifacts",
+    "identity-security",
+    "external-web-access",
+    "flowforge-integration"
+  ],
+  "progressPath": "/home/mcfuzzysquirrel/Projects/human-gateway/docs/PROGRESS.md",
+  "auditPath": "/home/mcfuzzysquirrel/Projects/human-gateway/docs/EXECUTION-AUDIT.jsonl",
+  "validationCommands": [],
+  "approvalGates": {
+    "preflight": true,
+    "betweenPhases": true
+  },
+  "phases": [
+    {
+      "id": "PROTOCOL-0",
+      "title": "Phase 0: Protocol",
+      "feature": "protocol",
+      "description": "- [x] Define JSON schemas: Message, Artifact, Participant, Delivery, HumanTask, SyncBatch - [x] Define the sync model (IDs, sequence numbers, cursors, idempotency, content hashes) - [x] Define the identity model (gateway, participant, user) and error model",
+      "ownerAgents": [
+        "protocol-engineer",
+        "security-engineer"
+      ],
+      "dependencies": [],
+      "approvalRequired": false,
+      "tasks": [
+        {
+          "id": "PROTOCOL-0.1",
+          "title": "[x] Define JSON schemas",
+          "description": "[x] Define JSON schemas: Message, Artifact, Participant, Delivery, HumanTask, SyncBatch",
+          "ownerAgent": "protocol-engineer",
+          "dependencies": [],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[x] Define JSON schemas: Message, Artifact, Participant, Delivery, HumanTask, SyncBatch"
+          ],
+          "produces": "work.protocol-0.1",
+          "inputs": []
+        },
+        {
+          "id": "PROTOCOL-0.2",
+          "title": "[x] Define the sync model (IDs, sequence numbers, cursors, idempotency, content hashes)",
+          "description": "[x] Define the sync model (IDs, sequence numbers, cursors, idempotency, content hashes)",
+          "ownerAgent": "protocol-engineer",
+          "dependencies": [
+            "PROTOCOL-0.1"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[x] Define the sync model (IDs, sequence numbers, cursors, idempotency, content hashes)"
+          ],
+          "produces": "work.protocol-0.2",
+          "inputs": [
+            "work.protocol-0.1"
+          ]
+        },
+        {
+          "id": "PROTOCOL-0.3",
+          "title": "[x] Define the identity model (gateway, participant, user) and error model",
+          "description": "[x] Define the identity model (gateway, participant, user) and error model",
+          "ownerAgent": "security-engineer",
+          "dependencies": [
+            "PROTOCOL-0.2"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[x] Define the identity model (gateway, participant, user) and error model"
+          ],
+          "produces": "work.protocol-0.3",
+          "inputs": [
+            "work.protocol-0.2"
+          ]
+        },
+        {
+          "id": "PROTOCOL-0.4",
+          "title": "[x] Publish schemas under `schemas/` with validation tests (JSON Schema validators)",
+          "description": "[x] Publish schemas under `schemas/` with validation tests (JSON Schema validators)",
+          "ownerAgent": "protocol-engineer",
+          "dependencies": [
+            "PROTOCOL-0.3"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[x] Publish schemas under `schemas/` with validation tests (JSON Schema validators)"
+          ],
+          "produces": "work.protocol-0.4",
+          "inputs": [
+            "work.protocol-0.3"
+          ]
+        },
+        {
+          "id": "PROTOCOL-0.5",
+          "title": "[ ] Scaffold `src/HumanGateway",
+          "description": "[ ] Scaffold `src/HumanGateway.Protocol` (.NET) with schema-backed entity model and validation",
+          "ownerAgent": "protocol-engineer",
+          "dependencies": [
+            "PROTOCOL-0.4"
+          ],
+          "expectedOutputs": [
+            "src/HumanGateway.Protocol"
+          ],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Scaffold `src/HumanGateway.Protocol` (.NET) with schema-backed entity model and validation"
+          ],
+          "produces": "work.protocol-0.5",
+          "inputs": [
+            "work.protocol-0.4"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "LOCAL-EDGE-1",
+      "title": "Phase 1: Local Edge",
+      "feature": "local-edge",
+      "description": "- [ ] Scaffold `src/HumanGateway.Core` (outbox/inbox, idempotency, sync engine interface) and `src/HumanGateway.Edge` - [ ] Build ASP.NET Core minimal API with SQLite (WAL mode) schema for conversations, messages, deliveries, artifacts, participants - [ ] Implement durable inbox/outbox: every create is committed to SQLite before any network attempt",
+      "ownerAgents": [
+        "sync-engineer",
+        "edge-engineer",
+        "pwa-engineer",
+        "infrastructure-engineer"
+      ],
+      "dependencies": [
+        "PROTOCOL-0"
+      ],
+      "approvalRequired": true,
+      "tasks": [
+        {
+          "id": "LOCAL-EDGE-1.1",
+          "title": "[ ] Scaffold `src/HumanGateway",
+          "description": "[ ] Scaffold `src/HumanGateway.Core` (outbox/inbox, idempotency, sync engine interface) and `src/HumanGateway.Edge`",
+          "ownerAgent": "sync-engineer",
+          "dependencies": [],
+          "expectedOutputs": [
+            "src/HumanGateway.Core",
+            "src/HumanGateway.Edge"
+          ],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Scaffold `src/HumanGateway.Core` (outbox/inbox, idempotency, sync engine interface) and `src/HumanGateway.Edge`"
+          ],
+          "produces": "work.local-edge-1.1",
+          "inputs": []
+        },
+        {
+          "id": "LOCAL-EDGE-1.2",
+          "title": "[ ] Build ASP",
+          "description": "[ ] Build ASP.NET Core minimal API with SQLite (WAL mode) schema for conversations, messages, deliveries, artifacts, participants",
+          "ownerAgent": "edge-engineer",
+          "dependencies": [
+            "LOCAL-EDGE-1.1"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Build ASP.NET Core minimal API with SQLite (WAL mode) schema for conversations, messages, deliveries, artifacts, participants"
+          ],
+          "produces": "work.local-edge-1.2",
+          "inputs": [
+            "work.local-edge-1.1"
+          ]
+        },
+        {
+          "id": "LOCAL-EDGE-1.3",
+          "title": "[ ] Implement durable inbox/outbox",
+          "description": "[ ] Implement durable inbox/outbox: every create is committed to SQLite before any network attempt",
+          "ownerAgent": "edge-engineer",
+          "dependencies": [
+            "LOCAL-EDGE-1.2"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Implement durable inbox/outbox: every create is committed to SQLite before any network attempt"
+          ],
+          "produces": "work.local-edge-1.3",
+          "inputs": [
+            "work.local-edge-1.2"
+          ]
+        },
+        {
+          "id": "LOCAL-EDGE-1.4",
+          "title": "[ ] Implement local REST API endpoints",
+          "description": "[ ] Implement local REST API endpoints: conversations, messages, tasks, artifacts, sync status",
+          "ownerAgent": "pwa-engineer",
+          "dependencies": [
+            "LOCAL-EDGE-1.3"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Implement local REST API endpoints: conversations, messages, tasks, artifacts, sync status"
+          ],
+          "produces": "work.local-edge-1.4",
+          "inputs": [
+            "work.local-edge-1.3"
+          ]
+        },
+        {
+          "id": "LOCAL-EDGE-1.5",
+          "title": "[ ] Local filesystem artifact store with content-hash naming and deduplication",
+          "description": "[ ] Local filesystem artifact store with content-hash naming and deduplication",
+          "ownerAgent": "edge-engineer",
+          "dependencies": [
+            "LOCAL-EDGE-1.4"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Local filesystem artifact store with content-hash naming and deduplication"
+          ],
+          "produces": "work.local-edge-1.5",
+          "inputs": [
+            "work.local-edge-1.4"
+          ]
+        },
+        {
+          "id": "LOCAL-EDGE-1.6",
+          "title": "[ ] Background sync worker skeleton (outbound sync hooks; full protocol in synchronisation feature)",
+          "description": "[ ] Background sync worker skeleton (outbound sync hooks; full protocol in synchronisation feature)",
+          "ownerAgent": "edge-engineer",
+          "dependencies": [
+            "LOCAL-EDGE-1.5"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Background sync worker skeleton (outbound sync hooks; full protocol in synchronisation feature)"
+          ],
+          "produces": "work.local-edge-1.6",
+          "inputs": [
+            "work.local-edge-1.5"
+          ]
+        },
+        {
+          "id": "LOCAL-EDGE-1.7",
+          "title": "[ ] Docker/Podman image for the Edge; run script for Raspberry Pi / old PC",
+          "description": "[ ] Docker/Podman image for the Edge; run script for Raspberry Pi / old PC",
+          "ownerAgent": "infrastructure-engineer",
+          "dependencies": [
+            "LOCAL-EDGE-1.6"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Docker/Podman image for the Edge; run script for Raspberry Pi / old PC"
+          ],
+          "produces": "work.local-edge-1.7",
+          "inputs": [
+            "work.local-edge-1.6"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "OFFLINE-PWA-2",
+      "title": "Phase 2: Offline PWA",
+      "feature": "offline-pwa",
+      "description": "- [ ] Scaffold `src/HumanGateway.Client` (Vite + React + TS PWA, Workbox) - [ ] Service Worker app-shell caching and offline detection; versioned caches - [ ] IndexedDB store for conversations, messages, tasks, and local outbox",
+      "ownerAgents": [
+        "pwa-engineer"
+      ],
+      "dependencies": [
+        "LOCAL-EDGE-1"
+      ],
+      "approvalRequired": true,
+      "tasks": [
+        {
+          "id": "OFFLINE-PWA-2.1",
+          "title": "[ ] Scaffold `src/HumanGateway",
+          "description": "[ ] Scaffold `src/HumanGateway.Client` (Vite + React + TS PWA, Workbox)",
+          "ownerAgent": "pwa-engineer",
+          "dependencies": [],
+          "expectedOutputs": [
+            "src/HumanGateway.Client"
+          ],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Scaffold `src/HumanGateway.Client` (Vite + React + TS PWA, Workbox)"
+          ],
+          "produces": "work.offline-pwa-2.1",
+          "inputs": []
+        },
+        {
+          "id": "OFFLINE-PWA-2.2",
+          "title": "[ ] Service Worker app-shell caching and offline detection; versioned caches",
+          "description": "[ ] Service Worker app-shell caching and offline detection; versioned caches",
+          "ownerAgent": "pwa-engineer",
+          "dependencies": [
+            "OFFLINE-PWA-2.1"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Service Worker app-shell caching and offline detection; versioned caches"
+          ],
+          "produces": "work.offline-pwa-2.2",
+          "inputs": [
+            "work.offline-pwa-2.1"
+          ]
+        },
+        {
+          "id": "OFFLINE-PWA-2.3",
+          "title": "[ ] IndexedDB store for conversations, messages, tasks, and local outbox",
+          "description": "[ ] IndexedDB store for conversations, messages, tasks, and local outbox",
+          "ownerAgent": "pwa-engineer",
+          "dependencies": [
+            "OFFLINE-PWA-2.2"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] IndexedDB store for conversations, messages, tasks, and local outbox"
+          ],
+          "produces": "work.offline-pwa-2.3",
+          "inputs": [
+            "work.offline-pwa-2.2"
+          ]
+        },
+        {
+          "id": "OFFLINE-PWA-2.4",
+          "title": "[ ] Edge API client with offline-first fetch wrapper (queue to outbox when offline)",
+          "description": "[ ] Edge API client with offline-first fetch wrapper (queue to outbox when offline)",
+          "ownerAgent": "pwa-engineer",
+          "dependencies": [
+            "OFFLINE-PWA-2.3"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Edge API client with offline-first fetch wrapper (queue to outbox when offline)"
+          ],
+          "produces": "work.offline-pwa-2.4",
+          "inputs": [
+            "work.offline-pwa-2.3"
+          ]
+        },
+        {
+          "id": "OFFLINE-PWA-2.5",
+          "title": "[ ] Inbox/Outbox + Compose + delivery-status UI",
+          "description": "[ ] Inbox/Outbox + Compose + delivery-status UI",
+          "ownerAgent": "pwa-engineer",
+          "dependencies": [
+            "OFFLINE-PWA-2.4"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Inbox/Outbox + Compose + delivery-status UI"
+          ],
+          "produces": "work.offline-pwa-2.5",
+          "inputs": [
+            "work.offline-pwa-2.4"
+          ]
+        },
+        {
+          "id": "OFFLINE-PWA-2.6",
+          "title": "[ ] Task answering UI (input and approval), artifact attachment UI",
+          "description": "[ ] Task answering UI (input and approval), artifact attachment UI",
+          "ownerAgent": "pwa-engineer",
+          "dependencies": [
+            "OFFLINE-PWA-2.5"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Task answering UI (input and approval), artifact attachment UI"
+          ],
+          "produces": "work.offline-pwa-2.6",
+          "inputs": [
+            "work.offline-pwa-2.5"
+          ]
+        },
+        {
+          "id": "OFFLINE-PWA-2.7",
+          "title": "[ ] Sync banner / offline indicator",
+          "description": "[ ] Sync banner / offline indicator",
+          "ownerAgent": "pwa-engineer",
+          "dependencies": [
+            "OFFLINE-PWA-2.6"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Sync banner / offline indicator"
+          ],
+          "produces": "work.offline-pwa-2.7",
+          "inputs": [
+            "work.offline-pwa-2.6"
+          ]
+        },
+        {
+          "id": "OFFLINE-PWA-2.8",
+          "title": "[ ] Responsive layout for small Android screens and old desktops",
+          "description": "[ ] Responsive layout for small Android screens and old desktops",
+          "ownerAgent": "pwa-engineer",
+          "dependencies": [
+            "OFFLINE-PWA-2.7"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Responsive layout for small Android screens and old desktops"
+          ],
+          "produces": "work.offline-pwa-2.8",
+          "inputs": [
+            "work.offline-pwa-2.7"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "SYNCHRONISATION-3",
+      "title": "Phase 3: Synchronisation",
+      "feature": "synchronisation",
+      "description": "- [x] Define the sync batch schema and cursor model in `schemas/syncbatch.schema.json` (with protocol feature) - [ ] Implement the Edge-side sync worker: push/pull cursors, idempotency keys, retry/backoff - [ ] Implement delivery-state transitions and acknowledgements",
+      "ownerAgents": [
+        "protocol-engineer",
+        "sync-engineer"
+      ],
+      "dependencies": [
+        "OFFLINE-PWA-2"
+      ],
+      "approvalRequired": true,
+      "tasks": [
+        {
+          "id": "SYNCHRONISATION-3.1",
+          "title": "[x] Define the sync batch schema and cursor model in `schemas/syncbatch",
+          "description": "[x] Define the sync batch schema and cursor model in `schemas/syncbatch.schema.json` (with protocol feature)",
+          "ownerAgent": "protocol-engineer",
+          "dependencies": [],
+          "expectedOutputs": [
+            "schemas/syncbatch.schema.json"
+          ],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[x] Define the sync batch schema and cursor model in `schemas/syncbatch.schema.json` (with protocol feature)"
+          ],
+          "produces": "work.synchronisation-3.1",
+          "inputs": []
+        },
+        {
+          "id": "SYNCHRONISATION-3.2",
+          "title": "[ ] Implement the Edge-side sync worker",
+          "description": "[ ] Implement the Edge-side sync worker: push/pull cursors, idempotency keys, retry/backoff",
+          "ownerAgent": "sync-engineer",
+          "dependencies": [
+            "SYNCHRONISATION-3.1"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Implement the Edge-side sync worker: push/pull cursors, idempotency keys, retry/backoff"
+          ],
+          "produces": "work.synchronisation-3.2",
+          "inputs": [
+            "work.synchronisation-3.1"
+          ]
+        },
+        {
+          "id": "SYNCHRONISATION-3.3",
+          "title": "[ ] Implement delivery-state transitions and acknowledgements",
+          "description": "[ ] Implement delivery-state transitions and acknowledgements",
+          "ownerAgent": "sync-engineer",
+          "dependencies": [
+            "SYNCHRONISATION-3.2"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Implement delivery-state transitions and acknowledgements"
+          ],
+          "produces": "work.synchronisation-3.3",
+          "inputs": [
+            "work.synchronisation-3.2"
+          ]
+        },
+        {
+          "id": "SYNCHRONISATION-3.4",
+          "title": "[ ] Deterministic ordering/reordering by sequence number",
+          "description": "[ ] Deterministic ordering/reordering by sequence number",
+          "ownerAgent": "sync-engineer",
+          "dependencies": [
+            "SYNCHRONISATION-3.3"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Deterministic ordering/reordering by sequence number"
+          ],
+          "produces": "work.synchronisation-3.4",
+          "inputs": [
+            "work.synchronisation-3.3"
+          ]
+        },
+        {
+          "id": "SYNCHRONISATION-3.5",
+          "title": "[ ] Convergence logic after long disconnects and partial failures",
+          "description": "[ ] Convergence logic after long disconnects and partial failures",
+          "ownerAgent": "sync-engineer",
+          "dependencies": [
+            "SYNCHRONISATION-3.4"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Convergence logic after long disconnects and partial failures"
+          ],
+          "produces": "work.synchronisation-3.5",
+          "inputs": [
+            "work.synchronisation-3.4"
+          ]
+        },
+        {
+          "id": "SYNCHRONISATION-3.6",
+          "title": "[ ] Property/chaos tests",
+          "description": "[ ] Property/chaos tests: duplication, out-of-order, multi-day disconnection",
+          "ownerAgent": "sync-engineer",
+          "dependencies": [
+            "SYNCHRONISATION-3.5"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Property/chaos tests: duplication, out-of-order, multi-day disconnection"
+          ],
+          "produces": "work.synchronisation-3.6",
+          "inputs": [
+            "work.synchronisation-3.5"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CLOUD-RELAY-4",
+      "title": "Phase 4: Cloud Relay",
+      "feature": "cloud-relay",
+      "description": "- [ ] Scaffold `src/HumanGateway.Relay` (ASP.NET Core minimal API + EF Core/PostgreSQL) - [ ] PostgreSQL schema: gateways, conversations, messages, deliveries, artifacts, cursors - [ ] Gateway registration + rendezvous endpoints",
+      "ownerAgents": [
+        "infrastructure-engineer",
+        "relay-engineer"
+      ],
+      "dependencies": [
+        "SYNCHRONISATION-3"
+      ],
+      "approvalRequired": true,
+      "tasks": [
+        {
+          "id": "CLOUD-RELAY-4.1",
+          "title": "[ ] Scaffold `src/HumanGateway",
+          "description": "[ ] Scaffold `src/HumanGateway.Relay` (ASP.NET Core minimal API + EF Core/PostgreSQL)",
+          "ownerAgent": "infrastructure-engineer",
+          "dependencies": [],
+          "expectedOutputs": [
+            "src/HumanGateway.Relay"
+          ],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Scaffold `src/HumanGateway.Relay` (ASP.NET Core minimal API + EF Core/PostgreSQL)"
+          ],
+          "produces": "work.cloud-relay-4.1",
+          "inputs": []
+        },
+        {
+          "id": "CLOUD-RELAY-4.2",
+          "title": "[ ] PostgreSQL schema",
+          "description": "[ ] PostgreSQL schema: gateways, conversations, messages, deliveries, artifacts, cursors",
+          "ownerAgent": "relay-engineer",
+          "dependencies": [
+            "CLOUD-RELAY-4.1"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] PostgreSQL schema: gateways, conversations, messages, deliveries, artifacts, cursors"
+          ],
+          "produces": "work.cloud-relay-4.2",
+          "inputs": [
+            "work.cloud-relay-4.1"
+          ]
+        },
+        {
+          "id": "CLOUD-RELAY-4.3",
+          "title": "[ ] Gateway registration + rendezvous endpoints",
+          "description": "[ ] Gateway registration + rendezvous endpoints",
+          "ownerAgent": "relay-engineer",
+          "dependencies": [
+            "CLOUD-RELAY-4.2"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Gateway registration + rendezvous endpoints"
+          ],
+          "produces": "work.cloud-relay-4.3",
+          "inputs": [
+            "work.cloud-relay-4.2"
+          ]
+        },
+        {
+          "id": "CLOUD-RELAY-4.4",
+          "title": "[ ] Sync endpoint",
+          "description": "[ ] Sync endpoint: push/pull cursors, delivery ack (consumes the synchronisation protocol)",
+          "ownerAgent": "relay-engineer",
+          "dependencies": [
+            "CLOUD-RELAY-4.3"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Sync endpoint: push/pull cursors, delivery ack (consumes the synchronisation protocol)"
+          ],
+          "produces": "work.cloud-relay-4.4",
+          "inputs": [
+            "work.cloud-relay-4.3"
+          ]
+        },
+        {
+          "id": "CLOUD-RELAY-4.5",
+          "title": "[ ] `ArtifactStore` interface with a PostgreSQL BYTEA implementation (streaming reads; S3-compatible adapter as an optional later step)",
+          "description": "[ ] `ArtifactStore` interface with a PostgreSQL BYTEA implementation (streaming reads; S3-compatible adapter as an optional later step)",
+          "ownerAgent": "relay-engineer",
+          "dependencies": [
+            "CLOUD-RELAY-4.4"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] `ArtifactStore` interface with a PostgreSQL BYTEA implementation (streaming reads; S3-compatible adapter as an optional later step)"
+          ],
+          "produces": "work.cloud-relay-4.5",
+          "inputs": [
+            "work.cloud-relay-4.4"
+          ]
+        },
+        {
+          "id": "CLOUD-RELAY-4.6",
+          "title": "[ ] Docker Compose environment",
+          "description": "[ ] Docker Compose environment: Relay + PostgreSQL + Edge",
+          "ownerAgent": "infrastructure-engineer",
+          "dependencies": [
+            "CLOUD-RELAY-4.5"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Docker Compose environment: Relay + PostgreSQL + Edge"
+          ],
+          "produces": "work.cloud-relay-4.6",
+          "inputs": [
+            "work.cloud-relay-4.5"
+          ]
+        },
+        {
+          "id": "CLOUD-RELAY-4.7",
+          "title": "[ ] Structured logging and health endpoint",
+          "description": "[ ] Structured logging and health endpoint",
+          "ownerAgent": "relay-engineer",
+          "dependencies": [
+            "CLOUD-RELAY-4.6"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Structured logging and health endpoint"
+          ],
+          "produces": "work.cloud-relay-4.7",
+          "inputs": [
+            "work.cloud-relay-4.6"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ARTIFACTS-1",
+      "title": "Phase 1: artifacts",
+      "feature": "artifacts",
+      "description": "artifacts",
+      "ownerAgents": [
+        "artifact-engineer"
+      ],
+      "dependencies": [
+        "CLOUD-RELAY-4"
+      ],
+      "approvalRequired": true,
+      "tasks": [
+        {
+          "id": "ARTIFACTS-1.1",
+          "title": "| ID | Requirement | Priority |",
+          "description": "| ID | Requirement | Priority |",
+          "ownerAgent": "artifact-engineer",
+          "dependencies": [],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "| ID | Requirement | Priority |"
+          ],
+          "produces": "work.artifacts-1.1",
+          "inputs": []
+        }
+      ]
+    },
+    {
+      "id": "IDENTITY-SECURITY-5",
+      "title": "Phase 5: Identity and Security",
+      "feature": "identity-security",
+      "description": "- [ ] Gateway identity: unique ID + registration token; Relay rejects unregistered gateways - [ ] User identity + authentication at the Edge (local) and Relay (remote) with signed tokens/sessions - [ ] Authorisation middleware: per-conversation/task/artifact access control",
+      "ownerAgents": [
+        "security-engineer"
+      ],
+      "dependencies": [
+        "ARTIFACTS-1"
+      ],
+      "approvalRequired": true,
+      "tasks": [
+        {
+          "id": "IDENTITY-SECURITY-5.1",
+          "title": "[ ] Gateway identity",
+          "description": "[ ] Gateway identity: unique ID + registration token; Relay rejects unregistered gateways",
+          "ownerAgent": "security-engineer",
+          "dependencies": [],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Gateway identity: unique ID + registration token; Relay rejects unregistered gateways"
+          ],
+          "produces": "work.identity-security-5.1",
+          "inputs": []
+        },
+        {
+          "id": "IDENTITY-SECURITY-5.2",
+          "title": "[ ] User identity + authentication at the Edge (local) and Relay (remote) with signed tokens/sessions",
+          "description": "[ ] User identity + authentication at the Edge (local) and Relay (remote) with signed tokens/sessions",
+          "ownerAgent": "security-engineer",
+          "dependencies": [
+            "IDENTITY-SECURITY-5.1"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] User identity + authentication at the Edge (local) and Relay (remote) with signed tokens/sessions"
+          ],
+          "produces": "work.identity-security-5.2",
+          "inputs": [
+            "work.identity-security-5.1"
+          ]
+        },
+        {
+          "id": "IDENTITY-SECURITY-5.3",
+          "title": "[ ] Authorisation middleware",
+          "description": "[ ] Authorisation middleware: per-conversation/task/artifact access control",
+          "ownerAgent": "security-engineer",
+          "dependencies": [
+            "IDENTITY-SECURITY-5.2"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Authorisation middleware: per-conversation/task/artifact access control"
+          ],
+          "produces": "work.identity-security-5.3",
+          "inputs": [
+            "work.identity-security-5.2"
+          ]
+        },
+        {
+          "id": "IDENTITY-SECURITY-5.4",
+          "title": "[ ] TLS everywhere; signed request tokens for Edge↔Relay traffic",
+          "description": "[ ] TLS everywhere; signed request tokens for Edge↔Relay traffic",
+          "ownerAgent": "security-engineer",
+          "dependencies": [
+            "IDENTITY-SECURITY-5.3"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] TLS everywhere; signed request tokens for Edge↔Relay traffic"
+          ],
+          "produces": "work.identity-security-5.4",
+          "inputs": [
+            "work.identity-security-5.3"
+          ]
+        },
+        {
+          "id": "IDENTITY-SECURITY-5.5",
+          "title": "[ ] Secure artifact access control; content-hash verification on download",
+          "description": "[ ] Secure artifact access control; content-hash verification on download",
+          "ownerAgent": "security-engineer",
+          "dependencies": [
+            "IDENTITY-SECURITY-5.4"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Secure artifact access control; content-hash verification on download"
+          ],
+          "produces": "work.identity-security-5.5",
+          "inputs": [
+            "work.identity-security-5.4"
+          ]
+        },
+        {
+          "id": "IDENTITY-SECURITY-5.6",
+          "title": "[ ] Secret management (env/secret store, no secrets in repo)",
+          "description": "[ ] Secret management (env/secret store, no secrets in repo)",
+          "ownerAgent": "security-engineer",
+          "dependencies": [
+            "IDENTITY-SECURITY-5.5"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Secret management (env/secret store, no secrets in repo)"
+          ],
+          "produces": "work.identity-security-5.6",
+          "inputs": [
+            "work.identity-security-5.5"
+          ]
+        },
+        {
+          "id": "IDENTITY-SECURITY-5.7",
+          "title": "[ ] Correlation-token passthrough so consumers (FlowForge) enforce role checks and audit",
+          "description": "[ ] Correlation-token passthrough so consumers (FlowForge) enforce role checks and audit",
+          "ownerAgent": "security-engineer",
+          "dependencies": [
+            "IDENTITY-SECURITY-5.6"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Correlation-token passthrough so consumers (FlowForge) enforce role checks and audit"
+          ],
+          "produces": "work.identity-security-5.7",
+          "inputs": [
+            "work.identity-security-5.6"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EXTERNAL-WEB-ACCESS-6",
+      "title": "Phase 6: External Web Access",
+      "feature": "external-web-access",
+      "description": "- [ ] Relay-hosted web entry point for the PWA - [ ] Rendezvous routing: map remote participant → school Edge → deliver via outbound sync channel - [ ] Remote login integration (uses identity-security)",
+      "ownerAgents": [
+        "pwa-engineer",
+        "relay-engineer",
+        "workflow-engineer",
+        "qa-engineer"
+      ],
+      "dependencies": [
+        "IDENTITY-SECURITY-5"
+      ],
+      "approvalRequired": true,
+      "tasks": [
+        {
+          "id": "EXTERNAL-WEB-ACCESS-6.1",
+          "title": "[ ] Relay-hosted web entry point for the PWA",
+          "description": "[ ] Relay-hosted web entry point for the PWA",
+          "ownerAgent": "pwa-engineer",
+          "dependencies": [],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Relay-hosted web entry point for the PWA"
+          ],
+          "produces": "work.external-web-access-6.1",
+          "inputs": []
+        },
+        {
+          "id": "EXTERNAL-WEB-ACCESS-6.2",
+          "title": "[ ] Rendezvous routing",
+          "description": "[ ] Rendezvous routing: map remote participant → school Edge → deliver via outbound sync channel",
+          "ownerAgent": "relay-engineer",
+          "dependencies": [
+            "EXTERNAL-WEB-ACCESS-6.1"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Rendezvous routing: map remote participant → school Edge → deliver via outbound sync channel"
+          ],
+          "produces": "work.external-web-access-6.2",
+          "inputs": [
+            "work.external-web-access-6.1"
+          ]
+        },
+        {
+          "id": "EXTERNAL-WEB-ACCESS-6.3",
+          "title": "[ ] Remote login integration (uses identity-security)",
+          "description": "[ ] Remote login integration (uses identity-security)",
+          "ownerAgent": "pwa-engineer",
+          "dependencies": [
+            "EXTERNAL-WEB-ACCESS-6.2"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Remote login integration (uses identity-security)"
+          ],
+          "produces": "work.external-web-access-6.3",
+          "inputs": [
+            "work.external-web-access-6.2"
+          ]
+        },
+        {
+          "id": "EXTERNAL-WEB-ACCESS-6.4",
+          "title": "[ ] Responses from remote users flow back to the school and, via correlation tokens, to the workflow consumer",
+          "description": "[ ] Responses from remote users flow back to the school and, via correlation tokens, to the workflow consumer",
+          "ownerAgent": "workflow-engineer",
+          "dependencies": [
+            "EXTERNAL-WEB-ACCESS-6.3"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Responses from remote users flow back to the school and, via correlation tokens, to the workflow consumer"
+          ],
+          "produces": "work.external-web-access-6.4",
+          "inputs": [
+            "work.external-web-access-6.3"
+          ]
+        },
+        {
+          "id": "EXTERNAL-WEB-ACCESS-6.5",
+          "title": "[ ] End-to-end test",
+          "description": "[ ] End-to-end test: external user responds; school Edge + workflow receive it",
+          "ownerAgent": "qa-engineer",
+          "dependencies": [
+            "EXTERNAL-WEB-ACCESS-6.4"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] End-to-end test: external user responds; school Edge + workflow receive it"
+          ],
+          "produces": "work.external-web-access-6.5",
+          "inputs": [
+            "work.external-web-access-6.4"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "FLOWFORGE-INTEGRATION-7",
+      "title": "Phase 7: FlowForge Reference Integration",
+      "feature": "flowforge-integration",
+      "description": "- [ ] Add `HumanInteractionProvider` abstraction in `src/HumanGateway.Workflow` - [ ] `ConsoleHumanInteractionProvider` (baseline) - [ ] `HumanGatewayInteractionProvider`: request → HumanGateway message; response + artifacts → workflow events",
+      "ownerAgents": [
+        "workflow-engineer"
+      ],
+      "dependencies": [
+        "EXTERNAL-WEB-ACCESS-6"
+      ],
+      "approvalRequired": true,
+      "tasks": [
+        {
+          "id": "FLOWFORGE-INTEGRATION-7.1",
+          "title": "[ ] Add `HumanInteractionProvider` abstraction in `src/HumanGateway",
+          "description": "[ ] Add `HumanInteractionProvider` abstraction in `src/HumanGateway.Workflow`",
+          "ownerAgent": "workflow-engineer",
+          "dependencies": [],
+          "expectedOutputs": [
+            "src/HumanGateway.Workflow"
+          ],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Add `HumanInteractionProvider` abstraction in `src/HumanGateway.Workflow`"
+          ],
+          "produces": "work.flowforge-integration-7.1",
+          "inputs": []
+        },
+        {
+          "id": "FLOWFORGE-INTEGRATION-7.2",
+          "title": "[ ] `ConsoleHumanInteractionProvider` (baseline)",
+          "description": "[ ] `ConsoleHumanInteractionProvider` (baseline)",
+          "ownerAgent": "workflow-engineer",
+          "dependencies": [
+            "FLOWFORGE-INTEGRATION-7.1"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] `ConsoleHumanInteractionProvider` (baseline)"
+          ],
+          "produces": "work.flowforge-integration-7.2",
+          "inputs": [
+            "work.flowforge-integration-7.1"
+          ]
+        },
+        {
+          "id": "FLOWFORGE-INTEGRATION-7.3",
+          "title": "[ ] `HumanGatewayInteractionProvider`",
+          "description": "[ ] `HumanGatewayInteractionProvider`: request → HumanGateway message; response + artifacts → workflow events",
+          "ownerAgent": "workflow-engineer",
+          "dependencies": [
+            "FLOWFORGE-INTEGRATION-7.2"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] `HumanGatewayInteractionProvider`: request → HumanGateway message; response + artifacts → workflow events"
+          ],
+          "produces": "work.flowforge-integration-7.3",
+          "inputs": [
+            "work.flowforge-integration-7.2"
+          ]
+        },
+        {
+          "id": "FLOWFORGE-INTEGRATION-7.4",
+          "title": "[ ] Map `HumanInteractionRequested / HumanResponseReceived / HumanInteractionCompleted / ArtifactReceived / HumanInteractionExpired`",
+          "description": "[ ] Map `HumanInteractionRequested / HumanResponseReceived / HumanInteractionCompleted / ArtifactReceived / HumanInteractionExpired`",
+          "ownerAgent": "workflow-engineer",
+          "dependencies": [
+            "FLOWFORGE-INTEGRATION-7.3"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Map `HumanInteractionRequested / HumanResponseReceived / HumanInteractionCompleted / ArtifactReceived / HumanInteractionExpired`"
+          ],
+          "produces": "work.flowforge-integration-7.4",
+          "inputs": [
+            "work.flowforge-integration-7.3"
+          ]
+        },
+        {
+          "id": "FLOWFORGE-INTEGRATION-7.5",
+          "title": "[ ] Correlate `PendingHumanTask` (`nodeId`, `kind",
+          "description": "[ ] Correlate `PendingHumanTask` (`nodeId`, `kind: input|approval`, `role`, `prompt`, `subject`) through the message envelope",
+          "ownerAgent": "workflow-engineer",
+          "dependencies": [
+            "FLOWFORGE-INTEGRATION-7.4"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Correlate `PendingHumanTask` (`nodeId`, `kind: input|approval`, `role`, `prompt`, `subject`) through the message envelope"
+          ],
+          "produces": "work.flowforge-integration-7.5",
+          "inputs": [
+            "work.flowforge-integration-7.4"
+          ]
+        },
+        {
+          "id": "FLOWFORGE-INTEGRATION-7.6",
+          "title": "[ ] CLI/test harness driving the provider headlessly (comparable to FlowForge `--answers`)",
+          "description": "[ ] CLI/test harness driving the provider headlessly (comparable to FlowForge `--answers`)",
+          "ownerAgent": "workflow-engineer",
+          "dependencies": [
+            "FLOWFORGE-INTEGRATION-7.5"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] CLI/test harness driving the provider headlessly (comparable to FlowForge `--answers`)"
+          ],
+          "produces": "work.flowforge-integration-7.6",
+          "inputs": [
+            "work.flowforge-integration-7.5"
+          ]
+        },
+        {
+          "id": "FLOWFORGE-INTEGRATION-7.7",
+          "title": "[ ] Add a stub `WorkflowRunner` / `PendingHumanTask` implementing the published interface shape for contract-based integration tests (no pinned FlowForge commit)",
+          "description": "[ ] Add a stub `WorkflowRunner` / `PendingHumanTask` implementing the published interface shape for contract-based integration tests (no pinned FlowForge commit)",
+          "ownerAgent": "workflow-engineer",
+          "dependencies": [
+            "FLOWFORGE-INTEGRATION-7.6"
+          ],
+          "expectedOutputs": [],
+          "validationCommands": [],
+          "approvalRequired": false,
+          "sourceLines": [
+            "[ ] Add a stub `WorkflowRunner` / `PendingHumanTask` implementing the published interface shape for contract-based integration tests (no pinned FlowForge commit)"
+          ],
+          "produces": "work.flowforge-integration-7.7",
+          "inputs": [
+            "work.flowforge-integration-7.6"
+          ]
+        }
+      ]
+    }
+  ],
+  "warnings": [
+    "Weak owner match for task '[x] Define the sync model (IDs, sequence numbers, cursors, idempotency, content hashes)' → protocol-engineer",
+    "Weak owner match for task '[x] Define the identity model (gateway, participant, user) and error model' → security-engineer",
+    "Weak owner match for task '[ ] Scaffold `src/HumanGateway.Core` (outbox/inbox, idempotency, sync engine interface) and `src/HumanGateway.Edge`' → sync-engineer",
+    "Weak owner match for task '[ ] Build ASP.NET Core minimal API with SQLite (WAL mode) schema for conversations, messages, deliveries, artifacts, participants' → edge-engineer",
+    "Weak owner match for task '[ ] Local filesystem artifact store with content-hash naming and deduplication' → edge-engineer",
+    "Weak owner match for task '[ ] Background sync worker skeleton (outbound sync hooks; full protocol in synchronisation feature)' → edge-engineer",
+    "Weak owner match for task '[ ] Scaffold `src/HumanGateway.Client` (Vite + React + TS PWA, Workbox)' → pwa-engineer",
+    "Weak owner match for task '[ ] Sync banner / offline indicator' → pwa-engineer",
+    "Weak owner match for task '[ ] Implement the Edge-side sync worker: push/pull cursors, idempotency keys, retry/backoff' → sync-engineer",
+    "Weak owner match for task '[ ] Implement delivery-state transitions and acknowledgements' → sync-engineer",
+    "Weak owner match for task '[ ] Property/chaos tests: duplication, out-of-order, multi-day disconnection' → sync-engineer",
+    "Weak owner match for task '[ ] Scaffold `src/HumanGateway.Relay` (ASP.NET Core minimal API + EF Core/PostgreSQL)' → infrastructure-engineer",
+    "Weak owner match for task '[ ] PostgreSQL schema: gateways, conversations, messages, deliveries, artifacts, cursors' → relay-engineer",
+    "Weak owner match for task '[ ] Gateway registration + rendezvous endpoints' → relay-engineer",
+    "Weak owner match for task '[ ] Docker Compose environment: Relay + PostgreSQL + Edge' → infrastructure-engineer",
+    "Feature 'artifacts' has no '## Phase N' implementation phases; synthesizing one from its functional requirements.",
+    "Weak owner match for task '| ID | Requirement | Priority |' → artifact-engineer",
+    "Phase ARTIFACTS-1 had no explicit task bullets; created a single synthesized task.",
+    "Weak owner match for task '[ ] Rendezvous routing: map remote participant → school Edge → deliver via outbound sync channel' → relay-engineer",
+    "Weak owner match for task '[ ] Remote login integration (uses identity-security)' → pwa-engineer",
+    "Weak owner match for task '[ ] End-to-end test: external user responds; school Edge + workflow receive it' → qa-engineer",
+    "Weak owner match for task '[ ] Add a stub `WorkflowRunner` / `PendingHumanTask` implementing the published interface shape for contract-based integration tests (no pinned FlowForge commit)' → workflow-engineer"
+  ],
+  "responsibilityMatrixPath": "/home/mcfuzzysquirrel/Projects/human-gateway/docs/agent-responsibility-matrix.md"
+}

@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.humangateway.dev/human-gateway/v1/artifact.schema.json",
+  "$comment": "HumanGateway protocol v1.0.0 (2026-08-28). PROTO-FR-04, ARTF-FR-01, ARTF-FR-03.",
+  "title": "Artifact",
+  "description": "First-class content object (image, PDF, document, audio). Artifact bytes are stored by the Edge filesystem / Relay PostgreSQL (BYTEA) and referenced by messages by ID + hash — never embedded in the message envelope (PROTO-FR-04).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "hash", "sizeBytes", "mimeType", "filename", "createdAt"],
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/id",
+      "description": "Durable artifact ID. Content-hash naming means the same content yields the same hash; the ID is the storage key."
+    },
+    "hash": {
+      "$ref": "common.schema.json#/$defs/contentHash",
+      "description": "SHA-256 of the artifact bytes. Used for content-hash naming, deduplication (skip re-transfer when the hash is already known), and tamper detection on download (ARTF-FR-01, SP-06)."
+    },
+    "sizeBytes": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 536870912,
+      "description": "Byte size. Default maximum 50 MiB per artifact (product vision Open Q #7), gateway-configurable; 512 MiB is the protocol ceiling."
+    },
+    "mimeType": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 127,
+      "pattern": "^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$",
+      "description": "Media type so the receiving app can render or interpret the content (PWA renders by MIME; FlowForge consumes via ArtifactReceived)."
+    },
+    "filename": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "description": "Original filename, preserved for the recipient."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 2048,
+      "description": "Optional human-readable description / alt text."
+    },
+    "createdAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the artifact was first recorded."
+    }
+  },
+  "$defs": {
+    "artifactReference": {
+      "title": "Artifact Reference",
+      "description": "A reference to an artifact carried inside a message envelope: ID + content hash plus rendering metadata (filename, MIME type, size). Never the bytes (PROTO-FR-04).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "hash"],
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id",
+          "description": "Artifact ID the receiving gateway resolves in its artifact store."
+        },
+        "hash": {
+          "$ref": "common.schema.json#/$defs/contentHash",
+          "description": "Content hash the receiving gateway verifies after transfer."
+        },
+        "filename": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "Original filename, preserved for the recipient."
+        },
+        "mimeType": {
+          "type": "string",
+          "maxLength": 127,
+          "description": "Media type for rendering."
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Byte size for progress reporting."
+        }
+      }
+    }
+  }
+}

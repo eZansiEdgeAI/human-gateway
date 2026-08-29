@@ -1,0 +1,20 @@
+{
+  "type": "work.protocol-0.5",
+  "category": "work",
+  "taskId": "PROTOCOL-0.5",
+  "producedBy": "protocol-engineer",
+  "status": "complete",
+  "summary": "The project appears to have existing files. Let me check the git state and understand what's there.",
+  "inputs": [
+    "work-protocol-0-4-001"
+  ],
+  "filesChanged": [
+    "src/HumanGateway.Protocol"
+  ],
+  "payload": {
+    "agentOutputExcerpt": "The project appears to have existing files. Let me check the git state and understand what's there.\nThe directory exists with files already. Let me assess whether the scaffold is complete and builds correctly.\nThe scaffold exists but has 2 build errors. Let me examine the failing files.\nThe scaffold exists (left from a prior incomplete run) but fails to build with 2 errors. Let me set up a task list and fix them, then verify completeness against the schemas.\nNow the `ProtocolSchemas` duplicate `"
+  },
+  "nextActions": [],
+  "artifactId": "work-protocol-0-5-001",
+  "createdAt": "2026-08-28T21:56:39.670Z"
+}

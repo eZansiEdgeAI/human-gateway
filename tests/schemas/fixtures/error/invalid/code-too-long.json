@@ -1,0 +1,4 @@
+{
+  "code": "A_VERY_LONG_ERROR_CODE_THAT_EXCEEDS_THE_SIXTY_FOUR_CHARACTER_LIMIT_AND_SHOULD_BE_REJECTED_",
+  "message": "Codes longer than 64 characters are rejected."
+}

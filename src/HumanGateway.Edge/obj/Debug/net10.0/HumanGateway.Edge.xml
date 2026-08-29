@@ -1,0 +1,712 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>HumanGateway.Edge</name>
+    </assembly>
+    <members>
+        <member name="T:HumanGateway.Edge.Api.ApiErrors">
+            <summary>
+            Builds consistent <see cref="T:HumanGateway.Protocol.Models.ProtocolError"/>-shaped HTTP error responses for the local API. Error codes use
+            the reserved protocol catalog (<see cref="T:HumanGateway.Protocol.Models.ErrorCodes"/>); messages are human-safe (SP-07).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.ApiErrors.ValidationFailed(System.Collections.Generic.IReadOnlyList{HumanGateway.Protocol.Validation.ProtocolValidationError})">
+            <summary>400 — a request body/query is malformed or fails protocol validation.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.ApiErrors.BadRequest(System.String,System.String)">
+            <summary>400 — a domain rule was violated (e.g. approval without a decision).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.ApiErrors.NotFound(System.String)">
+            <summary>404 — the requested resource does not exist.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.ApiErrors.Conflict(System.String)">
+            <summary>409 — the request conflicts with an existing durable record.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.ApiErrors.InternalError">
+            <summary>500 — an unexpected internal failure (message kept generic for SP-07).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.ApiErrors.FromLocalApiException(HumanGateway.Edge.Api.LocalApiException)">
+            <summary>Maps a <see cref="T:HumanGateway.Edge.Api.LocalApiException"/> to its HTTP response.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.ApiErrors.FromException(System.Exception)">
+            <summary>Maps an arbitrary exception to a response; the default is a generic 500 (SP-07).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Api.LocalApiException">
+            <summary>
+            A domain-rule violation raised by the local API service, carrying an HTTP status code and a reserved
+            protocol error code. The endpoint layer maps it to a <see cref="T:HumanGateway.Protocol.Models.ProtocolError"/>-shaped response.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Api.LocalApiException.StatusCode">
+            <summary>The HTTP status code to return.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Api.LocalApiException.Code">
+            <summary>The stable protocol error code (see <see cref="T:HumanGateway.Protocol.Models.ErrorCodes"/>).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiException.#ctor(System.Int32,System.String,System.String)">
+            <summary>Creates the exception.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Api.ConversationView">
+            <summary>A conversation plus its membership and derived activity metadata.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Api.MessageView">
+            <summary>A message envelope plus its per-recipient delivery records (PWA-FR-05).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Api.CreateConversationRequest">
+            <summary>Request body for creating a conversation.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Api.SendMessageRequest">
+            <summary>Request body for composing and sending a message (PWA-FR-04).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Api.CreateTaskRequest">
+            <summary>Request body for creating a human task (FLOW-FR-05, PWA-FR-06).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Api.CreateTaskRequest.Requester">
+            <summary>The system/agent participant that requested the task.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Api.CreateTaskRequest.Assignees">
+            <summary>The human participants the task is delivered to.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Api.CreateTaskRequest.ConversationId">
+            <summary>Optional conversation to place the request/response messages in.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Api.AnswerTaskRequest">
+            <summary>Request body for answering a human task (input or approval) (PWA-FR-06).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Api.RegisterArtifactRequest">
+            <summary>Request body for registering artifact metadata (bytes land via the artifact store, LOCAL-EDGE-1.5).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Api.SyncStatusView">
+            <summary>Sync-status snapshot for the PWA sync banner (EDGE-FR-05, PWA-FR-05).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Api.DeliverySummary">
+            <summary>Counts of delivery records by lifecycle state (icon + text, never colour alone — ACC-03).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Api.LocalApiJson">
+            <summary>
+            JSON configuration for the Edge local REST API. Mirrors <c>ProtocolJson.Options</c> (exact enum tokens,
+            omit-null, disallow unmapped members) and additionally applies a camelCase naming policy so the local API's
+            plain request/response records share the protocol's wire convention without each needing an explicit
+            <c>[JsonPropertyName]</c>. Protocol entities are unaffected: their explicit <c>[JsonPropertyName]</c>
+            attributes override the policy, so an entity response is byte-identical to the protocol wire form.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiJson.Configure(System.Text.Json.JsonSerializerOptions)">
+            <summary>Applies the local API JSON contract to a serializer options instance.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Api.GatewayOptions">
+            <summary>Gateway identity/behaviour settings bound from the <c>Edge</c> configuration section.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Api.GatewayOptions.GatewayId">
+            <summary>The durable gateway ID used as the outbox stream key (AUTH-FR-01).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Api.LocalApiService">
+            <summary>
+            Domain logic behind the Edge local REST API (EDGE-FR-03). Every write is committed to SQLite and, where a
+            message must leave this gateway, enqueued to the durable outbox <em>in the same transaction</em> (EDGE-FR-04:
+            no durable message row without its outbox entry, and no network attempt before the durable write). Methods
+            return <c>null</c> for not-found and throw <see cref="T:HumanGateway.Edge.Api.LocalApiException"/> for domain-rule violations; the
+            exception handler wired in <c>Program.cs</c> maps both to HTTP responses.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{HumanGateway.Edge.Storage.EdgeDbContext},Microsoft.Extensions.Options.IOptions{HumanGateway.Edge.Api.GatewayOptions})">
+            <summary>Creates the service over the durable store factory and gateway options.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.ListConversationsAsync(System.Threading.CancellationToken)">
+            <summary>Lists conversations with membership and activity metadata (message count + last message).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.GetConversationAsync(System.String,System.Threading.CancellationToken)">
+            <summary>Gets one conversation with membership and activity metadata, or null when absent.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.CreateConversationAsync(HumanGateway.Edge.Api.CreateConversationRequest,System.Threading.CancellationToken)">
+            <summary>Creates a conversation, upserting its participants into the local directory.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.ListConversationMessagesAsync(System.String,System.Threading.CancellationToken)">
+            <summary>Lists a conversation's messages in chronological order, each with its delivery records.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.SendMessageAsync(HumanGateway.Edge.Api.SendMessageRequest,System.Threading.CancellationToken)">
+            <summary>
+            Composes and sends a message: validates it, computes its content hash, durably stores it plus a
+            per-recipient delivery record, and enqueues it to the outbox for relay sync (PWA-FR-04, EDGE-FR-04).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.GetMessageAsync(System.String,System.Threading.CancellationToken)">
+            <summary>Gets a message with its delivery records, or null when absent.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.CreateTaskAsync(HumanGateway.Edge.Api.CreateTaskRequest,System.Threading.CancellationToken)">
+            <summary>
+            Creates a human task (input or approval): stores the task durably and sends the request message carrying
+            it to the assignees (FLOW-FR-05, PWA-FR-06). The full task content lives in the task record; the request
+            message carries the prompt plus the <c>humanTaskId</c> correlation for transport.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.ListTasksAsync(System.String,System.Threading.CancellationToken)">
+            <summary>Lists tasks, optionally filtered to a single lifecycle state token (e.g. <c>REQUESTED</c>).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.GetTaskAsync(System.String,System.Threading.CancellationToken)">
+            <summary>Gets a task by ID, or null when absent.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.AnswerTaskAsync(System.String,HumanGateway.Edge.Api.AnswerTaskRequest,System.Threading.CancellationToken)">
+            <summary>
+            Records the human's answer to a task: updates the task to RESPONSE_RECEIVED and sends the response
+            message back to the requester (PWA-FR-06, FLOW-FR-05). Returns the updated task, or null when absent.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.RegisterArtifactAsync(HumanGateway.Edge.Api.RegisterArtifactRequest,System.Threading.CancellationToken)">
+            <summary>Registers artifact metadata (bytes land via the filesystem artifact store, LOCAL-EDGE-1.5).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.ListArtifactsAsync(System.Threading.CancellationToken)">
+            <summary>Lists artifact metadata records.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.GetArtifactAsync(System.String,System.Threading.CancellationToken)">
+            <summary>Gets artifact metadata by ID, or null when absent.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.GetSyncStatusAsync(System.Threading.CancellationToken)">
+            <summary>Builds the sync-status snapshot for the PWA sync banner (EDGE-FR-05).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Endpoints.LocalApiEndpoints">
+            <summary>
+            Maps the Edge local REST API (EDGE-FR-03, product vision §6.3): conversations, messages, tasks, artifacts,
+            and sync status. Handlers stay thin — the domain logic lives in <see cref="T:HumanGateway.Edge.Api.LocalApiService"/>, and
+            exceptions raised there are translated to <see cref="T:HumanGateway.Protocol.Models.ProtocolError"/> responses
+            by the global exception handler wired in <c>Program.cs</c>.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Endpoints.LocalApiEndpoints.MapLocalApiEndpoints(Microsoft.AspNetCore.Builder.WebApplication)">
+            <summary>Maps every local API endpoint onto the app.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.EdgeDbContext">
+            <summary>
+            The Edge Gateway's durable SQLite store (EDGE-FR-02): conversations, messages, deliveries, artifacts, and
+            participants. Protocol envelopes are stored as canonical wire JSON with denormalised scalar columns for
+            indexed querying. The durability PRAGMAs (WAL + synchronous=NORMAL) are applied by
+            <see cref="T:HumanGateway.Edge.Storage.SqliteConnectionFactory"/> / the DI interceptor, not here.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.EdgeDbContext.#ctor(Microsoft.EntityFrameworkCore.DbContextOptions{HumanGateway.Edge.Storage.EdgeDbContext})">
+            <summary>Creates the context over the supplied options (connection string + PRAGMA interceptor).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.EdgeDbContext.Conversations">
+            <summary>Conversations (local grouping + membership).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.EdgeDbContext.ConversationParticipants">
+            <summary>Conversation membership join rows.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.EdgeDbContext.Messages">
+            <summary>Stored message envelopes.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.EdgeDbContext.Deliveries">
+            <summary>Stored per-recipient delivery records.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.EdgeDbContext.Tasks">
+            <summary>Stored human task records (local-store concept; tasks travel inside message envelopes).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.EdgeDbContext.Artifacts">
+            <summary>Stored artifact metadata (bytes live on the filesystem).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.EdgeDbContext.Participants">
+            <summary>Local participant directory.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.EdgeDbContext.Outbox">
+            <summary>Durable outbox entries (EDGE-FR-04).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.EdgeDbContext.OutboxSequences">
+            <summary>Durable per-gateway sequence counters (EDGE-FR-04, SYNC-FR-01).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.EdgeDbContext.Inbox">
+            <summary>Durable inbox entries (SYNC-FR-01).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.EdgeDbContext.Idempotency">
+            <summary>Durable applied-batch records (SYNC-FR-02, NF-05).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.EdgeDbContext.OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.EdgeDbContextFactory">
+            <summary>
+            Design-time factory used by the EF Core tooling (<c>dotnet ef migrations add</c>) to construct an
+            <see cref="T:HumanGateway.Edge.Storage.EdgeDbContext"/> without hosting the web application. The data source is taken from the first
+            argument (for scripting) or defaults to the on-site <c>data/edge.db</c> path.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.EdgeDbContextFactory.CreateDbContext(System.String[])">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.Entities.ArtifactRecord">
+            <summary>
+            Durable local storage of an <see cref="T:HumanGateway.Protocol.Models.Artifact"/> metadata record (EDGE-FR-02). Only the metadata is
+            stored here; the bytes live on the local filesystem, addressed by content hash (ARTF-FR-01, PROTO-FR-04).
+            The hash column is indexed for deduplication lookups (multiple artifact IDs may reference the same bytes).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.ArtifactRecord.Id">
+            <summary>Durable artifact ID — the primary key (the storage key).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.ArtifactRecord.Hash">
+            <summary>Content hash (<c>sha256:&lt;hex&gt;</c>) used for dedup and tamper detection (SP-06).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.ArtifactRecord.SizeBytes">
+            <summary>Byte size for progress reporting and quota enforcement.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.ArtifactRecord.MimeType">
+            <summary>Media type for rendering/interpretation.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.ArtifactRecord.Envelope">
+            <summary>The full protocol artifact record, stored as canonical wire JSON.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Entities.ArtifactRecord.FromEnvelope(HumanGateway.Protocol.Models.Artifact)">
+            <summary>Creates a storage record from a protocol artifact, deriving the query columns.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.Entities.Conversation">
+            <summary>
+            A local conversation — the grouping record that <see cref="T:HumanGateway.Edge.Storage.Entities.MessageRecord"/> envelopes reference by
+            <see cref="P:HumanGateway.Edge.Storage.Entities.MessageRecord.ConversationId"/>. Conversations are a local-store concept (there is no
+            conversation wire entity in the v1 protocol); membership (<see cref="P:HumanGateway.Edge.Storage.Entities.Conversation.Participants"/>) governs per-
+            conversation authorisation (SP-04, AUTH-FR-03) once identity lands in Phase 5.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.Conversation.Id">
+            <summary>Durable conversation ID (UUIDv4, assigned locally on creation).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.Conversation.Title">
+            <summary>Optional human-readable title.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.Conversation.CreatedAt">
+            <summary>RFC 3339 UTC creation timestamp.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.Conversation.UpdatedAt">
+            <summary>RFC 3339 UTC last-modified timestamp.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.Conversation.Participants">
+            <summary>Membership rows linking participants to this conversation.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.Entities.ConversationParticipant">
+            <summary>
+            Join row for conversation membership (a participant's presence in a conversation). Membership governs
+            per-conversation authorisation (SP-04, AUTH-FR-03): a participant may only read/write conversations they
+            are a member of.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.ConversationParticipant.ConversationId">
+            <summary>The conversation this membership applies to.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.ConversationParticipant.ParticipantAddress">
+            <summary>The participant's typed address (e.g. <c>human:teacher@school.example</c>).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.ConversationParticipant.JoinedAt">
+            <summary>RFC 3339 UTC timestamp when the participant joined.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.ConversationParticipant.Conversation">
+            <summary>Navigation to the owning conversation.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.ConversationParticipant.Participant">
+            <summary>Navigation to the participant directory record.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.Entities.DeliveryRecord">
+            <summary>
+            Durable local storage of a per-recipient <see cref="T:HumanGateway.Protocol.Models.Delivery"/> lifecycle record (EDGE-FR-02, PROTO-FR-05).
+            One row per (message, recipient); the state column is denormalised for indexed status queries (the PWA
+            delivery-status indicator and the sync worker's retry scan both read it).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.DeliveryRecord.Id">
+            <summary>Durable delivery record ID — the primary key.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.DeliveryRecord.MessageId">
+            <summary>The message this delivery tracks (indexed).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.DeliveryRecord.RecipientAddress">
+            <summary>The recipient's typed address (indexed).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.DeliveryRecord.State">
+            <summary>Wire-token delivery state (<c>QUEUED</c>, <c>SYNCING</c>, ...) for indexed status queries.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.DeliveryRecord.Envelope">
+            <summary>The full protocol delivery record, stored as canonical wire JSON.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Entities.DeliveryRecord.FromEnvelope(HumanGateway.Protocol.Models.Delivery)">
+            <summary>Creates a storage record from a protocol delivery, deriving the query columns.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.Entities.HumanTaskRecord">
+            <summary>
+            Durable local storage of a protocol <see cref="T:HumanGateway.Protocol.Models.HumanTask"/> (FLOW-FR-04/05, PWA-FR-06). The full envelope is
+            kept as canonical JSON in <see cref="P:HumanGateway.Edge.Storage.Entities.HumanTaskRecord.Envelope"/>; the scalar columns are denormalised for indexed querying
+            (list by status, correlate to the request/response messages).
+            </summary>
+            <remarks>
+            Tasks are a <em>local-store</em> concept: the v1 sync protocol transports tasks <em>inside</em> message
+            envelopes (there is no task sync item), so the task record lives only on the gateway that created/answered
+            it. The request message (<see cref="P:HumanGateway.Edge.Storage.Entities.HumanTaskRecord.RequestMessageId"/>) carries the task out to recipients.
+            </remarks>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.HumanTaskRecord.Id">
+            <summary>Durable human task ID — the primary key.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.HumanTaskRecord.Status">
+            <summary>Wire-token lifecycle state (<c>REQUESTED</c>, <c>DELIVERED_TO_HUMAN</c>, ...) for filtering.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.HumanTaskRecord.Kind">
+            <summary>Wire-token task kind (<c>input</c> | <c>approval</c>) for filtering.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.HumanTaskRecord.WorkflowRef">
+            <summary>Consumer workflow/run identifier (FLOW-FR-05), indexed for correlation.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.HumanTaskRecord.RequestMessageId">
+            <summary>The message envelope carrying the task request.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.HumanTaskRecord.ResponseMessageId">
+            <summary>The message envelope carrying the human's response, once answered.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.HumanTaskRecord.Envelope">
+            <summary>The full protocol task, stored as canonical wire JSON.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Entities.HumanTaskRecord.FromEnvelope(HumanGateway.Protocol.Models.HumanTask)">
+            <summary>Creates a storage record from a protocol task, deriving the query columns.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.Entities.IdempotencyRecord">
+            <summary>
+            Durable idempotency record (SYNC-FR-02, NF-05): proves a sync batch has already been applied. The
+            composite primary key <c>(batchId, idempotencyKey)</c> is unique, so recording the same logical batch
+            twice is a no-op (the unique-constraint violation is swallowed by <c>SqliteIdempotencyStore</c>) and a
+            replayed batch is detected before any item is re-applied.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.IdempotencyRecord.BatchId">
+            <summary>Durable batch identity (part of the composite primary key).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.IdempotencyRecord.IdempotencyKey">
+            <summary>Stable per-batch key (part of the composite primary key).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.IdempotencyRecord.AppliedAtUtc">
+            <summary>When the batch was recorded as applied.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.Entities.InboxEntryRecord">
+            <summary>
+            Durable inbox entry (SYNC-FR-01): a received unit of sync work committed to SQLite. Messages are
+            deduplicated by the denormalised <see cref="P:HumanGateway.Edge.Storage.Entities.InboxEntryRecord.MessageId"/> column (unique index), so a replayed batch has
+            exactly one effect (SYNC-FR-02, NF-05). Entries are ordered by sequence for deterministic reordering
+            (SYNC-FR-07) and cursor computation (SYNC-FR-03).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.InboxEntryRecord.Id">
+            <summary>Durable inbox record ID — the primary key.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.InboxEntryRecord.GatewayId">
+            <summary>The gateway this entry originated from.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.InboxEntryRecord.Sequence">
+            <summary>Per-gateway monotonic sequence number (≥ 1).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.InboxEntryRecord.MessageId">
+            <summary>The durable message ID when this entry carries a message (null for delivery/artifact/ack items).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.InboxEntryRecord.Item">
+            <summary>The received sync operation, stored as canonical wire JSON.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.InboxEntryRecord.ReceivedAtUtc">
+            <summary>When the entry was received.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.Entities.MessageRecord">
+            <summary>
+            Durable local storage of a protocol <see cref="T:HumanGateway.Protocol.Models.Message"/> envelope (EDGE-FR-02). The full envelope is kept
+            as canonical JSON in <see cref="P:HumanGateway.Edge.Storage.Entities.MessageRecord.Envelope"/>; the scalar columns are denormalised for indexed querying and
+            ordering (by conversation, by sender, chronologically).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.MessageRecord.Id">
+            <summary>Durable message ID — the primary key (SYNC-FR-01).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.MessageRecord.ConversationId">
+            <summary>The conversation this message belongs to (indexed for listing).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.MessageRecord.SenderAddress">
+            <summary>The sender participant's typed address (indexed).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.MessageRecord.CreatedAt">
+            <summary>RFC 3339 UTC creation timestamp (indexed for chronological ordering).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.MessageRecord.ContentHash">
+            <summary>The envelope content hash (SYNC-FR-02) for integrity verification.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.MessageRecord.Envelope">
+            <summary>The full protocol envelope, stored as canonical wire JSON.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Entities.MessageRecord.FromEnvelope(HumanGateway.Protocol.Models.Message)">
+            <summary>Creates a storage record from a protocol envelope, deriving the query columns.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.Entities.OutboxEntryRecord">
+            <summary>
+            Durable outbox entry (EDGE-FR-04): a pending unit of outbound sync work committed to SQLite before any
+            network attempt. The full <see cref="T:HumanGateway.Protocol.Models.SyncItem"/> envelope is stored as canonical JSON; the scalar columns
+            (<see cref="P:HumanGateway.Edge.Storage.Entities.OutboxEntryRecord.GatewayId"/>, <see cref="P:HumanGateway.Edge.Storage.Entities.OutboxEntryRecord.Sequence"/>, <see cref="P:HumanGateway.Edge.Storage.Entities.OutboxEntryRecord.SentAtUtc"/>) are denormalised for the pending
+            scan the sync worker runs. A non-null <see cref="P:HumanGateway.Edge.Storage.Entities.OutboxEntryRecord.SentAtUtc"/> marks the entry as delivered.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.OutboxEntryRecord.Id">
+            <summary>Durable outbox entry ID — the primary key.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.OutboxEntryRecord.GatewayId">
+            <summary>The gateway whose outbound stream this entry belongs to.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.OutboxEntryRecord.Sequence">
+            <summary>Per-gateway monotonic sequence number (≥ 1), allocated by <see cref="T:HumanGateway.Edge.Storage.Entities.OutboxSequence"/>.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.OutboxEntryRecord.Item">
+            <summary>The sync operation to send, stored as canonical wire JSON.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.OutboxEntryRecord.CreatedAtUtc">
+            <summary>When the entry was created.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.OutboxEntryRecord.Attempts">
+            <summary>Completed send attempts so far (≥ 0).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.OutboxEntryRecord.NextAttemptAtUtc">
+            <summary>Earliest time the next send attempt may run (backoff); null when due immediately.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.OutboxEntryRecord.SentAtUtc">
+            <summary>When the entry was successfully sent; null while still pending (unsent).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.Entities.OutboxSequence">
+            <summary>
+            Durable per-gateway sequence counter (EDGE-FR-04, SYNC-FR-01). Allocating a sequence number is a single
+            atomic <c>INSERT ... ON CONFLICT DO UPDATE ... RETURNING</c> against this table, so concurrent local
+            clients (EDGE-FR-06) never observe duplicate or non-monotonic sequences. The counter only ever increases;
+            a sent entry's sequence is never reused, so a receiver's cursor watermark stays valid after restarts.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.OutboxSequence.GatewayId">
+            <summary>The gateway whose outbound stream this counter tracks — the primary key.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.OutboxSequence.LastSequence">
+            <summary>The most recently allocated sequence number (≥ 0).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.Entities.ParticipantRecord">
+            <summary>
+            Durable local participant directory (EDGE-FR-02). Resolves a typed address
+            (<c>human:</c>/<c>agent:</c>/<c>system:</c>) to its display metadata. The address is the primary key; the
+            full envelope is kept as canonical JSON, with denormalised columns for lookups and display.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.ParticipantRecord.Address">
+            <summary>Typed address (e.g. <c>human:teacher@school.example</c>) — the primary key.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.ParticipantRecord.Kind">
+            <summary>Wire-token participant kind (<c>human</c>, <c>agent</c>, <c>system</c>) for filtering.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.ParticipantRecord.DisplayName">
+            <summary>Human-readable display name.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.ParticipantRecord.UserId">
+            <summary>Optional local user identifier for human participants (AUTH-FR-02).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.ParticipantRecord.GatewayId">
+            <summary>Optional gateway identity for system participants (AUTH-FR-01).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.ParticipantRecord.Envelope">
+            <summary>The full protocol participant record, stored as canonical wire JSON.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Entities.ParticipantRecord.FromParticipant(HumanGateway.Protocol.Models.Participant)">
+            <summary>Creates a storage record from a protocol participant, deriving the query columns.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.Migrations.InitialCreate">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Migrations.InitialCreate.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Migrations.InitialCreate.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Migrations.InitialCreate.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.Migrations.AddDurableInboxOutbox">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Migrations.AddDurableInboxOutbox.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Migrations.AddDurableInboxOutbox.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Migrations.AddDurableInboxOutbox.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.Migrations.AddHumanTasks">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Migrations.AddHumanTasks.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Migrations.AddHumanTasks.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Migrations.AddHumanTasks.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.OutboxWriter">
+            <summary>
+            Shared durable helpers for writing outbox entries (EDGE-FR-04): atomic per-gateway sequence allocation and
+            the pending-entry shape. <see cref="T:HumanGateway.Edge.Storage.SqliteOutbox"/> writes through it directly, and it is available to any
+            caller that wants to commit a row and its outbox entry inside one SQLite transaction.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.OutboxWriter.AddOutboxEntryAsync(HumanGateway.Edge.Storage.EdgeDbContext,System.String,HumanGateway.Protocol.Models.SyncItem,System.Threading.CancellationToken)">
+            <summary>
+            Adds a pending outbox entry to <paramref name="db"/> (not yet saved), allocating the next per-gateway
+            sequence number when the item's <see cref="P:HumanGateway.Protocol.Models.SyncItem.Sequence"/> is unset (≤ 0). The caller owns the
+            surrounding transaction and <c>SaveChangesAsync</c> call.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.OutboxWriter.AllocateSequenceAsync(HumanGateway.Edge.Storage.EdgeDbContext,System.String,System.Threading.CancellationToken)">
+            <summary>
+            Atomically allocates the next per-gateway sequence number. The
+            <c>INSERT ... ON CONFLICT DO UPDATE ... RETURNING</c> is a single statement, so SQLite serialises it and
+            no two callers observe the same value — no read-modify-write race and no <c>SQLITE_BUSY</c> upgrade
+            deadlock under concurrent writers (EDGE-FR-06).
+            </summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.ProtocolJsonConversions">
+            <summary>
+            Value-converter helpers that map protocol records to their canonical wire JSON for SQLite TEXT storage.
+            </summary>
+            <remarks>
+            Each stored record keeps its full protocol envelope as the canonical JSON produced by
+            <see cref="F:HumanGateway.Protocol.Models.ProtocolJson.Options"/> (exact wire names, <c>additionalProperties: false</c>, enum tokens) so a
+            round-trip is byte-identical. Denormalised scalar columns alongside the JSON exist only for indexed
+            querying/ordering; the JSON column is the authoritative record.
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.ProtocolJsonConversions.CanonicalJson``1">
+            <summary>
+            A value converter that stores a protocol record as its canonical JSON and materialises it back.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.ProtocolJsonConversions.WireToken``1(``0)">
+            <summary>
+            Serialises an enum to its exact wire token (e.g. <c>WAITING_FOR_SYNC</c>, <c>human</c>) for use in a
+            denormalised scalar query column. Mirrors <see cref="F:HumanGateway.Protocol.Models.ProtocolJson.Options"/>' enum converter.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.ProtocolJsonConversions.WireToken``1(System.Nullable{``0})">
+            <summary>Serialises a nullable enum to its wire token, or null when absent.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.SqliteConnectionFactory">
+            <summary>
+            Builds and opens SQLite connections with the durability PRAGMAs required by EDGE-FR-07 / NF-04.
+            </summary>
+            <remarks>
+            <list type="bullet">
+              <item><c>journal_mode=WAL</c> — write-ahead logging so committed writes survive power loss and readers
+                  never block a writer (persisted in the database file).</item>
+              <item><c>synchronous=NORMAL</c> — the durability/performance sweet spot for WAL mode; a power loss may
+                  lose the <em>most recent</em> transaction only in the (unlikely) failure window, never a committed
+                  one that preceded a checkpoint. A default SQLite connection (<c>synchronous=FULL</c> + rollback
+                  journal) can corrupt or lose committed writes on power failure, so this is mandatory.</item>
+              <item><c>foreign_keys=ON</c> — per-connection; enforces the schema's relational invariants.</item>
+              <item><c>busy_timeout</c> — per-connection; concurrent local clients (EDGE-FR-06, NF-01) contend on
+                  locks with a bounded wait rather than failing immediately with SQLITE_BUSY.</item>
+            </list>
+            <c>journal_mode</c> and <c>synchronous</c> are durable database settings; re-applying them on every open
+            is idempotent and ensures the settings hold even when the file was created by a different process.
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteConnectionFactory.BuildConnectionString(System.String)">
+            <summary>Builds the SQLite connection string for the given database file path.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteConnectionFactory.Open(System.String)">
+            <summary>
+            Opens a connection and applies the durability PRAGMAs. Used by the DI wiring and by tests so that a
+            single code path owns the pragma set (one source of truth).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteConnectionFactory.ApplyPragmas(Microsoft.Data.Sqlite.SqliteConnection)">
+            <summary>Applies the durability PRAGMAs to an already-open connection (idempotent).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.SqliteIdempotencyStore">
+            <summary>
+            Durable SQLite <see cref="T:HumanGateway.Core.Idempotency.IIdempotencyStore"/> (SYNC-FR-02, NF-05): records applied batches under a unique
+            composite <c>(batchId, idempotencyKey)</c> key. Recording an already-applied batch is a no-op — the unique
+            constraint violation is swallowed — so a replayed batch is detected before any item is re-applied.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteIdempotencyStore.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{HumanGateway.Edge.Storage.EdgeDbContext})">
+            <summary>Creates the durable idempotency store over the context factory.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteIdempotencyStore.WasAppliedAsync(System.String,System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteIdempotencyStore.RecordAsync(System.String,System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteIdempotencyStore.IsUniqueConstraintViolation(Microsoft.EntityFrameworkCore.DbUpdateException)">
+            <summary>Detects a SQLite unique/primary-key constraint violation from a save failure.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.SqliteInbox">
+            <summary>
+            Durable SQLite <see cref="T:HumanGateway.Core.Inbox.IInbox"/> (SYNC-FR-01): received items are committed to SQLite and deduplicated by
+            message ID via the unique <c>ux_inbox_message_id</c> index (SYNC-FR-02, NF-05). Sequence history is kept
+            intact so the sync engine can compute the contiguous cursor from the full applied history (SYNC-FR-03/07).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteInbox.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{HumanGateway.Edge.Storage.EdgeDbContext})">
+            <summary>Creates the durable inbox over the context factory.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteInbox.AddAsync(HumanGateway.Core.Inbox.InboxEntry,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteInbox.GetByMessageAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteInbox.ContainsMessageAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteInbox.GetSequencesAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteInbox.MessageIdOf(HumanGateway.Protocol.Models.SyncItem)">
+            <summary>Derives the dedup key from a sync item: the message ID for message items, otherwise null.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.SqliteOutbox">
+            <summary>
+            Durable SQLite <see cref="T:HumanGateway.Core.Outbox.IOutbox"/> (EDGE-FR-04): every enqueued item is committed to SQLite before any
+            network attempt. Sequence allocation is a single atomic <c>INSERT ... ON CONFLICT DO UPDATE ... RETURNING</c>
+            against <see cref="T:HumanGateway.Edge.Storage.Entities.OutboxSequence"/>, so concurrent clients (EDGE-FR-06) get monotonic, collision-free
+            per-gateway sequences. Each operation opens a short-lived context from the injected factory, so a shared
+            store instance is safe across concurrent callers and survives restarts.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteOutbox.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{HumanGateway.Edge.Storage.EdgeDbContext})">
+            <summary>Creates the durable outbox over the context factory.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteOutbox.EnqueueAsync(System.String,HumanGateway.Protocol.Models.SyncItem,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteOutbox.GetPendingAsync(System.String,System.Int64,System.Int32,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteOutbox.MarkSentAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteOutbox.MarkAttemptAsync(System.String,System.Int32,System.DateTimeOffset,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteOutbox.ToEntry(HumanGateway.Edge.Storage.Entities.OutboxEntryRecord)">
+            <summary>Projects a stored outbox record to the core <see cref="T:HumanGateway.Core.Outbox.OutboxEntry"/> shape.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.SqlitePragmaInterceptor">
+            <summary>
+            Applies the SQLite durability PRAGMAs (WAL, synchronous=NORMAL, foreign_keys, busy_timeout) to every
+            connection EF Core opens. WAL and synchronous are durable database settings but re-applying them is
+            idempotent and cheap; foreign_keys and busy_timeout are per-connection and must be applied each open
+            (EDGE-FR-06/07, NF-04). Stateless, so a single shared instance is safe.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqlitePragmaInterceptor.ConnectionOpened(System.Data.Common.DbConnection,Microsoft.EntityFrameworkCore.Diagnostics.ConnectionEndEventData)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqlitePragmaInterceptor.ConnectionOpenedAsync(System.Data.Common.DbConnection,Microsoft.EntityFrameworkCore.Diagnostics.ConnectionEndEventData,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+    </members>
+</doc>

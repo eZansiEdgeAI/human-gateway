@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.humangateway.dev/human-gateway/v1/error.schema.json",
+  "$comment": "HumanGateway protocol v1.0.0 (2026-08-28). Error model (protocol §7 #3, identity-security §6). Referenced by delivery.schema.json (FAILED state) through common.$defs.error; the same shape is reused for sync/API error responses so every component surfaces identical machine-readable errors.",
+  "title": "Error",
+  "description": "The protocol error model. A stable, machine-readable error 'code' plus a human-readable 'message', optional structured 'details', and a retryability hint. The reserved code catalog lives in $defs.errorCode and is stable across releases (codes are added, never changed or removed); components and consumers may extend the catalog using the same UPPER_SNAKE token shape. Error payloads must never carry secrets, registration tokens, session tokens, or password material (SP-07).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["code", "message"],
+  "properties": {
+    "code": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Z][A-Z0-9_]*$",
+      "description": "Machine-readable, stable error code. Reserved codes are enumerated in $defs.errorCode; extensions must follow the same UPPER_SNAKE shape."
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Human-readable error description. Safe to display to end users; MUST NOT contain secrets (SP-07)."
+    },
+    "details": {
+      "type": "object",
+      "description": "Optional machine-readable detail fields (e.g. expected vs received content hash, failed gatewayId, conversationId). MUST NOT contain secrets."
+    },
+    "retryable": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether retrying may succeed. True for transient conditions (timeout, rate limit, temporary connectivity); false for permanent rejections (authentication, authorisation, validation, hash mismatch)."
+    }
+  },
+  "$defs": {
+    "errorCode": {
+      "type": "string",
+      "title": "Reserved Error Code",
+      "description": "The reserved protocol error-code catalog. Stable across releases: codes are added, never changed or removed. Used by delivery FAILED records and sync/API error responses.",
+      "enum": [
+        "BAD_REQUEST",
+        "VALIDATION_FAILED",
+        "NOT_FOUND",
+        "CONFLICT",
+        "INTERNAL_ERROR",
+        "TIMEOUT",
+        "RATE_LIMITED",
+        "PAYLOAD_TOO_LARGE",
+        "UNAUTHORIZED",
+        "AUTH_REJECTED",
+        "SIGNATURE_INVALID",
+        "SESSION_TOKEN_INVALID",
+        "SESSION_TOKEN_EXPIRED",
+        "FORBIDDEN",
+        "CONVERSATION_ACCESS_DENIED",
+        "TASK_ACCESS_DENIED",
+        "ARTIFACT_ACCESS_DENIED",
+        "GATEWAY_UNREGISTERED",
+        "GATEWAY_SUSPENDED",
+        "GATEWAY_REVOKED",
+        "REGISTRATION_TOKEN_INVALID",
+        "REGISTRATION_TOKEN_EXPIRED",
+        "ARTIFACT_NOT_FOUND",
+        "HASH_MISMATCH",
+        "SIZE_EXCEEDED",
+        "QUOTA_EXCEEDED",
+        "MAX_ATTEMPTS_EXCEEDED",
+        "MESSAGE_EXPIRED",
+        "IDEMPOTENCY_CONFLICT",
+        "SEQUENCE_GAP",
+        "CURSOR_INVALID"
+      ]
+    }
+  }
+}

@@ -1,0 +1,112 @@
+[
+  {
+    "id": "01JZ7F3F7G8H9I0J1K2L3M4N5O",
+    "messageId": "01JZ7F3B8N9M2XKQ5R4T6VWY8A",
+    "recipient": {
+      "address": "agent:flowforge-8c2f1a9d",
+      "kind": "agent",
+      "displayName": "Assessment Agent"
+    },
+    "state": "QUEUED",
+    "attempts": 0,
+    "maxAttempts": 5,
+    "nextRetryAt": "2026-08-28T09:15:30Z",
+    "queuedAt": "2026-08-28T09:15:01Z",
+    "createdAt": "2026-08-28T09:15:01Z",
+    "updatedAt": "2026-08-28T09:15:01Z"
+  },
+  {
+    "id": "01JZ7F3F7G8H9I0J1K2L3M4N5O",
+    "messageId": "01JZ7F3B8N9M2XKQ5R4T6VWY8A",
+    "recipient": {
+      "address": "agent:flowforge-8c2f1a9d",
+      "kind": "agent",
+      "displayName": "Assessment Agent"
+    },
+    "state": "SYNCING",
+    "attempts": 1,
+    "maxAttempts": 5,
+    "queuedAt": "2026-08-28T09:15:01Z",
+    "syncingAt": "2026-08-28T09:16:00Z",
+    "createdAt": "2026-08-28T09:15:01Z",
+    "updatedAt": "2026-08-28T09:16:00Z"
+  },
+  {
+    "id": "01JZ7F4C5D6E7F8G9H0I1J2K3L",
+    "messageId": "01JZ7F3B8N9M2XKQ5R4T6VWY8A",
+    "recipient": {
+      "address": "human:teacher@school.example",
+      "kind": "human",
+      "displayName": "Ms. Okafor"
+    },
+    "state": "DELIVERED",
+    "attempts": 1,
+    "maxAttempts": 5,
+    "queuedAt": "2026-08-28T09:16:00Z",
+    "syncingAt": "2026-08-28T10:01:30Z",
+    "deliveredAt": "2026-08-28T10:02:00Z",
+    "createdAt": "2026-08-28T09:16:00Z",
+    "updatedAt": "2026-08-28T10:02:00Z"
+  },
+  {
+    "id": "01JZ7F3F7G8H9I0J1K2L3M4N5O",
+    "messageId": "01JZ7F3B8N9M2XKQ5R4T6VWY8A",
+    "recipient": {
+      "address": "agent:flowforge-8c2f1a9d",
+      "kind": "agent",
+      "displayName": "Assessment Agent"
+    },
+    "state": "ACKNOWLEDGED",
+    "attempts": 2,
+    "maxAttempts": 5,
+    "queuedAt": "2026-08-28T09:15:01Z",
+    "syncingAt": "2026-08-28T09:16:00Z",
+    "deliveredAt": "2026-08-28T09:17:30Z",
+    "acknowledgedAt": "2026-08-28T09:18:45Z",
+    "createdAt": "2026-08-28T09:15:01Z",
+    "updatedAt": "2026-08-28T09:18:45Z"
+  },
+  {
+    "id": "01JZ7F5D6E7F8G9H0I1J2K3L4M5",
+    "messageId": "01JZ7F5A6B7C8D9E0F1G2H3I4J",
+    "recipient": {
+      "address": "human:reviewer@school.example",
+      "kind": "human",
+      "displayName": "Reviewer"
+    },
+    "state": "WAITING_FOR_SYNC",
+    "attempts": 0,
+    "maxAttempts": 5,
+    "queuedAt": "2026-08-28T18:00:00Z",
+    "waitingForSyncAt": "2026-08-28T18:00:05Z",
+    "createdAt": "2026-08-28T18:00:00Z",
+    "updatedAt": "2026-08-28T18:00:05Z"
+  },
+  {
+    "id": "01JZ7F6E7F8G9H0I1J2K3L4M5N6",
+    "messageId": "01JZ7F3B8N9M2XKQ5R4T6VWY8A",
+    "recipient": {
+      "address": "agent:flowforge-8c2f1a9d",
+      "kind": "agent",
+      "displayName": "Assessment Agent"
+    },
+    "state": "FAILED",
+    "attempts": 5,
+    "maxAttempts": 5,
+    "queuedAt": "2026-08-28T09:15:01Z",
+    "syncingAt": "2026-08-28T09:30:00Z",
+    "failedAt": "2026-08-28T09:31:00Z",
+    "error": {
+      "code": "MAX_ATTEMPTS_EXCEEDED",
+      "message": "Delivery exceeded the configured maximum number of attempts.",
+      "details": {
+        "deliveryId": "01JZ7F6E7F8G9H0I1J2K3L4M5N6",
+        "attempts": 5,
+        "maxAttempts": 5
+      },
+      "retryable": false
+    },
+    "createdAt": "2026-08-28T09:15:01Z",
+    "updatedAt": "2026-08-28T09:31:00Z"
+  }
+]

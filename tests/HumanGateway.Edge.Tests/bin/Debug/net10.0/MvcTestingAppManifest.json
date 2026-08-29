@@ -1,0 +1,6 @@
+{
+  "HumanGateway.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "\/home\/mcfuzzysquirrel\/Projects\/human-gateway\/src\/HumanGateway.Core",
+  "HumanGateway.Edge.CrashProbe, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "\/home\/mcfuzzysquirrel\/Projects\/human-gateway\/tests\/HumanGateway.Edge.CrashProbe",
+  "HumanGateway.Edge, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "\/home\/mcfuzzysquirrel\/Projects\/human-gateway\/src\/HumanGateway.Edge",
+  "HumanGateway.Protocol, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "\/home\/mcfuzzysquirrel\/Projects\/human-gateway\/src\/HumanGateway.Protocol"
+}

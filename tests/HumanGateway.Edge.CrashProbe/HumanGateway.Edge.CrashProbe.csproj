@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>HumanGateway.Edge.CrashProbe</RootNamespace>
+    <AssemblyName>HumanGateway.Edge.CrashProbe</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/HumanGateway.Edge/HumanGateway.Edge.csproj" />
+  </ItemGroup>
+
+</Project>

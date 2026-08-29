@@ -1,2 +1,8 @@
 node_modules/
 docs/engine-run.log
+
+# Edge runtime SQLite store (WAL) — created at runtime, never committed (EDGE-FR-02).
+src/HumanGateway.Edge/data/
+*.db
+*.db-wal
+*.db-shm

@@ -1,0 +1,21 @@
+{
+  "id": "01JZ7F3B8N9M2XKQ5R4T6VWY8A",
+  "sender": {
+    "address": "human:teacher@school.example",
+    "kind": "human",
+    "displayName": "Ms. Okafor"
+  },
+  "recipients": [
+    {
+      "address": "agent:flowforge-8c2f1a9d",
+      "kind": "agent",
+      "displayName": "Assessment Agent"
+    }
+  ],
+  "conversationId": "01JZ7F3C4D5E6F7G8H9I0J1K2L",
+  "payload": {
+    "body": "The content hash must be sha256-prefixed hex."
+  },
+  "createdAt": "2026-08-28T09:15:00Z",
+  "contentHash": "b1c2d3e4f5a6b7c8"
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "code": "HASH_MISMATCH",
+    "message": "Artifact download failed SHA-256 verification.",
+    "details": {
+      "artifactId": "01JZ7F3E6F7G8H9I0J1K2L3M4N",
+      "expected": "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      "actual": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "retryable": false
+  },
+  {
+    "code": "GATEWAY_UNREGISTERED",
+    "message": "Gateway 01JZ7F3I0J1K2L3M4N5O6P7Q8R is not registered with the Relay."
+  },
+  {
+    "code": "MAX_ATTEMPTS_EXCEEDED",
+    "message": "Delivery exceeded the configured maximum number of attempts.",
+    "retryable": false
+  },
+  {
+    "code": "CONSUMER_EXTENSION_CODE",
+    "message": "A consumer-defined code following the same UPPER_SNAKE shape is valid.",
+    "retryable": true
+  }
+]

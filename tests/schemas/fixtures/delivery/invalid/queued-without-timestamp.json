@@ -1,0 +1,14 @@
+{
+  "id": "01JZ7F3F7G8H9I0J1K2L3M4N5O",
+  "messageId": "01JZ7F3B8N9M2XKQ5R4T6VWY8A",
+  "recipient": {
+    "address": "agent:flowforge-8c2f1a9d",
+    "kind": "agent",
+    "displayName": "Assessment Agent"
+  },
+  "state": "QUEUED",
+  "attempts": 0,
+  "maxAttempts": 5,
+  "createdAt": "2026-08-28T09:15:01Z",
+  "updatedAt": "2026-08-28T09:15:01Z"
+}

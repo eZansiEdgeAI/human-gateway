@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.humangateway.dev/human-gateway/v1/delivery.schema.json",
+  "$comment": "HumanGateway protocol v1.0.0 (2026-08-28). PROTO-FR-05.",
+  "title": "Delivery",
+  "description": "Per-recipient delivery lifecycle record for a message. State machine: QUEUED → SYNCING → DELIVERED → ACKNOWLEDGED, plus WAITING_FOR_SYNC (offline deferral — a valid state, never an error) and FAILED (after max attempts, with alert) (PROTO-FR-05, product vision §10). The schema validates snapshot consistency (e.g. FAILED requires error); transition legality is enforced by the sync engine.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "messageId", "recipient", "state", "attempts", "maxAttempts", "createdAt", "updatedAt"],
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/id",
+      "description": "Durable delivery record ID."
+    },
+    "messageId": {
+      "$ref": "common.schema.json#/$defs/id",
+      "description": "The message this delivery record tracks."
+    },
+    "recipient": {
+      "$ref": "participant.schema.json",
+      "description": "The recipient this delivery record applies to (one record per recipient)."
+    },
+    "state": {
+      "type": "string",
+      "enum": ["QUEUED", "SYNCING", "DELIVERED", "ACKNOWLEDGED", "WAITING_FOR_SYNC", "FAILED"],
+      "description": "Current delivery state. WAITING_FOR_SYNC means delivery is deferred until connectivity returns — expected behaviour, not a failure."
+    },
+    "attempts": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Completed sync/delivery attempts so far."
+    },
+    "maxAttempts": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum attempts before the state becomes FAILED. Configurable."
+    },
+    "nextRetryAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "Earliest time the next attempt may run (exponential backoff with jitter, capped)."
+    },
+    "queuedAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the delivery entered QUEUED."
+    },
+    "syncingAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the delivery last entered SYNCING."
+    },
+    "waitingForSyncAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the delivery last entered WAITING_FOR_SYNC."
+    },
+    "deliveredAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the recipient gateway accepted the message."
+    },
+    "acknowledgedAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the recipient acknowledged the message (SYNC-FR-05)."
+    },
+    "failedAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the delivery became FAILED."
+    },
+    "error": {
+      "$ref": "common.schema.json#/$defs/error",
+      "description": "Failure details. Required when state is FAILED."
+    },
+    "createdAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the delivery record was created."
+    },
+    "updatedAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the delivery record last changed."
+    }
+  },
+  "allOf": [
+    {
+      "description": "QUEUED must record when it was queued.",
+      "if": {
+        "properties": { "state": { "const": "QUEUED" } },
+        "required": ["state"]
+      },
+      "then": {
+        "required": ["queuedAt"],
+        "properties": {
+          "queuedAt": true
+        }
+      }
+    },
+    {
+      "description": "WAITING_FOR_SYNC must record when the wait began.",
+      "if": {
+        "properties": { "state": { "const": "WAITING_FOR_SYNC" } },
+        "required": ["state"]
+      },
+      "then": {
+        "required": ["waitingForSyncAt"],
+        "properties": {
+          "waitingForSyncAt": true
+        }
+      }
+    },
+    {
+      "description": "DELIVERED must record when it was delivered.",
+      "if": {
+        "properties": { "state": { "const": "DELIVERED" } },
+        "required": ["state"]
+      },
+      "then": {
+        "required": ["deliveredAt"],
+        "properties": {
+          "deliveredAt": true
+        }
+      }
+    },
+    {
+      "description": "ACKNOWLEDGED must record when it was acknowledged.",
+      "if": {
+        "properties": { "state": { "const": "ACKNOWLEDGED" } },
+        "required": ["state"]
+      },
+      "then": {
+        "required": ["acknowledgedAt"],
+        "properties": {
+          "acknowledgedAt": true
+        }
+      }
+    },
+    {
+      "description": "FAILED must record when it failed and carry error details.",
+      "if": {
+        "properties": { "state": { "const": "FAILED" } },
+        "required": ["state"]
+      },
+      "then": {
+        "required": ["failedAt", "error"],
+        "properties": {
+          "failedAt": true,
+          "error": true
+        }
+      }
+    }
+  ]
+}

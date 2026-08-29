@@ -1,0 +1,18 @@
+[
+  {
+    "address": "human:teacher@school.example",
+    "kind": "human",
+    "displayName": "Ms. Okafor",
+    "userId": "user-1042"
+  },
+  {
+    "address": "agent:flowforge-8c2f1a9d",
+    "kind": "agent",
+    "displayName": "Assessment Agent"
+  },
+  {
+    "address": "system:relay-prod-01",
+    "kind": "system",
+    "displayName": "Cloud Relay"
+  }
+]

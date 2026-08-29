@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.humangateway.dev/human-gateway/v1/user.schema.json",
+  "$comment": "HumanGateway protocol v1.0.0 (2026-08-28). AUTH-FR-02, SP-03, SP-07.",
+  "title": "User",
+  "description": "A local Edge user account (AUTH-FR-02). Users authenticate at the Edge with a username and password; successful logins issue signed opaque session tokens (v1 — identity-security Open Q #1). This entity is the Edge-local store representation: 'passwordVerifier' is the credential verifier (PHC string) and MUST NEVER be transmitted in any protocol payload — it exists only in Edge storage (SP-07). A user is referenced from message flows via participant.userId on human: participants. HumanGateway performs no role-checking (SP-09): what a user may access is governed by conversation/task membership, enforced by authorisation middleware (AUTH-FR-03). Remote users who log in at the Relay follow the same shape with a Relay-issued user record (external-web-access).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "username", "displayName", "passwordVerifier", "status", "createdAt"],
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/id",
+      "description": "Durable local user ID. Referenced from participant.userId for human participants."
+    },
+    "username": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "description": "Login username. Normalised to lowercase; matching is case-insensitive."
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "description": "Human-readable name shown in the UI."
+    },
+    "passwordVerifier": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 512,
+      "pattern": "^\\$[A-Za-z0-9+./=,$-]{19,511}$",
+      "description": "Password verifier in PHC string format (e.g. argon2id, bcrypt). Edge-local store field ONLY — never transmitted in protocol payloads and never logged (SP-07)."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["ACTIVE", "DISABLED"],
+      "description": "ACTIVE users may log in; DISABLED users are rejected at authentication time."
+    },
+    "lastLoginAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the user last authenticated successfully."
+    },
+    "disabledAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the user was disabled. Required when status is DISABLED."
+    },
+    "createdAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the user record was created."
+    },
+    "updatedAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the user record last changed."
+    }
+  },
+  "allOf": [
+    {
+      "description": "DISABLED must record when it was disabled.",
+      "if": {
+        "properties": { "status": { "const": "DISABLED" } },
+        "required": ["status"]
+      },
+      "then": {
+        "required": ["disabledAt"],
+        "properties": {
+          "disabledAt": true
+        }
+      }
+    }
+  ]
+}

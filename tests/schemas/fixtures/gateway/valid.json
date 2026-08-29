@@ -1,0 +1,28 @@
+[
+  {
+    "gatewayId": "01JZ7F3I0J1K2L3M4N5O6P7Q8R",
+    "displayName": "St Kilda Primary Gateway",
+    "status": "REGISTERED",
+    "registrationTokenFingerprint": "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+    "tokenIssuedAt": "2026-08-28T08:00:00Z",
+    "tokenExpiresAt": "2027-08-28T08:00:00Z",
+    "registeredAt": "2026-08-28T08:05:00Z",
+    "lastSeenAt": "2026-08-28T10:20:00Z",
+    "createdAt": "2026-08-28T08:00:00Z",
+    "updatedAt": "2026-08-28T10:20:00Z"
+  },
+  {
+    "gatewayId": "01JZ7F4A2B3C4D5E6F7G8H9I0J",
+    "status": "SUSPENDED",
+    "suspendedAt": "2026-08-28T12:00:00Z",
+    "createdAt": "2026-08-28T08:00:00Z",
+    "updatedAt": "2026-08-28T12:00:00Z"
+  },
+  {
+    "gatewayId": "01JZ7F5E6F7G8H9I0J1K2L3M4N",
+    "status": "REVOKED",
+    "revokedAt": "2026-08-28T13:00:00Z",
+    "createdAt": "2026-08-28T08:00:00Z",
+    "updatedAt": "2026-08-28T13:00:00Z"
+  }
+]

@@ -1,0 +1,12 @@
+{
+  "id": "01JZ7F3D5E6F7G8H9I0J1K2L3M",
+  "kind": "input",
+  "status": "ASSIGNED",
+  "workflowRef": "wf-run-42",
+  "nodeId": "node-collect-evidence",
+  "prompt": "Describe what you observed.",
+  "requestMessageId": "01JZ7F3B8N9M2XKQ5R4T6VWY8A",
+  "requestedAt": "2026-08-28T09:15:00Z",
+  "createdAt": "2026-08-28T09:15:00Z",
+  "updatedAt": "2026-08-28T09:15:00Z"
+}

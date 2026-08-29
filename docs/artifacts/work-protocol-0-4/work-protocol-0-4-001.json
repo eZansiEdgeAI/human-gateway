@@ -1,0 +1,45 @@
+{
+  "type": "work.protocol-0.4",
+  "category": "work",
+  "taskId": "PROTOCOL-0.4",
+  "producedBy": "protocol-engineer",
+  "status": "complete",
+  "summary": "Schemas are published under schemas/ (Draft 2020-12, versioned v1 $id) with a JSON Schema validator suite: all 10 schema documents registered in tests/schemas/validate.mjs (ajv), 9 entity fixture sets with valid.json + invalid/ rejection fixtures, and the schemas/README documenting the versioned release, sync model, identity model, error model, and state machines.",
+  "inputs": [
+    "work-protocol-0-3-002"
+  ],
+  "filesChanged": [
+    "schemas/common.schema.json",
+    "schemas/error.schema.json",
+    "schemas/gateway.schema.json",
+    "schemas/user.schema.json",
+    "schemas/participant.schema.json",
+    "schemas/artifact.schema.json",
+    "schemas/message.schema.json",
+    "schemas/delivery.schema.json",
+    "schemas/humantask.schema.json",
+    "schemas/syncbatch.schema.json",
+    "schemas/README.md",
+    "tests/schemas/package.json",
+    "tests/schemas/package-lock.json",
+    "tests/schemas/validate.mjs",
+    "tests/schemas/fixtures/*/valid.json",
+    "tests/schemas/fixtures/*/invalid/*.json"
+  ],
+  "payload": {
+    "agentOutputExcerpt": "The publish task (PROTOCOL-0.4) is scaffolded: 10 schemas under schemas/ carry versioned $id (https://schemas.humangateway.dev/human-gateway/v1/...) with Draft 2020-12 $schema, the runner registers every schema under its $id before compiling entity schemas, and 9 entity fixture sets pass. Closed the remaining coverage gaps: delivery/valid.json now positively exercises all six delivery states (QUEUED, SYNCING, DELIVERED, ACKNOWLEDGED, WAITING_FOR_SYNC, FAILED-with-error) so the FAILED -> error -> error.schema.json reference path is proven valid, plus new invalid fixtures for the QUEUED/DELIVERED/ACKNOWLEDGED state-timestamp invariants. npm test: 73 fixture checks, 0 failures.",
+    "coverage": {
+      "entities": ["common", "error", "gateway", "user", "participant", "artifact", "message", "delivery", "humantask", "syncbatch"],
+      "deliveryStates": ["QUEUED", "SYNCING", "DELIVERED", "ACKNOWLEDGED", "WAITING_FOR_SYNC", "FAILED"],
+      "fixtureChecks": 73,
+      "failures": 0,
+      "schemaDraft": "https://json-schema.org/draft/2020-12/schema",
+      "release": "v1.0.0 (2026-08-28)"
+    }
+  },
+  "nextActions": [
+    "PROTOCOL-0.5: Scaffold src/HumanGateway.Protocol (.NET) with schema-backed entity model and validation"
+  ],
+  "artifactId": "work-protocol-0-4-001",
+  "createdAt": "2026-08-28T23:45:00.000Z"
+}

@@ -57,7 +57,7 @@ No direct UI. Surfaces through the PWA delivery-status indicators (SYNC feature)
 ## 5. Implementation Tasks
 
 ### Phase 3: Synchronisation
-- [ ] Define the sync batch schema and cursor model in `schemas/sync.schema.json` (with protocol feature)
+- [x] Define the sync batch schema and cursor model in `schemas/syncbatch.schema.json` (with protocol feature)
 - [ ] Implement the Edge-side sync worker: push/pull cursors, idempotency keys, retry/backoff
 - [ ] Implement delivery-state transitions and acknowledgements
 - [ ] Deterministic ordering/reordering by sequence number

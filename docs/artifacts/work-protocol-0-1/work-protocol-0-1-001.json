@@ -1,0 +1,16 @@
+{
+  "type": "work.protocol-0.1",
+  "category": "work",
+  "taskId": "PROTOCOL-0.1",
+  "producedBy": "protocol-engineer",
+  "status": "complete",
+  "summary": "I have full context on the requirements (PROTO-FR-01..06, sync model, delivery state machine, human task lifecycle). Now let me check available validation tooling before authoring the schemas.",
+  "inputs": [],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "I have full context on the requirements (PROTO-FR-01..06, sync model, delivery state machine, human task lifecycle). Now let me check available validation tooling before authoring the schemas.\nNode, npm, and .NET are available; no ajv yet. I'll author the schemas, then install ajv in a throwaway location (`/tmp/opencode`) to verify cross-file `$ref` resolution and run fixtures. Let me set up the task list and start.\nNow the schemas. Starting with the shared definitions file:\nNow the README docum"
+  },
+  "nextActions": [],
+  "artifactId": "work-protocol-0-1-001",
+  "createdAt": "2026-08-28T21:27:15.715Z"
+}

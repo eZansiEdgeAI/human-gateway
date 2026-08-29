@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.humangateway.dev/human-gateway/v1/gateway.schema.json",
+  "$comment": "HumanGateway protocol v1.0.0 (2026-08-28). AUTH-FR-01, SP-02, SP-07.",
+  "title": "Gateway",
+  "description": "Edge Gateway identity and registration record (AUTH-FR-01). Every Edge Gateway has a unique durable gatewayId and a high-entropy registration token (see $defs.registrationToken); the Relay rejects any gateway that is not registered (SP-02). This record is the identity both sides share: the Relay stores it in PostgreSQL with only a SHA-256 fingerprint of the current token, while the Edge keeps the plaintext token in its local secret store (env/secret store — never in code or repos, SP-07) and uses it to derive the signed request tokens that authenticate every Edge↔Relay request over TLS (AUTH-FR-04, SP-01). A gateway appears in message flows as a system: participant whose suffix matches the gatewayId (PROTO-FR-02).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["gatewayId", "status", "createdAt"],
+  "properties": {
+    "gatewayId": {
+      "$ref": "common.schema.json#/$defs/id",
+      "description": "Unique durable gateway identity (SP-02). Referenced by syncbatch.gatewayId and by the system: participant address suffix."
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "description": "Human-readable gateway name (e.g. the school or site name)."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["UNREGISTERED", "PENDING", "REGISTERED", "SUSPENDED", "REVOKED"],
+      "description": "Registration lifecycle. Only REGISTERED gateways may exchange sync batches; SUSPENDED and REVOKED gateways are rejected with GATEWAY_SUSPENDED / GATEWAY_REVOKED. UNREGISTERED is the initial state before a successful registration handshake."
+    },
+    "registrationTokenFingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "SHA-256 of the current registration token, as stored by the Relay. The Relay never stores or returns the plaintext token (SP-07); the Edge holds it in its secret store and presents it only during registration/rotation, over TLS."
+    },
+    "tokenIssuedAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the current registration token was issued."
+    },
+    "tokenExpiresAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the current registration token expires; the Edge must rotate (re-register) before this time or its requests are rejected."
+    },
+    "registeredAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the gateway first registered successfully."
+    },
+    "suspendedAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the gateway was suspended. Required when status is SUSPENDED."
+    },
+    "revokedAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the gateway identity was revoked. Required when status is REVOKED."
+    },
+    "lastSeenAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "Last successful authenticated Edge↔Relay exchange (sync batch or heartbeat)."
+    },
+    "createdAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the gateway identity record was created."
+    },
+    "updatedAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the gateway identity record last changed."
+    }
+  },
+  "allOf": [
+    {
+      "description": "SUSPENDED must record when it was suspended.",
+      "if": {
+        "properties": { "status": { "const": "SUSPENDED" } },
+        "required": ["status"]
+      },
+      "then": {
+        "required": ["suspendedAt"],
+        "properties": {
+          "suspendedAt": true
+        }
+      }
+    },
+    {
+      "description": "REVOKED must record when it was revoked.",
+      "if": {
+        "properties": { "status": { "const": "REVOKED" } },
+        "required": ["status"]
+      },
+      "then": {
+        "required": ["revokedAt"],
+        "properties": {
+          "revokedAt": true
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "registrationToken": {
+      "type": "string",
+      "title": "Registration Token",
+      "minLength": 48,
+      "maxLength": 256,
+      "pattern": "^hgrt_[A-Za-z0-9_-]+$",
+      "description": "High-entropy registration token (at least 256 bits of randomness, base64url) issued by the Relay and held by the Edge in its secret store. Presented exactly once, over TLS, during registration or rotation (AUTH-FR-01). It is never logged and never included in sync batches, messages, or error payloads (SP-07)."
+    },
+    "requestToken": {
+      "type": "string",
+      "title": "Signed Request Token",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Signed opaque request token carried by every Edge↔Relay HTTP request (v1; JWT only if a consumer needs it — identity-security Open Q #1). Derived from the registration token and the request content; verified by the Relay on every request (AUTH-FR-04)."
+    }
+  }
+}

@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HumanGateway.Core/HumanGateway.Core.csproj" />
+    <Project Path="src/HumanGateway.Edge/HumanGateway.Edge.csproj" />
+    <Project Path="src/HumanGateway.Protocol/HumanGateway.Protocol.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HumanGateway.Core.Tests/HumanGateway.Core.Tests.csproj" />
+    <Project Path="tests/HumanGateway.Edge.CrashProbe/HumanGateway.Edge.CrashProbe.csproj" />
+    <Project Path="tests/HumanGateway.Edge.Tests/HumanGateway.Edge.Tests.csproj" />
+  </Folder>
+</Solution>

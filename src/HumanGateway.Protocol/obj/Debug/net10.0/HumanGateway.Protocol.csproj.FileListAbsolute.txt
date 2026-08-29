@@ -1,0 +1,14 @@
+/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Protocol/bin/Debug/net10.0/HumanGateway.Protocol.deps.json
+/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Protocol/bin/Debug/net10.0/HumanGateway.Protocol.dll
+/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Protocol/bin/Debug/net10.0/HumanGateway.Protocol.pdb
+/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Protocol/bin/Debug/net10.0/HumanGateway.Protocol.xml
+/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Protocol/obj/Debug/net10.0/HumanGateway.Protocol.GeneratedMSBuildEditorConfig.editorconfig
+/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Protocol/obj/Debug/net10.0/HumanGateway.Protocol.AssemblyInfoInputs.cache
+/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Protocol/obj/Debug/net10.0/HumanGateway.Protocol.AssemblyInfo.cs
+/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Protocol/obj/Debug/net10.0/HumanGateway.Protocol.csproj.CoreCompileInputs.cache
+/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Protocol/obj/Debug/net10.0/HumanGateway.Protocol.sourcelink.json
+/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Protocol/obj/Debug/net10.0/HumanGateway.Protocol.dll
+/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Protocol/obj/Debug/net10.0/refint/HumanGateway.Protocol.dll
+/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Protocol/obj/Debug/net10.0/HumanGateway.Protocol.xml
+/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Protocol/obj/Debug/net10.0/HumanGateway.Protocol.pdb
+/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Protocol/obj/Debug/net10.0/ref/HumanGateway.Protocol.dll

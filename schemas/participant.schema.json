@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.humangateway.dev/human-gateway/v1/participant.schema.json",
+  "$comment": "HumanGateway protocol v1.0.0 (2026-08-28). PROTO-FR-02.",
+  "title": "Participant",
+  "description": "A typed participant: a human:, agent:, or system: address plus display metadata. The address prefix and 'kind' must agree (PROTO-FR-02). Participants are the only identity carried in the message envelope; HumanGateway does not perform consumer role-checks (SP-09). Identity-model links (AUTH-FR-01, AUTH-FR-02): human participants may carry a userId referencing a local Edge User record (user.schema.json); system participants may carry a gatewayId referencing an Edge Gateway identity record (gateway.schema.json).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["address", "kind", "displayName"],
+  "properties": {
+    "address": {
+      "$ref": "common.schema.json#/$defs/participantAddress",
+      "description": "Typed address. Must start with the prefix matching 'kind'."
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["human", "agent", "system"],
+      "description": "Participant kind. Must match the address prefix."
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "description": "Human-readable display name, cached from the last known metadata."
+    },
+    "userId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Optional local user identifier for human participants — references user.schema.json#/id (the local Edge user account, AUTH-FR-02). Not used for authorisation by HumanGateway (SP-09)."
+    },
+    "gatewayId": {
+      "$ref": "common.schema.json#/$defs/id",
+      "description": "Optional Edge Gateway identity when this system participant represents a gateway — references gateway.schema.json#/gatewayId (AUTH-FR-01). When present, it must equal the gatewayId of the sync batch carrying the message."
+    }
+  },
+  "anyOf": [
+    {
+      "description": "Human participant.",
+      "properties": {
+        "kind": { "type": "string", "const": "human" },
+        "address": { "type": "string", "pattern": "^human:" }
+      }
+    },
+    {
+      "description": "Agent participant (e.g. a FlowForge agent).",
+      "properties": {
+        "kind": { "type": "string", "const": "agent" },
+        "address": { "type": "string", "pattern": "^agent:" }
+      }
+    },
+    {
+      "description": "System participant (e.g. a gateway, relay, or service account).",
+      "properties": {
+        "kind": { "type": "string", "const": "system" },
+        "address": { "type": "string", "pattern": "^system:" }
+      }
+    }
+  ]
+}

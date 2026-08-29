@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.humangateway.dev/human-gateway/v1/common.schema.json",
+  "$comment": "HumanGateway protocol v1.0.0 (2026-08-28). Shared definitions referenced by the core entity schemas; never duplicated in consumer schemas (NF-06).",
+  "title": "HumanGateway Protocol — Shared Definitions",
+  "description": "Reusable building blocks (durable IDs, RFC 3339 timestamps, content hashes, typed participant addresses, errors, correlation tokens) referenced via $ref by the core protocol entity schemas.",
+  "type": "object",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "title": "Durable ID",
+      "description": "A durable, globally unique identifier assigned by the creating gateway and stable for the lifetime of the entity (SYNC-FR-01). UUIDv4 or ULID recommended. Never reused after deletion.",
+      "minLength": 8,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "title": "Timestamp",
+      "description": "RFC 3339 UTC timestamp with a trailing 'Z'. All protocol timestamps are UTC so that ordering across gateways is unambiguous.",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?Z$"
+    },
+    "contentHash": {
+      "type": "string",
+      "title": "Content Hash",
+      "description": "SHA-256 digest of the content bytes (the canonical message envelope, or an artifact file), lowercase hex, prefixed 'sha256:'. Computed and verified by both sync peers (SYNC-FR-02, SP-06).",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "participantAddress": {
+      "type": "string",
+      "title": "Participant Address",
+      "description": "Typed participant address. The prefix identifies the participant kind — human:, agent:, system: (PROTO-FR-02). The suffix is a stable local alias (e.g. an email-like or gateway-local identifier).",
+      "pattern": "^(human|agent|system):[A-Za-z0-9._@+-]{1,191}$"
+    },
+    "error": {
+      "$ref": "error.schema.json",
+      "description": "The protocol error model (protocol §7 #3). Single source of truth: error.schema.json. Used by delivery FAILED records and sync/API error responses. Never carries secrets (SP-07)."
+    },
+    "correlationTokens": {
+      "type": "object",
+      "title": "Correlation Tokens",
+      "description": "Opaque consumer (e.g. FlowForge) correlation tokens passed through the protocol unchanged so consumers can enforce role-checks and audit without HumanGateway duplicating them (SP-09, AUTH-FR-06).",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  }
+}

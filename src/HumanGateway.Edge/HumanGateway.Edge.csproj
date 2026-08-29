@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>HumanGateway.Edge</RootNamespace>
+    <AssemblyName>HumanGateway.Edge</AssemblyName>
+    <Version>1.0.0</Version>
+    <Description>The Edge Gateway: an on-site ASP.NET Core service (local REST API + SQLite + filesystem artifact store) serving PWA clients on the school LAN, fully functional without Internet and queuing everything for later sync (product vision §6.2, EDGE-FR-01..07).</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../HumanGateway.Protocol/HumanGateway.Protocol.csproj" />
+    <ProjectReference Include="../HumanGateway.Core/HumanGateway.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- SQLite storage (EDGE-FR-02, NF-04): Microsoft.Data.Sqlite with EF Core for the durable local
+         schema (conversations, messages, deliveries, artifacts, participants) in WAL mode. -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

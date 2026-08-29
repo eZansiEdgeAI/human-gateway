@@ -1,0 +1,36 @@
+{
+  "id": "01JZ7F3D5E6F7G8H9I0J1K2L3M",
+  "kind": "approval",
+  "status": "COMPLETED",
+  "workflowRef": "wf-run-42",
+  "nodeId": "node-review-assessment",
+  "role": "teacher",
+  "prompt": "Approve or reject the submitted student work.",
+  "subject": "Review: student-work.pdf",
+  "requestMessageId": "01JZ7F3B8N9M2XKQ5R4T6VWY8A",
+  "responseMessageId": "01JZ7F3G8H9I0J1K2L3M4N5O6P",
+  "response": {
+    "decision": "approved",
+    "reason": "Meets all criteria.",
+    "artifactRefs": [
+      {
+        "id": "01JZ7F3E6F7G8H9I0J1K2L3M4N",
+        "hash": "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+      }
+    ],
+    "respondedBy": {
+      "address": "human:teacher@school.example",
+      "kind": "human",
+      "displayName": "Ms. Okafor"
+    },
+    "respondedAt": "2026-08-28T10:05:00Z"
+  },
+  "correlationToken": "ff-pt-3f9a2c",
+  "expiresAt": "2026-08-29T10:00:00Z",
+  "requestedAt": "2026-08-28T09:15:00Z",
+  "deliveredToHumanAt": "2026-08-28T09:20:00Z",
+  "responseReceivedAt": "2026-08-28T10:05:00Z",
+  "completedAt": "2026-08-28T10:05:30Z",
+  "createdAt": "2026-08-28T09:15:00Z",
+  "updatedAt": "2026-08-28T10:05:30Z"
+}

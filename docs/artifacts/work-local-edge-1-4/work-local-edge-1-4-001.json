@@ -1,0 +1,29 @@
+{
+  "type": "work.local-edge-1.4",
+  "category": "work",
+  "taskId": "LOCAL-EDGE-1.4",
+  "producedBy": "pwa-engineer",
+  "status": "complete",
+  "summary": "Implemented the Edge local REST API (EDGE-FR-03): conversations, messages, tasks, artifacts, and sync status, each doing a durable write-then-outbox-enqueue and returning protocol wire-shaped JSON with ProtocolError-shaped failures. Removed two leftover dead files (ApiException.cs, ApiExceptionFilter.cs) from an earlier design iteration that referenced a non-existent ApiErrors.Error and broke the build; the running exception contract is LocalApiException + the UseExceptionHandler mapping to ApiErrors.FromException.",
+  "inputs": [
+    "work-local-edge-1-3-001"
+  ],
+  "filesChanged": [
+    "src/HumanGateway.Edge/Api/LocalApiService.cs",
+    "src/HumanGateway.Edge/Endpoints/LocalApiEndpoints.cs",
+    "src/HumanGateway.Edge/Api/ApiModels.cs",
+    "src/HumanGateway.Edge/Api/ApiErrors.cs",
+    "src/HumanGateway.Edge/Api/ApiOptions.cs",
+    "src/HumanGateway.Edge/Program.cs",
+    "src/HumanGateway.Edge/README.md",
+    "tests/HumanGateway.Edge.Tests/LocalApiTests.cs"
+  ],
+  "payload": {
+    "agentOutputExcerpt": "The local REST API deliverable (LOCAL-EDGE-1.4) is complete and verified end-to-end.\n\n## Endpoints implemented (EDGE-FR-03)\n\nAll endpoints are mapped in `Endpoints/LocalApiEndpoints.cs` and delegate to `Api/LocalApiService.cs`, which performs the durable write-then-outbox-enqueue for every create (EDGE-FR-04). Responses use the protocol wire contract (camelCase keys, exact string enum tokens, omit-null) via `LocalApiJson`; failures are `ProtocolError`-shaped via the global exception handler (`ApiErrors.FromException`).\n\n- **Conversations** — `GET/POST /conversations`, `GET /conversations/{id}`, `GET /conversations/{id}/messages`\n- **Messages** — `POST /messages` (compose + send: durable store, per-recipient delivery records, outbox enqueue), `GET /messages/{id}`\n- **Tasks** — `POST /tasks` (input/approval), `GET /tasks?status=`, `GET /tasks/{id}`, `POST /tasks/{id}/response`\n- **Artifacts** — `POST /artifacts` (metadata registration), `GET /artifacts`, `GET /artifacts/{id}`\n- **Sync status** — `GET /sync/status` (queued count, last sequence, delivery-state summary)\n\n## Build fix\n\nThe tree contained two dead files from an earlier design iteration — `ApiException.cs` and `ApiExceptionFilter.cs` — that referenced a non-existent `ApiErrors.Error` and `EdgeApiService`, breaking the build (CS0117). The running contract is `LocalApiException` + the `UseExceptionHandler` mapping. Removed both dead files.\n\n## Validation\n- `dotnet build src/HumanGateway.Edge` → 0 errors, 0 warnings\n- `dotnet test` → **87 passed** (58 Core + 29 Edge), 0 failed — `LocalApiTests` exercises every endpoint over HTTP against the real minimal API host with an isolated SQLite file per test (camelCase keys, string enum tokens, write-then-queue, 404/409/400 error contract)."
+  },
+  "nextActions": [
+    "LOCAL-EDGE-1.5: local filesystem artifact store with content-hash naming and deduplication (edge-engineer)"
+  ],
+  "artifactId": "work-local-edge-1-4-001",
+  "createdAt": "2026-08-29T00:59:32.858Z"
+}

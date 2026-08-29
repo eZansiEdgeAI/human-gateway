@@ -1,0 +1,28 @@
+{
+  "id": "01JZ7F3B8N9M2XKQ5R4T6VWY8A",
+  "sender": {
+    "address": "human:teacher@school.example",
+    "kind": "human",
+    "displayName": "Ms. Okafor"
+  },
+  "recipients": [
+    {
+      "address": "agent:flowforge-8c2f1a9d",
+      "kind": "agent",
+      "displayName": "Assessment Agent"
+    }
+  ],
+  "conversationId": "01JZ7F3C4D5E6F7G8H9I0J1K2L",
+  "payload": {
+    "body": "Artifact bytes must never be embedded (PROTO-FR-04)."
+  },
+  "artifactRefs": [
+    {
+      "id": "01JZ7F3E6F7G8H9I0J1K2L3M4N",
+      "hash": "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      "content": "JVBERi0xLjQKJcOkw7zDtsOfCjIgMCBvYmoK"
+    }
+  ],
+  "createdAt": "2026-08-28T09:15:00Z",
+  "contentHash": "sha256:b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2"
+}

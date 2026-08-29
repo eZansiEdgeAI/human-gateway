@@ -1,0 +1,18 @@
+{
+  "type": "work.protocol-0.2",
+  "category": "work",
+  "taskId": "PROTOCOL-0.2",
+  "producedBy": "protocol-engineer",
+  "status": "complete",
+  "summary": "The sync batch schema exists and tests pass, but the task checkbox in protocol.md is unchecked and the sync model has gaps worth closing (sequence-range consistency, cursor/idempotency constraints, an",
+  "inputs": [
+    "work-protocol-0-1-001"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "The sync batch schema exists and tests pass, but the task checkbox in protocol.md is unchecked and the sync model has gaps worth closing (sequence-range consistency, cursor/idempotency constraints, and dedicated fixtures). Let me review the remaining schemas before tightening it.\nThe schemas exist and pass fixtures, but the sync-model task (protocol.md line 58) is still unchecked and the SyncBatch schema has gaps: unbounded cursors, no batch-size bounds, and the sequence-range invariant is only "
+  },
+  "nextActions": [],
+  "artifactId": "work-protocol-0-2-001",
+  "createdAt": "2026-08-28T21:31:16.765Z"
+}

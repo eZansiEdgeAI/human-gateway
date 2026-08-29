@@ -1,0 +1,15 @@
+{
+  "id": "01JZ7F4C5D6E7F8G9H0I1J2K3L",
+  "messageId": "01JZ7F3B8N9M2XKQ5R4T6VWY8A",
+  "recipient": {
+    "address": "human:teacher@school.example",
+    "kind": "human",
+    "displayName": "Ms. Okafor"
+  },
+  "state": "DELIVERED",
+  "attempts": 1,
+  "maxAttempts": 5,
+  "queuedAt": "2026-08-28T09:16:00Z",
+  "createdAt": "2026-08-28T09:16:00Z",
+  "updatedAt": "2026-08-28T10:02:00Z"
+}

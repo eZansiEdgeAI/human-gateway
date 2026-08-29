@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>HumanGateway.Protocol</RootNamespace>
+    <AssemblyName>HumanGateway.Protocol</AssemblyName>
+    <Version>1.0.0</Version>
+    <Description>Schema-backed entity model and validation for the HumanGateway protocol. Mirrors the versioned JSON Schemas under schemas/ (JSON Schema Draft 2020-12, release v1.0.0); the schemas remain the single source of truth (NF-06, PROTO-FR-06).</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The versioned protocol schemas ship with the assembly (product vision §6.2: "entity model + schemas + validation").
+         The validators are hand-written to mirror the schema rules (protocol Open Q #2 default); the embedded documents
+         are exposed via ProtocolSchemas for reference, packaging, and cross-language conformance. -->
+    <EmbeddedResource Include="../../schemas/*.schema.json" Link="Schemas/%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

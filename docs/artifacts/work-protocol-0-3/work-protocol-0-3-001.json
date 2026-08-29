@@ -1,0 +1,52 @@
+{
+  "type": "work.protocol-0.3",
+  "category": "work",
+  "taskId": "PROTOCOL-0.3",
+  "producedBy": "security-engineer",
+  "status": "complete",
+  "summary": "Defined the identity model (gateway, participant, user) and the error model as versioned protocol schemas. New schemas: gateway.schema.json (unique gatewayId + registration-token model, Relay rejects unregistered/suspended/revoked gateways per SP-02, token fingerprint only, never the secret), user.schema.json (local Edge accounts, passwordVerifier is an Edge-local-store-only PHC field never transmitted), and error.schema.json (stable UPPER_SNAKE codes, reserved catalog in $defs.errorCode, retryable hint; single source of truth for common.$defs.error used by delivery FAILED and sync/API responses). Participant now links to the gateway and user records (gatewayId for system gateways, userId for humans). 65 schema fixture checks pass (Draft 2020-12); protocol.md Phase 0 identity/error-model task ticked.",
+  "inputs": [
+    "work.protocol-0.2"
+  ],
+  "filesChanged": [
+    "schemas/error.schema.json",
+    "schemas/gateway.schema.json",
+    "schemas/user.schema.json",
+    "schemas/common.schema.json",
+    "schemas/participant.schema.json",
+    "schemas/syncbatch.schema.json",
+    "schemas/README.md",
+    "docs/features/protocol.md",
+    "tests/schemas/validate.mjs",
+    "tests/schemas/fixtures/error/valid.json",
+    "tests/schemas/fixtures/error/invalid/missing-code.json",
+    "tests/schemas/fixtures/error/invalid/missing-message.json",
+    "tests/schemas/fixtures/error/invalid/bad-code-shape.json",
+    "tests/schemas/fixtures/error/invalid/code-too-long.json",
+    "tests/schemas/fixtures/error/invalid/message-too-long.json",
+    "tests/schemas/fixtures/error/invalid/extra-property.json",
+    "tests/schemas/fixtures/error/invalid/non-boolean-retryable.json",
+    "tests/schemas/fixtures/gateway/valid.json",
+    "tests/schemas/fixtures/gateway/invalid/missing-id.json",
+    "tests/schemas/fixtures/gateway/invalid/unknown-status.json",
+    "tests/schemas/fixtures/gateway/invalid/bad-fingerprint.json",
+    "tests/schemas/fixtures/gateway/invalid/extra-property.json",
+    "tests/schemas/fixtures/gateway/invalid/suspended-without-time.json",
+    "tests/schemas/fixtures/gateway/invalid/revoked-without-time.json",
+    "tests/schemas/fixtures/user/valid.json",
+    "tests/schemas/fixtures/user/invalid/bad-username.json",
+    "tests/schemas/fixtures/user/invalid/username-too-short.json",
+    "tests/schemas/fixtures/user/invalid/missing-verifier.json",
+    "tests/schemas/fixtures/user/invalid/verifier-too-short.json",
+    "tests/schemas/fixtures/user/invalid/verifier-not-phc.json",
+    "tests/schemas/fixtures/user/invalid/unknown-status.json",
+    "tests/schemas/fixtures/user/invalid/extra-property.json",
+    "tests/schemas/fixtures/user/invalid/disabled-without-time.json"
+  ],
+  "payload": {
+    "agentOutputExcerpt": "PROTOCOL-0.3 \u2014 Define the identity model (gateway, participant, user) and error model. Authored three new versioned Draft 2020-12 schemas: error.schema.json (error model + reserved error-code catalog referenced via common.$defs.error), gateway.schema.json (Edge Gateway identity/registration record with registration-token and signed-request-token $defs; Relay stores only a SHA-256 fingerprint, SP-07), and user.schema.json (local Edge user with PHC passwordVerifier that must never be transmitted). Wired the identity model together: participant.schema.json gained optional gatewayId (system gateways) and a userId link to user.schema.json; syncbatch.gatewayId now references the Gateway identity record. Documented both models in schemas/README.md and ticked the protocol.md Phase 0 checkbox. Added 22 fixtures (7 error, 7 gateway, 8 user) and registered the new schemas in tests/schemas/validate.mjs. Validation: 65/65 schema fixture checks pass; secrets scan finds only field names/spec text/fake fixtures (SP-07)."
+  },
+  "nextActions": [],
+  "artifactId": "work-protocol-0-3-001",
+  "createdAt": "2026-08-28T21:36:49.000Z"
+}

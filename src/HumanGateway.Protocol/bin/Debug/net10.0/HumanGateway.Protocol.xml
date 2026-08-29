@@ -1,0 +1,1355 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>HumanGateway.Protocol</name>
+    </assembly>
+    <members>
+        <member name="T:HumanGateway.Protocol.Models.Artifact">
+            <summary>
+            A first-class content object (image, PDF, document, audio) stored by the Edge filesystem / Relay
+            PostgreSQL (BYTEA) and referenced by messages by ID + hash — never embedded in the envelope
+            (artifact.schema.json, PROTO-FR-04, ARTF-FR-01).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Artifact.Id">
+            <summary>Durable artifact ID; the storage key (content-hash naming means equal content yields equal hash).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Artifact.Hash">
+            <summary>SHA-256 of the artifact bytes (<c>sha256:&lt;hex&gt;</c>); used for dedup and tamper detection (SP-06).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Artifact.SizeBytes">
+            <summary>Byte size (protocol ceiling 512 MiB; default gateway limit 50 MiB).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Artifact.MimeType">
+            <summary>Media type so the receiving app can render or interpret the content.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Artifact.Filename">
+            <summary>Original filename, preserved for the recipient.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Artifact.Description">
+            <summary>Optional human-readable description / alt text.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Artifact.CreatedAt">
+            <summary>When the artifact was first recorded.</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.ArtifactReference">
+            <summary>
+            A reference to an artifact carried inside a message envelope or task response: ID + content hash plus
+            rendering metadata. Never the bytes (PROTO-FR-04).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.ArtifactReference.Id">
+            <summary>Artifact ID the receiving gateway resolves in its artifact store.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.ArtifactReference.Hash">
+            <summary>Content hash the receiving gateway verifies after transfer.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.ArtifactReference.Filename">
+            <summary>Original filename, preserved for the recipient.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.ArtifactReference.MimeType">
+            <summary>Media type for rendering.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.ArtifactReference.SizeBytes">
+            <summary>Byte size for progress reporting.</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.ProtocolJson">
+            <summary>
+            JSON serialization contract for protocol entities.
+            </summary>
+            <remarks>
+            - Property wire names come from <c>[JsonPropertyName]</c> on every entity property (exact match to the
+              schema field names; case-sensitive on read).
+            - Enums map through <see cref="T:HumanGateway.Protocol.ProtocolStringEnumConverter"/> (exact wire tokens, both directions).
+            - <see cref="F:System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull"/> keeps round-trips byte-identical: optional properties
+              that were absent stay absent when re-serialized.
+            - <see cref="F:System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow"/> rejects unknown properties, mirroring the schemas'
+              <c>additionalProperties: false</c> — this is what enforces PROTO-FR-04 (artifacts referenced, never
+              embedded) and the strict entity shapes at the wire boundary.
+            </remarks>
+        </member>
+        <member name="F:HumanGateway.Protocol.Models.ProtocolJson.Options">
+            <summary>Options for (de)serializing protocol entities.</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.DeliveryState">
+            <summary>
+            Delivery lifecycle state (PROTO-FR-05, product vision §10). <see cref="F:HumanGateway.Protocol.Models.DeliveryState.WaitingForSync"/> is a valid
+            state — offline-queued delivery is expected behaviour, never an error.
+            </summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.Delivery">
+            <summary>
+            Per-recipient delivery lifecycle record for a message (delivery.schema.json, PROTO-FR-05). The schema
+            validates snapshot consistency (e.g. FAILED requires <see cref="P:HumanGateway.Protocol.Models.Delivery.Error"/> and <see cref="P:HumanGateway.Protocol.Models.Delivery.FailedAt"/>);
+            transition legality is enforced by the sync engine.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Delivery.Id">
+            <summary>Durable delivery record ID.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Delivery.MessageId">
+            <summary>The message this delivery record tracks.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Delivery.Recipient">
+            <summary>The recipient this delivery record applies to (one record per recipient).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Delivery.State">
+            <summary>Current delivery state.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Delivery.Attempts">
+            <summary>Completed sync/delivery attempts so far (≥ 0).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Delivery.MaxAttempts">
+            <summary>Maximum attempts before the state becomes FAILED (≥ 1).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Delivery.NextRetryAt">
+            <summary>Earliest time the next attempt may run (exponential backoff with jitter).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Delivery.Error">
+            <summary>Failure details; required when state is FAILED.</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.GatewayStatus">
+            <summary>Gateway registration lifecycle (gateway.schema.json, AUTH-FR-01). Only REGISTERED gateways may exchange sync batches.</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.Gateway">
+            <summary>
+            Edge Gateway identity and registration record (gateway.schema.json, AUTH-FR-01, SP-02, SP-07). The Relay
+            stores only a SHA-256 fingerprint of the registration token; the Edge holds the plaintext token in its
+            secret store — never in code or repos (SP-07).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Gateway.GatewayId">
+            <summary>Unique durable gateway identity (SP-02). Referenced by syncbatch.gatewayId and system: participant suffix.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Gateway.DisplayName">
+            <summary>Human-readable gateway name (e.g. the school or site name).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Gateway.Status">
+            <summary>Registration lifecycle state.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Gateway.RegistrationTokenFingerprint">
+            <summary>SHA-256 of the current registration token, as stored by the Relay (SP-07).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Gateway.SuspendedAt">
+            <summary>Required when status is SUSPENDED.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Gateway.RevokedAt">
+            <summary>Required when status is REVOKED.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Gateway.LastSeenAt">
+            <summary>Last successful authenticated Edge↔Relay exchange.</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.HumanTaskKind">
+            <summary>Human task kind: human-input (free text / choice) or human-approval (approve / reject) (FLOW-FR-05).</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.HumanTaskStatus">
+            <summary>Human task lifecycle state (product vision §10).</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.ApprovalDecision">
+            <summary>Approval decision (kind=approval).</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.TaskResponse">
+            <summary>The human's response to a task; populated once answered.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.TaskResponse.Text">
+            <summary>Free-text answer (kind=input).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.TaskResponse.Decision">
+            <summary>Approve / reject (kind=approval). Required when an approval task carries a response.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.TaskResponse.Reason">
+            <summary>Optional reason accompanying an approval decision or an input answer.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.TaskResponse.ArtifactRefs">
+            <summary>Evidence attached by the human, referenced — never embedded (PROTO-FR-04).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.TaskResponse.RespondedBy">
+            <summary>The participant who answered.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.TaskResponse.RespondedAt">
+            <summary>When the response was recorded.</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.HumanTask">
+            <summary>
+            The workflow primitive transported by HumanGateway: a request for human input or approval, correlated to
+            the consumer workflow (humantask.schema.json, FLOW-FR-04/FLOW-FR-05). Lifecycle: REQUESTED →
+            DELIVERED_TO_HUMAN → RESPONSE_RECEIVED → COMPLETED, or EXPIRED. HumanGateway transports the task; the
+            consumer owns task semantics and authorisation (NG1, SP-09).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.HumanTask.Id">
+            <summary>Durable human task ID.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.HumanTask.WorkflowRef">
+            <summary>Consumer workflow/run identifier; passed through unchanged.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.HumanTask.NodeId">
+            <summary>Workflow node that requested the interaction (FlowForge nodeId).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.HumanTask.Role">
+            <summary>Role required to answer; not enforced by HumanGateway (SP-09).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.HumanTask.Prompt">
+            <summary>The question or instruction presented to the human.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.HumanTask.Subject">
+            <summary>Short subject / title of the task.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.HumanTask.Options">
+            <summary>Choice options for kind=input prompts with a choice-style answer.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.HumanTask.RequestMessageId">
+            <summary>ID of the Message envelope carrying the task request.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.HumanTask.ResponseMessageId">
+            <summary>ID of the Message envelope carrying the human's response, once answered.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.HumanTask.Response">
+            <summary>The human's response; populated once answered.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.HumanTask.CorrelationToken">
+            <summary>Opaque consumer correlation token passed through unchanged (SP-09, AUTH-FR-06).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.HumanTask.ExpiresAt">
+            <summary>When set, the task transitions to EXPIRED if not completed by this time.</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.MessageFormat">
+            <summary>Message body rendering format.</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.MessagePayload">
+            <summary>Message payload: body text, optional rendering format, and optional structured data.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.MessagePayload.Body">
+            <summary>Message text body (≤ 1,000,000 chars).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.MessagePayload.Format">
+            <summary>Body rendering format (schema default <c>plaintext</c>; absent stays absent on round-trip).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.MessagePayload.Data">
+            <summary>Optional structured data for agent/system messages.</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.Message">
+            <summary>
+            A durable message envelope — the communication primitive of HumanGateway
+            (message.schema.json, PROTO-FR-03). Artifacts are referenced by ID + hash, never embedded (PROTO-FR-04).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Message.Id">
+            <summary>Durable message ID (SYNC-FR-01); never reused; receivers deduplicate on it.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Message.Sender">
+            <summary>The participant that created the message.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Message.Recipients">
+            <summary>Intended recipients (1..64). Delivery state is tracked per recipient in the Delivery entity.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Message.ConversationId">
+            <summary>Conversation this message belongs to (membership governs authorisation, AUTH-FR-03).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Message.ReplyToMessageId">
+            <summary>Message ID this message replies to, if any.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Message.WorkflowRef">
+            <summary>Opaque consumer workflow/run identifier, not interpreted by HumanGateway.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Message.HumanTaskId">
+            <summary>ID of the HumanTask this message is the request or response for, if any.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Message.Payload">
+            <summary>Message payload (body + optional format/data).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Message.ArtifactRefs">
+            <summary>References to attached artifacts (ID + hash + rendering metadata). Bytes are never embedded.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Message.CorrelationTokens">
+            <summary>Consumer correlation tokens passed through unchanged (SP-09, AUTH-FR-06).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Message.CreatedAt">
+            <summary>When the sender created the message (durable, set once).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Message.UpdatedAt">
+            <summary>When the envelope last changed.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Message.ContentHash">
+            <summary>SHA-256 of the canonical JSON encoding of the envelope, excluding contentHash itself (SYNC-FR-02).</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.ParticipantKind">
+            <summary>Participant kind; must agree with the typed address prefix (PROTO-FR-02).</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.Participant">
+            <summary>
+            A typed participant: a <c>human:</c>, <c>agent:</c>, or <c>system:</c> address plus display metadata
+            (participant.schema.json, PROTO-FR-02). The only identity carried in message envelopes; HumanGateway
+            performs no consumer role-checking (SP-09). Optional <see cref="P:HumanGateway.Protocol.Models.Participant.UserId"/> links human participants to a
+            local Edge User record; optional <see cref="P:HumanGateway.Protocol.Models.Participant.GatewayId"/> links system participants to an Edge Gateway.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Participant.Address">
+            <summary>Typed address, e.g. <c>human:teacher@school.example</c>. Prefix must match <see cref="P:HumanGateway.Protocol.Models.Participant.Kind"/>.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Participant.Kind">
+            <summary>Participant kind; must match the address prefix.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Participant.DisplayName">
+            <summary>Human-readable display name, cached from the last known metadata.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Participant.UserId">
+            <summary>Optional local user identifier for human participants (user.schema.json#/id, AUTH-FR-02).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.Participant.GatewayId">
+            <summary>Optional Edge Gateway identity for system participants (gateway.schema.json#/gatewayId, AUTH-FR-01).</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.ProtocolError">
+            <summary>
+            The protocol error model (error.schema.json, protocol §7 #3) — a stable, machine-readable error
+            <see cref="P:HumanGateway.Protocol.Models.ProtocolError.Code"/> plus a human-readable <see cref="P:HumanGateway.Protocol.Models.ProtocolError.Message"/>, optional structured <see cref="P:HumanGateway.Protocol.Models.ProtocolError.Details"/>,
+            and a retryability hint. Referenced by delivery FAILED records and sync/API error responses. Error
+            payloads must never carry secrets, registration tokens, session tokens, or password material (SP-07).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.ProtocolError.Code">
+            <summary>
+            Machine-readable, stable error code (UPPER_SNAKE, ≤ 64 chars). Reserved codes are enumerated in
+            <see cref="T:HumanGateway.Protocol.Models.ErrorCodes"/>; extensions follow the same token shape.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.ProtocolError.Message">
+            <summary>Human-readable error description; safe to display (SP-07).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.ProtocolError.Details">
+            <summary>Optional machine-readable detail fields. Must not contain secrets.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.ProtocolError.Retryable">
+            <summary>Retry hint: true for transient conditions, false for permanent rejections.</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.ErrorCodes">
+            <summary>
+            The reserved protocol error-code catalog (error.schema.json#/$defs/errorCode). Stable across releases:
+            codes are added, never changed or removed. Consumers may extend the catalog using the same UPPER_SNAKE
+            token shape.
+            </summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.BatchDirection">
+            <summary>Sync direction: PUSH (gateway → Relay) or PULL (Relay → gateway).</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.SyncItemKind">
+            <summary>Sync item kind — the discriminator of a SyncItem (oneOf, syncbatch.schema.json#/$defs/syncItem).</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.DeliveryAckState">
+            <summary>Outcome reported back to the sender for a delivered message (SYNC-FR-05).</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.DeliveryAck">
+            <summary>A delivery acknowledgement returned to the sender (syncbatch.schema.json#/$defs/deliveryAck, SYNC-FR-05).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.DeliveryAck.MessageId">
+            <summary>The message being acknowledged.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.DeliveryAck.Recipient">
+            <summary>The recipient that acknowledged delivery.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.DeliveryAck.State">
+            <summary>Outcome reported back to the sender (DELIVERED | ACKNOWLEDGED | FAILED).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.DeliveryAck.AcknowledgedAt">
+            <summary>When the acknowledgement was recorded.</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.SyncItem">
+            <summary>
+            One unit of sync work, discriminated by <see cref="P:HumanGateway.Protocol.Models.SyncItem.Kind"/>. Exactly one payload property
+            (<see cref="P:HumanGateway.Protocol.Models.SyncItem.Message"/>, <see cref="P:HumanGateway.Protocol.Models.SyncItem.Delivery"/>, <see cref="P:HumanGateway.Protocol.Models.SyncItem.Artifact"/>, or <see cref="P:HumanGateway.Protocol.Models.SyncItem.Ack"/>) must be
+            present and match <see cref="P:HumanGateway.Protocol.Models.SyncItem.Kind"/>. Artifact items carry metadata only — the bytes travel over the
+            separate chunked artifact-transfer channel (PROTO-FR-04 exception).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.SyncItem.Sequence">
+            <summary>Per-gateway monotonic sequence number (≥ 1); the deterministic ordering key (SYNC-FR-07).</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.SyncBatch">
+            <summary>
+            A cursor-based, idempotent batch of sync operations exchanged between an Edge Gateway and the Relay
+            (syncbatch.schema.json, SYNC-FR-03). Encodes the sync model: durable IDs, per-gateway sequence numbers,
+            opaque cursors, idempotency (batchId + idempotencyKey), and content hashes (SYNC-FR-01, SYNC-FR-02).
+            An empty <see cref="P:HumanGateway.Protocol.Models.SyncBatch.Items"/> array is a valid keepalive/cursor-advance batch (SYNC-FR-03).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.SyncBatch.BatchId">
+            <summary>Durable batch ID; a retry of the same batch MUST reuse the same batchId (idempotency, SYNC-FR-02).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.SyncBatch.GatewayId">
+            <summary>The gateway that created this batch — the unique Edge Gateway identity (AUTH-FR-01).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.SyncBatch.Direction">
+            <summary>PUSH: gateway → Relay. PULL: Relay → gateway.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.SyncBatch.SinceCursor">
+            <summary>Opaque cursor from the receiving side for incremental sync; null on the first exchange (SYNC-FR-03).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.SyncBatch.Cursor">
+            <summary>Opaque cursor the receiver must store and return on the next exchange.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.SyncBatch.IdempotencyKey">
+            <summary>Stable per-batch key; receiver deduplicates by batchId/idempotencyKey (SYNC-FR-02).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.SyncBatch.SequenceStart">
+            <summary>Smallest per-gateway sequence in this batch; null for an empty keepalive batch.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.SyncBatch.SequenceEnd">
+            <summary>Largest per-gateway sequence in this batch; null for an empty keepalive batch.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.SyncBatch.Items">
+            <summary>The sync operations in this batch (≤ 1000). May be empty (keepalive, SYNC-FR-03).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.SyncBatch.CreatedAt">
+            <summary>When the batch was created.</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.UserStatus">
+            <summary>Local Edge user account status (user.schema.json, AUTH-FR-02).</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Models.User">
+            <summary>
+            A local Edge user account (user.schema.json, AUTH-FR-02). <see cref="P:HumanGateway.Protocol.Models.User.PasswordVerifier"/> is the
+            credential verifier (PHC string) and is a local-store-only field — it MUST NEVER be transmitted in any
+            protocol payload and never logged (SP-07). Referenced from message flows via participant.userId on
+            human: participants.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.User.Id">
+            <summary>Durable local user ID. Referenced from participant.userId for human participants.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.User.Username">
+            <summary>Login username (lowercase; matching is case-insensitive).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.User.DisplayName">
+            <summary>Human-readable name shown in the UI.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.User.PasswordVerifier">
+            <summary>Password verifier in PHC string format (e.g. argon2id, bcrypt). Edge-local store field ONLY (SP-07).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.User.Status">
+            <summary>ACTIVE users may log in; DISABLED users are rejected at authentication time.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Models.User.DisabledAt">
+            <summary>Required when status is DISABLED.</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.ProtocolSchemaIds">
+            <summary>
+            Versioned <c>$id</c> URIs of the protocol schema documents (release v1.0.0, JSON Schema Draft 2020-12).
+            </summary>
+            <remarks>
+            Every schema document carries one of these as its <c>$id</c>; validators must register every schema
+            under its <c>$id</c> before compiling an entity schema (schemas/README.md). The <c>v1</c> path segment is
+            bumped on release; schemas are immutable once released.
+            </remarks>
+        </member>
+        <member name="F:HumanGateway.Protocol.ProtocolSchemaIds.BaseUri">
+            <summary>Base URI for the current (v1) schema release.</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.ProtocolStringEnumConverter">
+            <summary>
+            Serializes and deserializes protocol enums using their exact wire strings.
+            </summary>
+            <remarks>
+            The protocol schemas use UPPER_SNAKE and lowercase wire values ("WAITING_FOR_SYNC",
+            "human", "PUSH", ...) which are not valid C# identifiers. Each enum member carries the
+            wire value via <see cref="T:System.Runtime.Serialization.EnumMemberAttribute"/>; this converter is the single mapping
+            point for both directions, so a deserialized value always re-serializes to the identical
+            token (round-trip fidelity, protocol §6). Unknown tokens throw <see cref="T:System.Text.Json.JsonException"/>,
+            mirroring JSON Schema enum rejection.
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Protocol.ProtocolStringEnumConverter.CanConvert(System.Type)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Protocol.ProtocolStringEnumConverter.CreateConverter(System.Type,System.Text.Json.JsonSerializerOptions)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Protocol.ProtocolSchemas">
+            <summary>
+            Exposes the versioned protocol schema documents (release v1.0.0, JSON Schema Draft 2020-12) embedded in
+            this assembly, keyed by their versioned <c>$id</c>. The schemas under <c>schemas/</c> are the single
+            source of truth (NF-06); shipping them with the protocol assembly lets any component reference, package,
+            or forward the exact documents a given binary was validated against.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.ProtocolSchemas.Documents">
+            <summary>All embedded schema documents, keyed by their <c>$id</c> (raw JSON text).</summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.ProtocolSchemas.Get(System.String)">
+            <summary>Returns the schema document with the given <c>$id</c> (raw JSON text).</summary>
+            <exception cref="T:System.Collections.Generic.KeyNotFoundException">No embedded schema carries that <c>$id</c>.</exception>
+        </member>
+        <member name="P:HumanGateway.Protocol.ProtocolSchemas.Count">
+            <summary>The number of embedded schema documents.</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Validation.ArtifactValidator">
+            <summary>
+            Validates an <see cref="T:HumanGateway.Protocol.Models.Artifact"/> against artifact.schema.json and an <see cref="T:HumanGateway.Protocol.Models.ArtifactReference"/>
+            against its <c>$defs/artifactReference</c> (PROTO-FR-04): ID + content hash, size bounds, MIME pattern,
+            filename bounds. Artifact bytes are never validated here — they are never part of the envelope.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.ArtifactValidator.Validate(HumanGateway.Protocol.Models.Artifact)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.ArtifactValidator.ValidateReferenceInto(HumanGateway.Protocol.Models.ArtifactReference,System.String,HumanGateway.Protocol.Validation.ErrorSink)">
+            <summary>Validates an artifact reference inside an envelope (artifact.schema.json#/$defs/artifactReference).</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Validation.CommonRules">
+            <summary>
+            Shared rule implementations mirroring the <c>$defs</c> of common.schema.json (IDs, RFC 3339 timestamps,
+            content hashes, participant addresses, cursors, idempotency keys, correlation tokens) plus the string/
+            numeric bounds used across the entity schemas. The schemas under <c>schemas/</c> remain the single
+            source of truth (NF-06); these rules never diverge from them.
+            </summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.CommonRules.IdPattern">
+            <summary>common.schema.json#/$defs/id — durable ID, 8..128 chars.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.CommonRules.TimestampPattern">
+            <summary>common.schema.json#/$defs/timestamp — RFC 3339 UTC with trailing 'Z'.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.CommonRules.ContentHashPattern">
+            <summary>common.schema.json#/$defs/contentHash — sha256:&lt;64 lowercase hex&gt;.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.CommonRules.ParticipantAddressPattern">
+            <summary>common.schema.json#/$defs/participantAddress — typed address (human|agent|system):suffix.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.CommonRules.CursorPattern">
+            <summary>syncbatch.schema.json#/$defs/cursor — opaque URL-safe token, ≤ 1024 chars.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.CommonRules.IdempotencyKeyPattern">
+            <summary>syncbatch.schema.json#/idempotencyKey — 1..128 chars.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.CommonRules.MimeTypePattern">
+            <summary>artifact.schema.json#/mimeType — type/subtype token pair.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.CommonRules.ErrorCodePattern">
+            <summary>error.schema.json#/code — UPPER_SNAKE token, ≤ 64 chars (extensions allowed).</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.CommonRules.UsernamePattern">
+            <summary>user.schema.json#/username — lowercase login username, 3..64 chars.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.CommonRules.PasswordVerifierPattern">
+            <summary>user.schema.json#/passwordVerifier — PHC string, 20..512 chars.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.CommonRules.Sha256FingerprintPattern">
+            <summary>gateway.schema.json#/registrationTokenFingerprint — sha256:&lt;64 lowercase hex&gt;.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.CommonRules.MaxArtifactSizeBytes">
+            <summary>artifact.schema.json#/sizeBytes maximum — protocol ceiling of 512 MiB.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.CommonRules.MaxMessageBodyLength">
+            <summary>message.schema.json#/payload.body maximum length.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.CommonRules.MaxPromptLength">
+            <summary>humantask.schema.json#/prompt maximum length.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.CommonRules.MaxSyncItemsPerBatch">
+            <summary>syncbatch.schema.json#/items maximum entries per batch.</summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.IdRegex">
+            <remarks>
+            Pattern:<br/>
+            <code>^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$</code><br/>
+            Explanation:<br/>
+            <code>
+            ○ Match if at the beginning of the string.<br/>
+            ○ Match an ASCII letter or digit.<br/>
+            ○ Match a character in the set [\-.0-:A-Z_a-z] atomically at least 7 and at most 127 times.<br/>
+            ○ Match if at the end of the string or if before an ending newline.<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.TimestampRegex">
+            <remarks>
+            Pattern:<br/>
+            <code>^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?Z$</code><br/>
+            Explanation:<br/>
+            <code>
+            ○ Match if at the beginning of the string.<br/>
+            ○ Match a character in the set [0-9] exactly 4 times.<br/>
+            ○ Match '-'.<br/>
+            ○ Match a character in the set [0-9] exactly 2 times.<br/>
+            ○ Match '-'.<br/>
+            ○ Match a character in the set [0-9] exactly 2 times.<br/>
+            ○ Match 'T'.<br/>
+            ○ Match a character in the set [0-9] exactly 2 times.<br/>
+            ○ Match ':'.<br/>
+            ○ Match a character in the set [0-9] exactly 2 times.<br/>
+            ○ Match ':'.<br/>
+            ○ Match a character in the set [0-9] exactly 2 times.<br/>
+            ○ Optional (greedy).<br/>
+                ○ 1st capture group.<br/>
+                    ○ Match '.'.<br/>
+                    ○ Match a character in the set [0-9] atomically at least 1 and at most 9 times.<br/>
+            ○ Match 'Z'.<br/>
+            ○ Match if at the end of the string or if before an ending newline.<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.ContentHashRegex">
+            <remarks>
+            Pattern:<br/>
+            <code>^sha256:[0-9a-f]{64}$</code><br/>
+            Explanation:<br/>
+            <code>
+            ○ Match if at the beginning of the string.<br/>
+            ○ Match the string "sha256:".<br/>
+            ○ Match a lowercase hexadecimal digit exactly 64 times.<br/>
+            ○ Match if at the end of the string or if before an ending newline.<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.ParticipantAddressRegex">
+            <remarks>
+            Pattern:<br/>
+            <code>^(human|agent|system):[A-Za-z0-9._@+-]{1,191}$</code><br/>
+            Explanation:<br/>
+            <code>
+            ○ Match if at the beginning of the string.<br/>
+            ○ 1st capture group.<br/>
+                ○ Match with 3 alternative expressions.<br/>
+                    ○ Match the string "human".<br/>
+                    ○ Match the string "agent".<br/>
+                    ○ Match the string "system".<br/>
+            ○ Match ':'.<br/>
+            ○ Match a character in the set [+\-.0-9@-Z_a-z] atomically at least 1 and at most 191 times.<br/>
+            ○ Match if at the end of the string or if before an ending newline.<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.CursorRegex">
+            <remarks>
+            Pattern:<br/>
+            <code>^[A-Za-z0-9._:/-]*$</code><br/>
+            Explanation:<br/>
+            <code>
+            ○ Match if at the beginning of the string.<br/>
+            ○ Match a character in the set [\--:A-Z_a-z] atomically any number of times.<br/>
+            ○ Match if at the end of the string or if before an ending newline.<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.IdempotencyKeyRegex">
+            <remarks>
+            Pattern:<br/>
+            <code>^[A-Za-z0-9._:-]+$</code><br/>
+            Explanation:<br/>
+            <code>
+            ○ Match if at the beginning of the string.<br/>
+            ○ Match a character in the set [\-.0-:A-Z_a-z] atomically at least once.<br/>
+            ○ Match if at the end of the string or if before an ending newline.<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.MimeTypeRegex">
+            <remarks>
+            Pattern:<br/>
+            <code>^[A-Za-z0-9!#$&amp;^_.+-]+/[A-Za-z0-9!#$&amp;^_.+-]+$</code><br/>
+            Explanation:<br/>
+            <code>
+            ○ Match if at the beginning of the string.<br/>
+            ○ Match a character in the set [!#$&amp;+\-.0-9A-Z^_a-z] atomically at least once.<br/>
+            ○ Match '/'.<br/>
+            ○ Match a character in the set [!#$&amp;+\-.0-9A-Z^_a-z] atomically at least once.<br/>
+            ○ Match if at the end of the string or if before an ending newline.<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.ErrorCodeRegex">
+            <remarks>
+            Pattern:<br/>
+            <code>^[A-Z][A-Z0-9_]*$</code><br/>
+            Explanation:<br/>
+            <code>
+            ○ Match if at the beginning of the string.<br/>
+            ○ Match a character in the set [A-Z].<br/>
+            ○ Match a character in the set [0-9A-Z_] atomically any number of times.<br/>
+            ○ Match if at the end of the string or if before an ending newline.<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.UsernameRegex">
+            <remarks>
+            Pattern:<br/>
+            <code>^[a-z0-9][a-z0-9._-]{2,63}$</code><br/>
+            Explanation:<br/>
+            <code>
+            ○ Match if at the beginning of the string.<br/>
+            ○ Match a character in the set [0-9a-z].<br/>
+            ○ Match a character in the set [\-.0-9_a-z] atomically at least 2 and at most 63 times.<br/>
+            ○ Match if at the end of the string or if before an ending newline.<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.PasswordVerifierRegex">
+            <remarks>
+            Pattern:<br/>
+            <code>^\\$[A-Za-z0-9+./=,$-]{19,511}$</code><br/>
+            Explanation:<br/>
+            <code>
+            ○ Match if at the beginning of the string.<br/>
+            ○ Match '$'.<br/>
+            ○ Match a character in the set [$+-9=A-Za-z] atomically at least 19 and at most 511 times.<br/>
+            ○ Match if at the end of the string or if before an ending newline.<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.Sha256FingerprintRegex">
+            <remarks>
+            Pattern:<br/>
+            <code>^sha256:[0-9a-f]{64}$</code><br/>
+            Explanation:<br/>
+            <code>
+            ○ Match if at the beginning of the string.<br/>
+            ○ Match the string "sha256:".<br/>
+            ○ Match a lowercase hexadecimal digit exactly 64 times.<br/>
+            ○ Match if at the end of the string or if before an ending newline.<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.Id(System.String,System.String,HumanGateway.Protocol.Validation.ErrorSink)">
+            <summary>Validates a durable ID (common.schema.json#/$defs/id).</summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.Timestamp(System.String,System.String,HumanGateway.Protocol.Validation.ErrorSink)">
+            <summary>Validates an RFC 3339 UTC timestamp (common.schema.json#/$defs/timestamp, incl. format: date-time).</summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.ContentHash(System.String,System.String,HumanGateway.Protocol.Validation.ErrorSink)">
+            <summary>Validates a content hash (common.schema.json#/$defs/contentHash).</summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.ParticipantAddress(System.String,System.String,HumanGateway.Protocol.Validation.ErrorSink)">
+            <summary>Validates a typed participant address (common.schema.json#/$defs/participantAddress, PROTO-FR-02).</summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.Cursor(System.String,System.String,HumanGateway.Protocol.Validation.ErrorSink)">
+            <summary>Validates a sync cursor; null means 'no position yet' and is allowed (syncbatch.schema.json#/$defs/cursor).</summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.IdempotencyKey(System.String,System.String,HumanGateway.Protocol.Validation.ErrorSink)">
+            <summary>Validates a sync-batch idempotency key (syncbatch.schema.json#/idempotencyKey, SYNC-FR-02).</summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.CorrelationTokens(System.Collections.Generic.Dictionary{System.String,System.String},System.String,HumanGateway.Protocol.Validation.ErrorSink)">
+            <summary>Validates correlation tokens: an object mapping string keys to string values (common.schema.json#/$defs/correlationTokens).</summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.Text(System.String,System.String,HumanGateway.Protocol.Validation.ErrorSink,System.Boolean,System.Int32,System.Int32,System.String)">
+            <summary>Validates an optional-or-required string field against its min/max length bounds.</summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.Pattern(System.String,System.String,HumanGateway.Protocol.Validation.ErrorSink,System.Text.RegularExpressions.Regex,System.String)">
+            <summary>Validates an optional string field against a required pattern.</summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.RequiredPattern(System.String,System.String,HumanGateway.Protocol.Validation.ErrorSink,System.Text.RegularExpressions.Regex,System.String)">
+            <summary>
+            Validates a schema-required string field against a required pattern (mirrors the schema's
+            <c>required</c> + <c>pattern</c> pair; null yields <see cref="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.Required"/>).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.Range(System.Int64,System.String,HumanGateway.Protocol.Validation.ErrorSink,System.Int64,System.Int64,System.String)">
+            <summary>Validates an integer field against min/max bounds.</summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.JsonObject(System.Nullable{System.Text.Json.JsonElement},System.String,HumanGateway.Protocol.Validation.ErrorSink,System.String)">
+            <summary>Validates an optional free-form JSON value is an object (schema properties of type object).</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Validation.DeliveryValidator">
+            <summary>
+            Validates a <see cref="T:HumanGateway.Protocol.Models.Delivery"/> against delivery.schema.json (PROTO-FR-05): the delivery state
+            machine's snapshot invariants — every state records the timestamp when it was entered, and FAILED
+            carries error details. WAITING_FOR_SYNC is a valid state, not an error. Transition legality is
+            enforced by the sync engine, not here.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.DeliveryValidator.Validate(HumanGateway.Protocol.Models.Delivery)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Protocol.Validation.ErrorSink">
+            <summary>
+            Internal error collector used by the entity validators so nested validation (e.g. a recipient inside a
+            message) accumulates all errors in one pass with prefixed JSON paths.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.ErrorSink.Require(System.Boolean,System.String,System.String,System.String)">
+            <summary>Adds an error unless <paramref name="condition"/> is true.</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Validation.ErrorValidator">
+            <summary>
+            Validates a <see cref="T:HumanGateway.Protocol.Models.ProtocolError"/> against error.schema.json (protocol §7 #3): required code +
+            message, UPPER_SNAKE code shape (reserved catalog + extensions), bounds, and secret hygiene is a
+            content policy enforced by callers (SP-07).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.ErrorValidator.Validate(HumanGateway.Protocol.Models.ProtocolError)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Protocol.Validation.GatewayValidator">
+            <summary>
+            Validates a <see cref="T:HumanGateway.Protocol.Models.Gateway"/> against gateway.schema.json (AUTH-FR-01, SP-02, SP-07): gateway
+            identity, registration lifecycle, token fingerprint shape, and per-status timestamp invariants.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.GatewayValidator.Validate(HumanGateway.Protocol.Models.Gateway)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Protocol.Validation.HumanTaskValidator">
+            <summary>
+            Validates a <see cref="T:HumanGateway.Protocol.Models.HumanTask"/> against humantask.schema.json (FLOW-FR-04, FLOW-FR-05): task kind
+            and lifecycle status, workflow correlation fields, the response shape (approval responses require a
+            decision), and per-status snapshot invariants.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.HumanTaskValidator.Validate(HumanGateway.Protocol.Models.HumanTask)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Protocol.Validation.IProtocolValidator`1">
+            <summary>
+            Validates an entity of type <typeparamref name="T"/> against the protocol schema rules
+            (hand-written validators mirroring the versioned schemas under <c>schemas/</c>; the schemas remain the
+            single source of truth, NF-06).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.IProtocolValidator`1.Validate(`0)">
+            <summary>Validates <paramref name="value"/> and returns a structured result.</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Validation.MessageValidator">
+            <summary>
+            Validates a <see cref="T:HumanGateway.Protocol.Models.Message"/> against message.schema.json (PROTO-FR-03, PROTO-FR-04): durable
+            envelope shape, typed sender/recipients, payload bounds, artifact references (never embedded bytes),
+            correlation tokens, timestamps, and content hash.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.MessageValidator.Validate(HumanGateway.Protocol.Models.Message)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Protocol.Validation.ParticipantValidator">
+            <summary>
+            Validates a <see cref="T:HumanGateway.Protocol.Models.Participant"/> against participant.schema.json (PROTO-FR-02): typed address,
+            kind/address agreement (anyOf), display metadata, and identity links (userId / gatewayId).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.ParticipantValidator.Validate(HumanGateway.Protocol.Models.Participant)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Protocol.Validation.ProtocolValidationError">
+            <summary>
+            A single structured validation error: the offending JSON path, a stable machine-readable code, and a
+            human-readable message. Paths follow JSON Pointer-ish dot notation (e.g. <c>recipients[0].address</c>).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.ProtocolValidationError.#ctor(System.String,System.String,System.String)">
+            <summary>
+            A single structured validation error: the offending JSON path, a stable machine-readable code, and a
+            human-readable message. Paths follow JSON Pointer-ish dot notation (e.g. <c>recipients[0].address</c>).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.ProtocolValidationError.ToString">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Protocol.Validation.ProtocolValidationException">
+            <summary>
+            Thrown by <see cref="M:HumanGateway.Protocol.Validation.ProtocolValidationResult.ThrowIfInvalid"/> when a protocol entity fails validation.
+            Carries the structured <see cref="T:HumanGateway.Protocol.Validation.ProtocolValidationResult"/> for programmatic handling.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Validation.ProtocolValidationException.Result">
+            <summary>The structured validation result that caused this exception.</summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.ProtocolValidationException.#ctor(HumanGateway.Protocol.Validation.ProtocolValidationResult)">
+            <summary>Creates the exception from an invalid result.</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Validation.ProtocolValidationResult">
+            <summary>
+            The result of validating a protocol entity: valid, or a list of structured
+            <see cref="T:HumanGateway.Protocol.Validation.ProtocolValidationError"/>s. The aggregate error code for protocol violations is
+            <see cref="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.ValidationFailed"/> (the reserved protocol error catalog).
+            </summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ProtocolValidationResult.Valid">
+            <summary>A singleton representing a valid result.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Validation.ProtocolValidationResult.Errors">
+            <summary>The structured validation errors; empty when <see cref="P:HumanGateway.Protocol.Validation.ProtocolValidationResult.IsValid"/> is true.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Validation.ProtocolValidationResult.IsValid">
+            <summary>True when the entity satisfies the protocol schema rules.</summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.ProtocolValidationResult.#ctor(System.Collections.Generic.IReadOnlyList{HumanGateway.Protocol.Validation.ProtocolValidationError})">
+            <summary>Creates a result from the given errors.</summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.ProtocolValidationResult.Invalid(HumanGateway.Protocol.Validation.ProtocolValidationError[])">
+            <summary>Builds an invalid result from one or more errors.</summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.ProtocolValidationResult.ThrowIfInvalid">
+            <summary>Throws <see cref="T:HumanGateway.Protocol.Validation.ProtocolValidationException"/> when the result is invalid.</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Validation.ProtocolValidator">
+            <summary>
+            Composite entry point for protocol validation: exposes a validator per protocol entity. Validators are
+            stateless singletons; the composite wires the nested dependencies (e.g. a Message validates its
+            Participants and ArtifactReferences through the shared validators).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Validation.ProtocolValidator.Default">
+            <summary>The shared default instance.</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Validation.ProtocolValidator.Error">
+            <summary>Error entity validator (error.schema.json).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Validation.ProtocolValidator.Participant">
+            <summary>Participant entity validator (participant.schema.json, PROTO-FR-02).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Validation.ProtocolValidator.Artifact">
+            <summary>Artifact entity validator (artifact.schema.json, PROTO-FR-04).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Validation.ProtocolValidator.Message">
+            <summary>Message entity validator (message.schema.json, PROTO-FR-03).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Validation.ProtocolValidator.Delivery">
+            <summary>Delivery entity validator (delivery.schema.json, PROTO-FR-05).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Validation.ProtocolValidator.HumanTask">
+            <summary>HumanTask entity validator (humantask.schema.json, FLOW-FR-04/05).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Validation.ProtocolValidator.SyncBatch">
+            <summary>SyncBatch entity validator (syncbatch.schema.json, SYNC-FR-01..07).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Validation.ProtocolValidator.Gateway">
+            <summary>Gateway identity validator (gateway.schema.json, AUTH-FR-01).</summary>
+        </member>
+        <member name="P:HumanGateway.Protocol.Validation.ProtocolValidator.User">
+            <summary>User account validator (user.schema.json, AUTH-FR-02).</summary>
+        </member>
+        <member name="T:HumanGateway.Protocol.Validation.SyncBatchValidator">
+            <summary>
+            Validates a <see cref="T:HumanGateway.Protocol.Models.SyncBatch"/> against syncbatch.schema.json (SYNC-FR-01..07): the sync model —
+            durable IDs, per-gateway sequence numbers, opaque cursors, idempotency (batchId + idempotencyKey),
+            content hashes — plus the discriminated sync items and the batch-shape invariants (a non-empty batch
+            declares its sequence range; an empty keepalive batch leaves it null). Cross-field range checks
+            (sequenceStart ≤ sequenceEnd, item sequences within the span) are enforced by the sync engine, not here
+            (schemas/README.md).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.SyncBatchValidator.Validate(HumanGateway.Protocol.Models.SyncBatch)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Protocol.Validation.UserValidator">
+            <summary>
+            Validates a <see cref="T:HumanGateway.Protocol.Models.User"/> against user.schema.json (AUTH-FR-02, SP-03, SP-07): local Edge account
+            shape — login username, display name, PHC password verifier (local-store only; never transmitted),
+            status, and per-status timestamp invariants.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.UserValidator.Validate(HumanGateway.Protocol.Models.User)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Protocol.Validation.ValidationErrorCodes">
+            <summary>Stable, machine-readable validation error codes emitted by the entity validators.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.ValidationFailed">
+            <summary>Aggregate protocol error code (reserved catalog, error.schema.json): entity validation failed.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.Required">
+            <summary>A schema-required field is missing or null.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.InvalidId">
+            <summary>Value does not match common.schema.json#/$defs/id.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.InvalidTimestamp">
+            <summary>Value does not match common.schema.json#/$defs/timestamp (RFC 3339 UTC).</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.InvalidContentHash">
+            <summary>Value does not match common.schema.json#/$defs/contentHash (sha256:&lt;64 hex&gt;).</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.InvalidAddress">
+            <summary>Value does not match common.schema.json#/$defs/participantAddress.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.AddressKindMismatch">
+            <summary>Participant address prefix does not agree with its kind (participant.schema.json anyOf).</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.UndefinedEnum">
+            <summary>Enum field holds an undefined value.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.InvalidLength">
+            <summary>String field violates its min/max length.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.InvalidPattern">
+            <summary>String field violates its schema pattern.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.OutOfRange">
+            <summary>Numeric field is outside its schema bounds.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.MinItems">
+            <summary>Array has fewer than minItems elements.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.MaxItems">
+            <summary>Array has more than maxItems elements.</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.InvalidCursor">
+            <summary>Cursor violates syncbatch.schema.json#/$defs/cursor (≤ 1024 URL-safe chars).</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.UnexpectedValue">
+            <summary>A field is present where the schema forbids it (syncbatch.schema.json allOf: an empty
+            keepalive batch must leave sequenceStart/sequenceEnd null).</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.ItemKindMismatch">
+            <summary>Sync item payload does not match its kind discriminator (oneOf).</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.StateTimestampRequired">
+            <summary>Delivery state requires a state-specific timestamp (delivery.schema.json allOf).</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.StateErrorRequired">
+            <summary>Delivery FAILED requires an error (delivery.schema.json allOf).</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.ApprovalDecisionRequired">
+            <summary>Approval task with a response requires a decision (humantask.schema.json allOf).</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.TaskResponseRequired">
+            <summary>Task status requires response fields (humantask.schema.json allOf).</summary>
+        </member>
+        <member name="F:HumanGateway.Protocol.Validation.ValidationErrorCodes.InvalidJsonValue">
+            <summary>Value must be a JSON object (schema property of type object).</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.IdRegex_0">
+            <summary>Custom <see cref="T:System.Text.RegularExpressions.Regex"/>-derived type for the IdRegex method.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.IdRegex_0.Instance">
+            <summary>Cached, thread-safe singleton instance.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.IdRegex_0.#ctor">
+            <summary>Initializes the instance.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.IdRegex_0.RunnerFactory">
+            <summary>Provides a factory for creating <see cref="T:System.Text.RegularExpressions.RegexRunner"/> instances to be used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.IdRegex_0.RunnerFactory.CreateInstance">
+            <summary>Creates an instance of a <see cref="T:System.Text.RegularExpressions.RegexRunner"/> used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.IdRegex_0.RunnerFactory.Runner">
+            <summary>Provides the runner that contains the custom logic implementing the specified regular expression.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.IdRegex_0.RunnerFactory.Runner.Scan(System.ReadOnlySpan{System.Char})">
+            <summary>Scan the <paramref name="inputSpan"/> starting from base.runtextstart for the next match.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.IdRegex_0.RunnerFactory.Runner.TryFindNextPossibleStartingPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Search <paramref name="inputSpan"/> starting from base.runtextpos for the next location a match could possibly start.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if a possible match was found; false if no more matches are possible.</returns>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.IdRegex_0.RunnerFactory.Runner.TryMatchAtCurrentPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Determine whether <paramref name="inputSpan"/> at base.runtextpos is a match for the regular expression.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if the regular expression matches at the current position; otherwise, false.</returns>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.TimestampRegex_1">
+            <summary>Custom <see cref="T:System.Text.RegularExpressions.Regex"/>-derived type for the TimestampRegex method.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.TimestampRegex_1.Instance">
+            <summary>Cached, thread-safe singleton instance.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.TimestampRegex_1.#ctor">
+            <summary>Initializes the instance.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.TimestampRegex_1.RunnerFactory">
+            <summary>Provides a factory for creating <see cref="T:System.Text.RegularExpressions.RegexRunner"/> instances to be used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.TimestampRegex_1.RunnerFactory.CreateInstance">
+            <summary>Creates an instance of a <see cref="T:System.Text.RegularExpressions.RegexRunner"/> used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.TimestampRegex_1.RunnerFactory.Runner">
+            <summary>Provides the runner that contains the custom logic implementing the specified regular expression.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.TimestampRegex_1.RunnerFactory.Runner.Scan(System.ReadOnlySpan{System.Char})">
+            <summary>Scan the <paramref name="inputSpan"/> starting from base.runtextstart for the next match.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.TimestampRegex_1.RunnerFactory.Runner.TryFindNextPossibleStartingPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Search <paramref name="inputSpan"/> starting from base.runtextpos for the next location a match could possibly start.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if a possible match was found; false if no more matches are possible.</returns>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.TimestampRegex_1.RunnerFactory.Runner.TryMatchAtCurrentPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Determine whether <paramref name="inputSpan"/> at base.runtextpos is a match for the regular expression.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if the regular expression matches at the current position; otherwise, false.</returns>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.ContentHashRegex_2">
+            <summary>Custom <see cref="T:System.Text.RegularExpressions.Regex"/>-derived type for the ContentHashRegex method.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.ContentHashRegex_2.Instance">
+            <summary>Cached, thread-safe singleton instance.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.ContentHashRegex_2.#ctor">
+            <summary>Initializes the instance.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.ContentHashRegex_2.RunnerFactory">
+            <summary>Provides a factory for creating <see cref="T:System.Text.RegularExpressions.RegexRunner"/> instances to be used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.ContentHashRegex_2.RunnerFactory.CreateInstance">
+            <summary>Creates an instance of a <see cref="T:System.Text.RegularExpressions.RegexRunner"/> used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.ContentHashRegex_2.RunnerFactory.Runner">
+            <summary>Provides the runner that contains the custom logic implementing the specified regular expression.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.ContentHashRegex_2.RunnerFactory.Runner.Scan(System.ReadOnlySpan{System.Char})">
+            <summary>Scan the <paramref name="inputSpan"/> starting from base.runtextstart for the next match.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.ContentHashRegex_2.RunnerFactory.Runner.TryFindNextPossibleStartingPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Search <paramref name="inputSpan"/> starting from base.runtextpos for the next location a match could possibly start.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if a possible match was found; false if no more matches are possible.</returns>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.ContentHashRegex_2.RunnerFactory.Runner.TryMatchAtCurrentPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Determine whether <paramref name="inputSpan"/> at base.runtextpos is a match for the regular expression.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if the regular expression matches at the current position; otherwise, false.</returns>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.ParticipantAddressRegex_3">
+            <summary>Custom <see cref="T:System.Text.RegularExpressions.Regex"/>-derived type for the ParticipantAddressRegex method.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.ParticipantAddressRegex_3.Instance">
+            <summary>Cached, thread-safe singleton instance.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.ParticipantAddressRegex_3.#ctor">
+            <summary>Initializes the instance.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.ParticipantAddressRegex_3.RunnerFactory">
+            <summary>Provides a factory for creating <see cref="T:System.Text.RegularExpressions.RegexRunner"/> instances to be used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.ParticipantAddressRegex_3.RunnerFactory.CreateInstance">
+            <summary>Creates an instance of a <see cref="T:System.Text.RegularExpressions.RegexRunner"/> used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.ParticipantAddressRegex_3.RunnerFactory.Runner">
+            <summary>Provides the runner that contains the custom logic implementing the specified regular expression.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.ParticipantAddressRegex_3.RunnerFactory.Runner.Scan(System.ReadOnlySpan{System.Char})">
+            <summary>Scan the <paramref name="inputSpan"/> starting from base.runtextstart for the next match.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.ParticipantAddressRegex_3.RunnerFactory.Runner.TryFindNextPossibleStartingPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Search <paramref name="inputSpan"/> starting from base.runtextpos for the next location a match could possibly start.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if a possible match was found; false if no more matches are possible.</returns>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.ParticipantAddressRegex_3.RunnerFactory.Runner.TryMatchAtCurrentPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Determine whether <paramref name="inputSpan"/> at base.runtextpos is a match for the regular expression.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if the regular expression matches at the current position; otherwise, false.</returns>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.CursorRegex_4">
+            <summary>Custom <see cref="T:System.Text.RegularExpressions.Regex"/>-derived type for the CursorRegex method.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.CursorRegex_4.Instance">
+            <summary>Cached, thread-safe singleton instance.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.CursorRegex_4.#ctor">
+            <summary>Initializes the instance.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.CursorRegex_4.RunnerFactory">
+            <summary>Provides a factory for creating <see cref="T:System.Text.RegularExpressions.RegexRunner"/> instances to be used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.CursorRegex_4.RunnerFactory.CreateInstance">
+            <summary>Creates an instance of a <see cref="T:System.Text.RegularExpressions.RegexRunner"/> used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.CursorRegex_4.RunnerFactory.Runner">
+            <summary>Provides the runner that contains the custom logic implementing the specified regular expression.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.CursorRegex_4.RunnerFactory.Runner.Scan(System.ReadOnlySpan{System.Char})">
+            <summary>Scan the <paramref name="inputSpan"/> starting from base.runtextstart for the next match.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.CursorRegex_4.RunnerFactory.Runner.TryFindNextPossibleStartingPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Search <paramref name="inputSpan"/> starting from base.runtextpos for the next location a match could possibly start.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if a possible match was found; false if no more matches are possible.</returns>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.CursorRegex_4.RunnerFactory.Runner.TryMatchAtCurrentPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Determine whether <paramref name="inputSpan"/> at base.runtextpos is a match for the regular expression.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if the regular expression matches at the current position; otherwise, false.</returns>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.IdempotencyKeyRegex_5">
+            <summary>Custom <see cref="T:System.Text.RegularExpressions.Regex"/>-derived type for the IdempotencyKeyRegex method.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.IdempotencyKeyRegex_5.Instance">
+            <summary>Cached, thread-safe singleton instance.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.IdempotencyKeyRegex_5.#ctor">
+            <summary>Initializes the instance.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.IdempotencyKeyRegex_5.RunnerFactory">
+            <summary>Provides a factory for creating <see cref="T:System.Text.RegularExpressions.RegexRunner"/> instances to be used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.IdempotencyKeyRegex_5.RunnerFactory.CreateInstance">
+            <summary>Creates an instance of a <see cref="T:System.Text.RegularExpressions.RegexRunner"/> used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.IdempotencyKeyRegex_5.RunnerFactory.Runner">
+            <summary>Provides the runner that contains the custom logic implementing the specified regular expression.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.IdempotencyKeyRegex_5.RunnerFactory.Runner.Scan(System.ReadOnlySpan{System.Char})">
+            <summary>Scan the <paramref name="inputSpan"/> starting from base.runtextstart for the next match.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.IdempotencyKeyRegex_5.RunnerFactory.Runner.TryFindNextPossibleStartingPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Search <paramref name="inputSpan"/> starting from base.runtextpos for the next location a match could possibly start.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if a possible match was found; false if no more matches are possible.</returns>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.IdempotencyKeyRegex_5.RunnerFactory.Runner.TryMatchAtCurrentPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Determine whether <paramref name="inputSpan"/> at base.runtextpos is a match for the regular expression.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if the regular expression matches at the current position; otherwise, false.</returns>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.MimeTypeRegex_6">
+            <summary>Custom <see cref="T:System.Text.RegularExpressions.Regex"/>-derived type for the MimeTypeRegex method.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.MimeTypeRegex_6.Instance">
+            <summary>Cached, thread-safe singleton instance.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.MimeTypeRegex_6.#ctor">
+            <summary>Initializes the instance.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.MimeTypeRegex_6.RunnerFactory">
+            <summary>Provides a factory for creating <see cref="T:System.Text.RegularExpressions.RegexRunner"/> instances to be used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.MimeTypeRegex_6.RunnerFactory.CreateInstance">
+            <summary>Creates an instance of a <see cref="T:System.Text.RegularExpressions.RegexRunner"/> used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.MimeTypeRegex_6.RunnerFactory.Runner">
+            <summary>Provides the runner that contains the custom logic implementing the specified regular expression.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.MimeTypeRegex_6.RunnerFactory.Runner.Scan(System.ReadOnlySpan{System.Char})">
+            <summary>Scan the <paramref name="inputSpan"/> starting from base.runtextstart for the next match.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.MimeTypeRegex_6.RunnerFactory.Runner.TryFindNextPossibleStartingPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Search <paramref name="inputSpan"/> starting from base.runtextpos for the next location a match could possibly start.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if a possible match was found; false if no more matches are possible.</returns>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.MimeTypeRegex_6.RunnerFactory.Runner.TryMatchAtCurrentPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Determine whether <paramref name="inputSpan"/> at base.runtextpos is a match for the regular expression.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if the regular expression matches at the current position; otherwise, false.</returns>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.ErrorCodeRegex_7">
+            <summary>Custom <see cref="T:System.Text.RegularExpressions.Regex"/>-derived type for the ErrorCodeRegex method.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.ErrorCodeRegex_7.Instance">
+            <summary>Cached, thread-safe singleton instance.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.ErrorCodeRegex_7.#ctor">
+            <summary>Initializes the instance.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.ErrorCodeRegex_7.RunnerFactory">
+            <summary>Provides a factory for creating <see cref="T:System.Text.RegularExpressions.RegexRunner"/> instances to be used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.ErrorCodeRegex_7.RunnerFactory.CreateInstance">
+            <summary>Creates an instance of a <see cref="T:System.Text.RegularExpressions.RegexRunner"/> used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.ErrorCodeRegex_7.RunnerFactory.Runner">
+            <summary>Provides the runner that contains the custom logic implementing the specified regular expression.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.ErrorCodeRegex_7.RunnerFactory.Runner.Scan(System.ReadOnlySpan{System.Char})">
+            <summary>Scan the <paramref name="inputSpan"/> starting from base.runtextstart for the next match.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.ErrorCodeRegex_7.RunnerFactory.Runner.TryFindNextPossibleStartingPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Search <paramref name="inputSpan"/> starting from base.runtextpos for the next location a match could possibly start.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if a possible match was found; false if no more matches are possible.</returns>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.ErrorCodeRegex_7.RunnerFactory.Runner.TryMatchAtCurrentPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Determine whether <paramref name="inputSpan"/> at base.runtextpos is a match for the regular expression.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if the regular expression matches at the current position; otherwise, false.</returns>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.UsernameRegex_8">
+            <summary>Custom <see cref="T:System.Text.RegularExpressions.Regex"/>-derived type for the UsernameRegex method.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.UsernameRegex_8.Instance">
+            <summary>Cached, thread-safe singleton instance.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.UsernameRegex_8.#ctor">
+            <summary>Initializes the instance.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.UsernameRegex_8.RunnerFactory">
+            <summary>Provides a factory for creating <see cref="T:System.Text.RegularExpressions.RegexRunner"/> instances to be used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.UsernameRegex_8.RunnerFactory.CreateInstance">
+            <summary>Creates an instance of a <see cref="T:System.Text.RegularExpressions.RegexRunner"/> used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.UsernameRegex_8.RunnerFactory.Runner">
+            <summary>Provides the runner that contains the custom logic implementing the specified regular expression.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.UsernameRegex_8.RunnerFactory.Runner.Scan(System.ReadOnlySpan{System.Char})">
+            <summary>Scan the <paramref name="inputSpan"/> starting from base.runtextstart for the next match.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.UsernameRegex_8.RunnerFactory.Runner.TryFindNextPossibleStartingPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Search <paramref name="inputSpan"/> starting from base.runtextpos for the next location a match could possibly start.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if a possible match was found; false if no more matches are possible.</returns>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.UsernameRegex_8.RunnerFactory.Runner.TryMatchAtCurrentPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Determine whether <paramref name="inputSpan"/> at base.runtextpos is a match for the regular expression.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if the regular expression matches at the current position; otherwise, false.</returns>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.PasswordVerifierRegex_9">
+            <summary>Custom <see cref="T:System.Text.RegularExpressions.Regex"/>-derived type for the PasswordVerifierRegex method.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.PasswordVerifierRegex_9.Instance">
+            <summary>Cached, thread-safe singleton instance.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.PasswordVerifierRegex_9.#ctor">
+            <summary>Initializes the instance.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.PasswordVerifierRegex_9.RunnerFactory">
+            <summary>Provides a factory for creating <see cref="T:System.Text.RegularExpressions.RegexRunner"/> instances to be used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.PasswordVerifierRegex_9.RunnerFactory.CreateInstance">
+            <summary>Creates an instance of a <see cref="T:System.Text.RegularExpressions.RegexRunner"/> used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.PasswordVerifierRegex_9.RunnerFactory.Runner">
+            <summary>Provides the runner that contains the custom logic implementing the specified regular expression.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.PasswordVerifierRegex_9.RunnerFactory.Runner.Scan(System.ReadOnlySpan{System.Char})">
+            <summary>Scan the <paramref name="inputSpan"/> starting from base.runtextstart for the next match.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.PasswordVerifierRegex_9.RunnerFactory.Runner.TryFindNextPossibleStartingPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Search <paramref name="inputSpan"/> starting from base.runtextpos for the next location a match could possibly start.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if a possible match was found; false if no more matches are possible.</returns>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.PasswordVerifierRegex_9.RunnerFactory.Runner.TryMatchAtCurrentPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Determine whether <paramref name="inputSpan"/> at base.runtextpos is a match for the regular expression.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if the regular expression matches at the current position; otherwise, false.</returns>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.Utilities">
+            <summary>Helper methods used by generated <see cref="T:System.Text.RegularExpressions.Regex"/>-derived implementations.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.Utilities.s_defaultTimeout">
+            <summary>Default timeout value set in <see cref="T:System.AppContext"/>, or <see cref="F:System.Text.RegularExpressions.Regex.InfiniteMatchTimeout"/> if none was set.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.Utilities.s_hasTimeout">
+            <summary>Whether <see cref="F:System.Text.RegularExpressions.Generated.Utilities.s_defaultTimeout"/> is non-infinite.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.Utilities.StackPush(System.Int32[]@,System.Int32@,System.Int32,System.Int32)">
+            <summary>Pushes 2 values onto the backtracking stack.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.Utilities.s_asciiHexDigitsLower">
+            <summary>Supports searching for characters in or not in "0123456789abcdef".</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.Utilities.s_ascii_5A68FF03FEFFFFC7FEFFFF07">
+            <summary>Supports searching for characters in or not in "!#$&amp;+-.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ^_abcdefghijklmnopqrstuvwxyz".</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.Utilities.s_ascii_60FF07FEFFFF87FEFFFF07">
+            <summary>Supports searching for characters in or not in "-.0123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz".</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.Utilities.s_ascii_E0FF07FEFFFF87FEFFFF07">
+            <summary>Supports searching for characters in or not in "-./0123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz".</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.Utilities.s_ascii_FF03FEFFFF8700000000">
+            <summary>Supports searching for characters in or not in "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_".</summary>
+        </member>
+    </members>
+</doc>

@@ -1,0 +1,23 @@
+{
+  "id": "01JZ7F3D5E6F7G8H9I0J1K2L3M",
+  "kind": "approval",
+  "status": "RESPONSE_RECEIVED",
+  "workflowRef": "wf-run-42",
+  "nodeId": "node-review-assessment",
+  "prompt": "Approve or reject the submitted student work.",
+  "requestMessageId": "01JZ7F3B8N9M2XKQ5R4T6VWY8A",
+  "responseMessageId": "01JZ7F3G8H9I0J1K2L3M4N5O6P",
+  "response": {
+    "text": "Looks good.",
+    "respondedBy": {
+      "address": "human:teacher@school.example",
+      "kind": "human",
+      "displayName": "Ms. Okafor"
+    },
+    "respondedAt": "2026-08-28T10:05:00Z"
+  },
+  "requestedAt": "2026-08-28T09:15:00Z",
+  "responseReceivedAt": "2026-08-28T10:05:00Z",
+  "createdAt": "2026-08-28T09:15:00Z",
+  "updatedAt": "2026-08-28T10:05:00Z"
+}

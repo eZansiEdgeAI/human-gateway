@@ -1,0 +1,443 @@
+{
+  "runId": "cc1dad89-27a5-4765-8655-91bea28ec9c3",
+  "startedAt": "2026-08-28T21:20:12.360Z",
+  "lastUpdatedAt": "2026-08-29T01:05:00.030Z",
+  "manifestPath": "/home/mcfuzzysquirrel/Projects/human-gateway/docs/EXECUTION-MANIFEST.json",
+  "manifestVersion": "1.0",
+  "harness": "opencode",
+  "status": "failed",
+  "currentPhase": "LOCAL-EDGE-1",
+  "tasks": {
+    "PROTOCOL-0.1": {
+      "taskId": "PROTOCOL-0.1",
+      "status": "complete",
+      "ownerAgent": "protocol-engineer",
+      "attempt": 1,
+      "outputFiles": [],
+      "startedAt": "2026-08-28T21:20:12.422Z",
+      "completedAt": "2026-08-28T21:27:15.716Z",
+      "agentOutput": "I have full context on the requirements (PROTO-FR-01..06, sync model, delivery state machine, human task lifecycle). Now let me check available validation tooling before authoring the schemas.\nNode, npm, and .NET are available; no ajv yet. I'll author the schemas, then install ajv in a throwaway location (`/tmp/opencode`) to verify cross-file `$ref` resolution and run fixtures. Let me set up the task list and start.\nNow the schemas. Starting with the shared definitions file:\nNow the README documenting the versioned release, sync model, and state machines:\nSchemas authored. Now the fixture set and runner under `tests/schemas/`:\nNow the fixtures — starting with Participant:\nThe runner reads `valid.json` (single or array) — let me consolidate the participant valid fixtures into an array and remove the extras:\nNow Artifact, Message, Delivery fixtures:\nNow HumanTask and SyncBatch fixtures:\nAll fixtures written. Now install ajv and run the validation:\nAjv needs the `Ajv2020` class (2020-12 meta-schema support). Fixing the runner:\nStrict mode wants explicit `type` alongside `pattern`/`const` in the participant branches. Making it explicit:\nAjv strict mode wants `required` properties declared in the same subschema. I'll declare them with boolean `true` subschemas in each `then` block:\nAlso the nested approval `then` block needs the same treatment:\nAll 27 checks pass with strict Ajv 2020-12 and cross-file `$ref` resolution. Let me confirm the invalid fixtures are rejected for the *intended* reasons (not accidentally):\nEvery rejection matches its intended rule (address/kind consistency, embedded artifact rejection, state/timestamp invariants, discriminated sync items). Let me check the orchestration tracking situation:\nThe engine owns progress tracking (it maintains WORKFLOW-STATE.json/PROGRESS.md and will record PROTOCOL-0.1 completion). My job is the deliverable. Final verification and review:\nLet me do a final review pass over the edited schema files to make sure the edits are clean:\nTask **PROTOCOL-0.1 — Define JSON schemas** complete. All six protocol entities are defined under `schemas/` as versioned Draft 2020-12 documents, and verified with a fixture suite that passes.\n\n## Files created\n\n**Schemas (`schemas/`) — release v1.0.0 (2026-08-28), versioned `$id` per document**\n- `common.schema.json` — shared `$defs` (durable IDs, RFC 3339 UTC timestamps, `sha256:` content hashes, typed addresses, errors, correlation tokens) referenced by all entities, never duplicated (NF-06)\n- `participant.schema.json` — typed `human:`/`agent:`/`system:` addresses; `kind` must agree with the address prefix (PROTO-FR-02)\n- `artifact.schema.json` — content object (id, sha256 hash, size, MIME, filename) + `artifactReference` `$defs` so messages reference ID+hash, never bytes (PROTO-FR-04)\n- `message.schema.json` — durable envelope: ID, sender, recipients, conversationId, workflowRef/humanTaskId, payload, artifactRefs, correlationTokens, timestamps, contentHash (PROTO-FR-03)\n- `delivery.schema.json` — per-recipient lifecycle: QUEUED / SYNCING / DELIVERED / ACKNOWLEDGED / WAITING_FOR_SYNC / FAILED with snapshot invariants (FAILED ⇒ `error`+`failedAt`, etc.) (PROTO-FR-05, vision §10)\n- `humantask.schema.json` — input/approval task with FlowForge correlation (nodeId, role, prompt, subject) and lifecycle REQUESTED → DELIVERED_TO_HUMAN → RESPONSE_RECEIVED → COMPLETED | EXPIRED\n- `syncbatch.schema.json` — the sync model: durable batch IDs, per-gateway sequence numbers, since/cursor tokens, idempotency keys, content hashes, and discriminated items (message / delivery / artifact / ack) (SYNC-FR-01..07)\n- `README.md` — versioned release notes, cross-reference map, sync-model table, state machines, validation instructions\n\n**Validation (`tests/schemas/`)**\n- `package.json` + `package-lock.json` — ajv + ajv-formats devDependencies\n- `validate.mjs` — runner that registers every schema under its `$id` and runs fixtures\n- `fixtures/{participant,artifact,message,delivery,humantask,syncbatch}/` — one `valid.json` plus targeted `invalid/*.json` per rejection rule (missing ID, embedded artifact, kind/address mismatch, FAILED without error, approval without decision, unknown sync item kind, bad ack state, etc.)\n\n## Verification (run: `cd tests/schemas && npm test`)\n- All 7 schemas compile under strict Ajv **Draft 2020-12** with cross-file `$ref` resolution (registered by `$id` base URI)\n- **27 fixture checks, 0 failures** — every valid fixture passes, every invalid fixture is rejected for its intended reason (confirmed via error-path inspection, e.g. `additionalProperties: \"content\"` for embedded artifacts)\n\n## Notes\n- `WAITING_FOR_SYNC` is modeled as a valid state (never a failure), per the gotcha in my operating instructions.\n- `src/HumanGateway.Protocol` and the TypeScript validators are later tasks (PROTOCOL-0.5); these schemas are the single source of truth they will validate against.\n- `node_modules/` is already gitignored; progress tracking (WORKFLOW-STATE.json/PROGRESS.md) is owned by the workflow engine.\n",
+      "artifactId": "work-protocol-0-1-001"
+    },
+    "PROTOCOL-0.2": {
+      "taskId": "PROTOCOL-0.2",
+      "status": "complete",
+      "ownerAgent": "protocol-engineer",
+      "attempt": 1,
+      "outputFiles": [],
+      "startedAt": "2026-08-28T21:27:15.719Z",
+      "completedAt": "2026-08-28T21:31:16.765Z",
+      "agentOutput": "The sync batch schema exists and tests pass, but the task checkbox in protocol.md is unchecked and the sync model has gaps worth closing (sequence-range consistency, cursor/idempotency constraints, and dedicated fixtures). Let me review the remaining schemas before tightening it.\nThe schemas exist and pass fixtures, but the sync-model task (protocol.md line 58) is still unchecked and the SyncBatch schema has gaps: unbounded cursors, no batch-size bounds, and the sequence-range invariant is only implied. Let me check how progress is tracked before editing.\nTask PROTOCOL-0.2 confirmed: **Define the sync model (IDs, sequence numbers, cursors, idempotency, content hashes)**. The SyncBatch schema exists from PROTOCOL-0.1, but the sync model needs tightening: unbounded cursors, `sequenceStart`/`sequenceEnd` aren't nullable for empty/heartbeat batches, no batch-size ceiling, and the range invariant is unstated. Let me set up the work.\nNow the SyncBatch schema. Changes: a bounded opaque `cursor` def, nullable `sequenceStart`/`sequenceEnd` with a conditional requirement when items exist, `maxItems` ceiling on the batch, and an idempotency-key pattern.\nNow add the `cursor` def and strengthen the `sequence` def with range semantics in the `$defs` block:\nSchema updated. Now the fixtures — converting `valid.json` to a multi-case array (PUSH batch, PULL batch, empty keepalive batch) and adding invalid cases covering each sync-model rule:\nThe existing invalid fixtures lack `sequenceStart`/`sequenceEnd`, which now must be present for non-empty batches — they'd still be rejected, but for the wrong reason. Let me fix them and add the new sync-model invalid fixtures:\nNow the new invalid fixtures targeting each sync-model rule:\nAjv strict mode needs an explicit `type` in the `if` subschema. Fixing:\nThe fixture is right — `idempotencyKey` should be required since it's half of the idempotency contract. Adding it to `required`:\nAll 35 checks pass. Let me verify each rejection happens for the *intended* rule (not accidentally):\nNode resolves modules relative to the script, so let me place it inside `tests/schemas/` temporarily:\nThe script resolves paths relative to cwd. Let me run it from the right directory:\nThe script's relative paths are wrong for the cwd. Let me fix them directly:\nLet me simplify — the script has path/API bugs. I'll rewrite it cleanly and run from `tests/schemas` where ajv resolves:\nPath is off by one level — from `tests/schemas` it's `../../schemas`:\nEvery rejection matches its intended rule. Now updating the README's sync-model section to document the tightened semantics:\nNow update the sync-model doc references: mark the protocol.md task checkbox and fix the synchronisation.md schema filename reference:\nAll 35 fixture checks pass. Let me run a final verification of the full change set and confirm no other sync-model references remain unchecked:\nThe PRD is the original source requirement document (historical record) — the working copy in `docs/features/protocol.md` is now marked done, matching the other completed Phase 0 tasks. Let me run the final validation gate and confirm the .NET scaffold isn't part of this task (it's PROTOCOL-0.5):\nTask **PROTOCOL-0.2 — Define the sync model (IDs, sequence numbers, cursors, idempotency, content hashes)** is complete.\n\n## What was done\n\nThe sync model is now fully specified and schema-enforced in `schemas/syncbatch.schema.json` (the Phase 0.1 draft carried the concepts; this task hardened the shape rules, closed gaps, and proved each rule with fixtures).\n\n**`schemas/syncbatch.schema.json`** (modified)\n- Added `$defs/cursor`: opaque, URL-safe (`^[A-Za-z0-9._:/-]*$`), ≤1024 chars, `null` = \"no position yet\"; senders MUST only echo it, never interpret. `sinceCursor`/`cursor` now reference it.\n- Made `sequenceStart`/`sequenceEnd` `[\"integer\",\"null\"]` with a conditional (`allOf`/`if-then-else`): **non-empty batch ⇒ integers required; empty (keepalive) batch ⇒ both MUST be null** — a legitimate cursor-advance heartbeat.\n- Made `idempotencyKey` **required** (it's half the idempotency contract alongside `batchId`; retries MUST reuse both — changing either creates a new logical batch) and gave it a stable-key pattern.\n- Capped `items` at 1000 per batch; documented that the `sequenceStart ≤ sequenceEnd` / item-within-span checks are sync-engine enforced (JSON Schema can't compare two instance fields).\n\n**`tests/schemas/fixtures/syncbatch/`** (modified/new)\n- `valid.json` → 3 cases: PUSH batch (message+artifact+ack), PULL batch (delivery+ack), empty keepalive batch.\n- New invalid fixtures, each verified to fail for its *intended* rule: `cursor-not-string-or-null`, `cursor-too-long`, `missing-idempotency-key`, `sequence-zero`, `nonempty-batch-without-range`, `empty-batch-with-range`; fixed 3 pre-existing fixtures that were missing the now-required fields.\n\n**`schemas/README.md`** — expanded the Sync model section: cursor/idempotency/sequence-span semantics, batch-shape invariants, engine-enforced checks.\n\n**`docs/features/protocol.md`** — marked the task checkbox `[x]`; **`docs/features/synchronisation.md`** — corrected its schema file reference to `schemas/syncbatch.schema.json`.\n\n## Validation\n- `npm test` (AJV Draft 2020-12, strict mode, cross-file `$ref`): **35 fixture checks, 0 failures**.\n- Per-fixture diagnostic confirmed each rejection maps to its intended keyword (`type`/`maxLength`/`required`/`minimum`/`if-then-else const`).\n\nFiles changed: `schemas/syncbatch.schema.json`, `schemas/README.md`, `tests/schemas/fixtures/syncbatch/valid.json`, 6 new + 3 fixed invalid fixtures, `docs/features/protocol.md`, `docs/features/synchronisation.md`. The `.NET`/TypeScript scaffold (PROTOCOL-0.5) is a separate task and was not touched.\n",
+      "artifactId": "work-protocol-0-2-001",
+      "inputArtifactIds": [
+        "work-protocol-0-1-001"
+      ]
+    },
+    "PROTOCOL-0.3": {
+      "taskId": "PROTOCOL-0.3",
+      "status": "complete",
+      "ownerAgent": "security-engineer",
+      "attempt": 1,
+      "outputFiles": [],
+      "startedAt": "2026-08-28T21:31:16.767Z",
+      "completedAt": "2026-08-28T21:37:25.744Z",
+      "agentOutput": "Let me check the remaining fixtures and how `error` is used, then plan the work.\nNow I have the full picture. This is **PROTOCOL-0.3** (owned by security-engineer per the responsibility matrix): define the identity model (gateway, participant, user) and error model as protocol schemas. Let me check the execution manifest/state to follow the tracking conventions, then implement.\nThe task is `PROTOCOL-0.3` — owned by me (security-engineer), currently marked `running` in WORKFLOW-STATE.json, and it produces a `work.protocol-0.3` artifact. Let me set up tracking and implement.\nNow writing the three new schemas. First, the error model:\nNow the gateway identity schema:\nNow the local user schema:\nNow update `common.schema.json` to make `error.schema.json` the single source of truth:\nNow update `participant.schema.json` to link the identity model together:\nNow the small `syncbatch.schema.json` gatewayId reference:\nNow the fixtures. Error first:\nOne fixture I wrote (`code-message-swapped.json`) is actually valid — let me replace it with a meaningful invalid case:\nNow gateway fixtures:\nNow user fixtures:\nNow register the new schemas in the test runner:\nAll 65 fixture checks pass. Now update the schemas README with the identity and error model documentation:\nNow tick the protocol.md task checkbox:\nNow verify everything and record the work artifact. Let me check the 0-1 artifact shape for consistency, and run a secrets scan:\nThe scan shows only docs/config references. Let me scan the full working tree (including untracked new files) using my checklist's exact pattern:\nThe scan confirms only field names, spec text, and fake test fixtures — no real secrets (SP-07 satisfied). Let me do a final review of the modified files and re-run the suite:\nAll green. Now record the `work.protocol-0.3` artifact following the established convention:\nLet me spot-check the `$defs` patterns (registrationToken, PHC verifier) that aren't exercised by root fixtures, since they're part of the identity model:\nAll `$defs` patterns behave correctly. Final todo update:\nTask **PROTOCOL-0.3 — Define the identity model (gateway, participant, user) and error model** is complete.\n\n## What was delivered\n\nThe identity model is now three linked, versioned protocol entities plus a first-class error model, all Draft 2020-12 under `schemas/` with fixtures.\n\n### New schemas\n- **`schemas/gateway.schema.json`** — Edge Gateway identity/registration record (AUTH-FR-01, SP-02). Unique durable `gatewayId`, registration lifecycle `UNREGISTERED → PENDING → REGISTERED → SUSPENDED | REVOKED` (with state/timestamp invariants enforced via `allOf`), a `registrationTokenFingerprint` (SHA-256 only — the Relay never stores the plaintext secret, SP-07), and `$defs` for the high-entropy `registrationToken` (`hgrt_` + base64url) and the signed `requestToken` used for Edge↔Relay requests over TLS (AUTH-FR-04).\n- **`schemas/user.schema.json`** — local Edge user account (AUTH-FR-02, SP-03): `username` (normalised lowercase), `passwordVerifier` (PHC string — explicitly a **local-store-only** field that MUST NEVER be transmitted, SP-07), `ACTIVE`/`DISABLED` status. Deliberately **no role field** (SP-09).\n- **`schemas/error.schema.json`** — the error model (protocol §7 #3): `code` (stable UPPER_SNAKE, extensible), `message`, `details`, `retryable`, plus a reserved error-code catalog in `$defs.errorCode` covering auth/gateway/authorisation/artifact/sync failures (e.g. `GATEWAY_UNREGISTERED`, `CONVERSATION_ACCESS_DENIED`, `HASH_MISMATCH`).\n\n### Wiring + docs\n- **`common.schema.json`** — `$defs.error` now `$ref`s `error.schema.json` (single source of truth; delivery FAILED + sync/API responses stay in lockstep).\n- **`participant.schema.json`** — added optional `gatewayId` (system gateways → `gateway.schema.json`) and documented `userId` → `user.schema.json`, tying the three identity records together.\n- **`syncbatch.schema.json`** — `gatewayId` now points at the Gateway identity record.\n- **`schemas/README.md`** — new \"Identity model\" and \"Error model\" sections + file table/cross-reference updates.\n- **`docs/features/protocol.md`** — Phase 0 identity/error-model checkbox ticked.\n- **`docs/artifacts/work-protocol-0-3/work-protocol-0-3-001.json`** — work artifact recorded.\n\n### Validation\n- 22 new fixtures (7 error, 7 gateway, 8 user) added and registered in `tests/schemas/validate.mjs`; **`npm test` → 65/65 fixture checks pass** (valid accepted, invalid rejected for the intended reasons).\n- Spot-checked the `$defs` patterns directly (registrationToken/PHC accept valid forms, reject short/wrong-prefix/plaintext).\n- Secrets scan (`password|secret|token|apikey`) returns only field names, spec text, and clearly-fake test fixtures — no real secrets (SP-07).\n\nOwnership handoff notes: the .NET `HumanGateway.Protocol` entity models for these three new schemas land with PROTOCOL-0.5, and the actual registration/authn/authz *implementation* is Phase IDENTITY-SECURITY-5 — this task defined the model they validate against.\n",
+      "artifactId": "work-protocol-0-3-002",
+      "inputArtifactIds": [
+        "work-protocol-0-2-001"
+      ]
+    },
+    "PROTOCOL-0.4": {
+      "taskId": "PROTOCOL-0.4",
+      "status": "complete",
+      "ownerAgent": "protocol-engineer",
+      "attempt": 1,
+      "outputFiles": [],
+      "startedAt": "2026-08-28T21:37:25.758Z",
+      "completedAt": "2026-08-28T21:40:31.325Z",
+      "agentOutput": "The fixtures are all in place. Let me run the validation suite to see the current state.\nAll 65 fixture checks pass. Let me review the schemas to verify they're complete and consistent before finalizing.\nThe current task is **PROTOCOL-0.4: Publish schemas under `schemas/` with validation tests (JSON Schema validators)**. The schemas and fixture runner already exist and pass. Let me verify against the acceptance criteria in the protocol feature doc and confirm all requirements are covered.\nThe schemas, runner, and fixtures are in place and passing. Let me verify coverage against the requirements and check for gaps — particularly delivery state-machine coverage (a valid FAILED-with-error fixture) and repo hygiene.\nThe task is essentially scaffolded. Now let me close the remaining coverage gaps: the delivery fixture only positively exercises `ACKNOWLEDGED` — the other five states (including `FAILED` with `error`, which the context specifically flagged) have no valid fixtures. Let me inspect the remaining valid fixtures for gaps.\nThe delivery fixtures only positively cover `ACKNOWLEDGED`; the other five states (including `FAILED` with `error` — the exact thing the context flagged) lack valid fixtures. Let me check the remaining valid fixtures, then fill the gaps.\nThe scaffold is solid but the delivery fixture set has a real gap: only `ACKNOWLEDGED` is positively exercised, so the `FAILED` + `error` path (through `common.$defs.error` → `error.schema.json`) and the other state-specific `allOf` rules are never proven valid. Let me close that coverage.\nNow the invalid fixtures for the missing per-state timestamp rules:\nNow let me check the syncbatch invalid fixtures for gaps against the sync model spec (SYNC-FR-01..07), and review remaining invalid fixture sets for the message/participant/humantask.\nSyncbatch fixtures cover all the sync-model rejections. Let me run the full suite with the new fixtures.\nAll 73 checks pass. Let me verify the fixture additions properly exercise the `error` path (which the prior task flagged), then update progress tracking.\nLet me check the artifact conventions so I record PROTOCOL-0.4 correctly.\nLet me check the protocol.md changes and the current checkbox state before updating.\nAll fixtures pass (73 checks). Now let me update the tracking: tick the protocol.md checkbox, record the work artifact, and mark PROTOCOL-0.4 complete in the workflow state.\nNow update the workflow state and progress files. Let me read the exact structure first.\nNow update PROGRESS.md:\nNow let me do the final validation pass — rerun the suite and verify the JSON files I touched are valid.\nAll green. Let me finalize the todo list and confirm the overall change set.\nTask complete. The schemas are published under `schemas/` with a passing JSON Schema validator suite.\n\n## What was delivered (PROTOCOL-0.4 — Publish schemas + validation tests)\n\nThe core publishing work was scaffolded; I verified it end-to-end and closed the remaining coverage gaps, then recorded the work artifact.\n\n**Verified published state** (from prior tasks, now confirmed complete):\n- 10 versioned Draft 2020-12 schemas under `schemas/`, each with `$schema` and versioned `$id` (`https://schemas.humangateway.dev/human-gateway/v1/{name}.schema.json`), covering all six PROTO-FR-01 entities plus `common` (shared defs), `error` (protocol §7 #3), `gateway` and `user` (identity model) — release v1.0.0 documented in `schemas/README.md` (sync model, identity model, error model, state machines).\n- Validator runner at `tests/schemas/validate.mjs` (ajv 2020 + ajv-formats, `strict: true`): registers every schema under its `$id` before compiling entity schemas, then runs `valid.json` + `invalid/*.json` fixtures per entity.\n\n**Gaps I closed this task** (the context flagged the `error`-usage and fixture review):\n- `tests/schemas/fixtures/delivery/valid.json` — previously only positively exercised `ACKNOWLEDGED`. Now a 6-case array covering **every delivery state** (QUEUED, SYNCING, DELIVERED, ACKNOWLEDGED, WAITING_FOR_SYNC, FAILED), so the `FAILED → error → common.$defs.error → error.schema.json` reference path is proven *valid*, not just rejected-when-missing.\n- 3 new invalid fixtures enforcing the per-state timestamp invariants that had no rejection coverage: `queued-without-timestamp.json`, `delivered-without-timestamp.json`, `acknowledged-without-timestamp.json`.\n- Confirmed the syncbatch invalid fixtures cover every sync-model rejection (cursor shape/length, sequence-zero, empty-vs-nonempty range rules, missing idempotencyKey, unknown item kind, ack state).\n\n**Progress tracking updated:**\n- `docs/features/protocol.md` — Phase 0 \"Publish schemas\" checkbox ticked (and the schema-definition checkbox, since the schemas are published and validated).\n- `docs/artifacts/work-protocol-0-4/work-protocol-0-4-001.json` — work artifact recorded (input: `work-protocol-0-3-002`).\n- `docs/WORKFLOW-STATE.json` — PROTOCOL-0.4 → `complete`; `docs/PROGRESS.md` — task added to completed, current task set to PROTOCOL-0.5.\n\n## Files created or changed this task\n- **Changed:** `tests/schemas/fixtures/delivery/valid.json` (all six states incl. FAILED-with-error)\n- **Created:** `tests/schemas/fixtures/delivery/invalid/queued-without-timestamp.json`, `delivered-without-timestamp.json`, `acknowledged-without-timestamp.json`\n- **Changed:** `docs/features/protocol.md` (checkboxes)\n- **Created:** `docs/artifacts/work-protocol-0-4/work-protocol-0-4-001.json`\n- **Changed:** `docs/WORKFLOW-STATE.json`, `docs/PROGRESS.md`\n\n## Validation\n- `npm test` → **73 fixture checks, 0 failures** — all valid fixtures accepted, all invalid fixtures rejected, Draft 2020-12, strict ajv.\n- All touched JSON files parse cleanly.\n\nNext up: **PROTOCOL-0.5** — scaffold `src/HumanGateway.Protocol` (.NET) with schema-backed entity model and validation, then the TypeScript validators for cross-implementation conformance (§6).\n",
+      "artifactId": "work-protocol-0-4-002",
+      "inputArtifactIds": [
+        "work-protocol-0-3-002"
+      ]
+    },
+    "PROTOCOL-0.5": {
+      "taskId": "PROTOCOL-0.5",
+      "status": "complete",
+      "ownerAgent": "protocol-engineer",
+      "attempt": 1,
+      "outputFiles": [
+        "src/HumanGateway.Protocol"
+      ],
+      "startedAt": "2026-08-28T21:40:31.328Z",
+      "completedAt": "2026-08-28T21:56:39.671Z",
+      "agentOutput": "The project appears to have existing files. Let me check the git state and understand what's there.\nThe directory exists with files already. Let me assess whether the scaffold is complete and builds correctly.\nThe scaffold exists but has 2 build errors. Let me examine the failing files.\nThe scaffold exists (left from a prior incomplete run) but fails to build with 2 errors. Let me set up a task list and fix them, then verify completeness against the schemas.\nNow the `ProtocolSchemas` duplicate `Documents` member — the static field and property share the name. Rename the backing field:\nMore errors surfaced. Let me fix the remaining ones — first the two I introduced, then read the validator files.\nThe CS0165 errors come from the `is not { } status` pattern: `status` is not definitely assigned on the path where the pattern fails. Let me read the remaining failing validators and the error-code catalog.\nNow let me read `SyncBatchValidator.cs` (the `InvalidValue` error) and the relevant model enum definitions.\nThe `InvalidValue` code doesn't exist in the catalog — that invariant (empty keepalive batch must not carry a range) is a \"value present when schema forbids it\" shape error. I'll add a `UnexpectedValue` code and fix the four CS0165 pattern-scope bugs. Starting with `ValidationErrorCodes`:\nNow fix the four CS0165 pattern-scope bugs. Gateway first:\nNow `HumanTaskValidator` — both `kind` and `status` are used later. Restructure both:\nBuild is green — 0 warnings, 0 errors. Let me update the todos and verify the scaffold's completeness against the schemas and the README's claims.\nAll 10 schema documents have corresponding models/validators. Let me verify the facade (`ProtocolValidator.Default`, `ProtocolJson.Options`, `ErrorCodes`) referenced in the README actually exist and are wired.\nThe scaffold is fully wired. Let me check whether the TypeScript client protocol side exists (it's a separate task but I should note the state) and verify the schemas' test suite still passes.\n73/73 schema fixtures pass. Let me do a quick runtime smoke check of the built assembly (embedded schemas + a valid fixture round-trip + validator) using a throwaway console app in /tmp.\nSmoke-test API mismatches — let me read the actual model shapes.\nNow I'll fix the smoke test to match the real model shapes:\nThe validators reject correctly — my smoke fixture used invalid IDs/timestamps. Let me check the ID/timestamp patterns and fix the smoke fixtures.\nAll smoke checks pass, including the new `UNEXPECTED_VALUE` code. Let me extend the smoke test to run every entity fixture set through round-trip + validation — mirroring the conformance claim in the README.\nFixtures are pretty-printed, so I'll verify round-trip stability (second serialization equals first) plus validation for all 9 entity fixture sets:\nThe `dynamic` dispatch can't bind `object` args to the strongly-typed `Validate(T)`. Let me use explicit lambdas instead:\nThe `delivery` fixture fails to deserialize — this may be a genuine model/schema mismatch. Let me investigate.\nThe delivery fixture is a JSON **array** (one snapshot per state-machine state) — not a model bug. Let me check which fixtures are arrays and adapt the smoke test:\nFive fixtures are arrays (multiple snapshots each). Let me handle both shapes in the smoke test:\n24 valid snapshots pass, but an invalid fixture `user/invalid/missing-verifier.json` is wrongly accepted — a real schema/validator divergence. Let me investigate.\nConfirmed divergence: `passwordVerifier` (and `username`) are **required** by user.schema.json, but the .NET validator uses `CommonRules.Pattern`, which treats null as optional. Let me check all `Pattern` call sites against their schemas' `required` lists:\n`mimeType` is also required by artifact.schema.json but validated with null-passing `Pattern`. Let me read the ArtifactValidator and Artifact model to confirm the full picture:\nThree required-field gaps confirmed (null-passing `Pattern` where the schema marks the field required): `user.username`, `user.passwordVerifier`, `artifact.mimeType`. (`gateway.registrationTokenFingerprint` is genuinely optional — correct as-is.) Let me check the relevant invalid fixtures:\nNo `missing-mimeType` fixture exists yet. Let me check how `validate.mjs` discovers fixtures, then fix the validators and close the conformance gap in both directions.\nThe runner globs all invalid files automatically. Let me add a `RequiredPattern` helper to `CommonRules` (mirroring schema's `required` + `pattern` together), then apply it. First, the helper — let me see the surrounding style:\nNow add the missing `artifact/invalid/missing-mimeType.json` fixture so the JSON Schema suite covers this rule too:\nNow re-run the full cross-validator smoke test with the fixes:\nAll 24 valid snapshots pass and 50 invalid fixtures rejected. Let me verify the count discrepancy (74 total checks − 9 valid files = 65 invalid files, but only 50 counted) — some invalid fixtures may be arrays:\nThe 74 checks reconcile: 24 valid array elements + 50 invalid files. Full conformance between ajv and .NET. Let me complete the required-field audit on the remaining validators I haven't fully verified:\nThe cursor `$defs.cursor` is `type: [\"string\",\"null\"]` — null is a valid value by design, so the .NET `Cursor` helper treating null as pass is correct. My required-field audit across all 9 validators is now complete: only `username`, `passwordVerifier`, and `mimeType` had gaps — all three fixed. Final verification:\nAll green. Let me finalize the todos and review the change set:\nAll verification gates are green. Here's the summary.\n\n## Task complete: scaffold `src/HumanGateway.Protocol` (.NET) with schema-backed entity model and validation\n\nThe directory existed from a prior incomplete run but **did not compile** (11 build errors) and had **3 cross-implementation conformance bugs** where the .NET validators accepted fixtures the JSON Schemas reject. I fixed all of them and verified the scaffold end-to-end.\n\n### Build fixes (made it compile — 0 warnings, 0 errors)\n- **`ProtocolStringEnumConverter.cs`** — renamed nested `ProtocolStringEnumConverter<T>` → `StringEnumConverter<T>` (C# forbids a member name matching its enclosing type, CS0542)\n- **`Schemas/ProtocolSchemas.cs`** — renamed backing field `Documents` → `LazyDocuments` (duplicate member, CS0102)\n- **`Validation/GatewayValidator.cs`, `UserValidator.cs`, `DeliveryValidator.cs`, `HumanTaskValidator.cs`** — restructured `if (x is not { } status)` pattern variables into explicit nullable locals (`GatewayStatus? status = null; … else status = s;`). The old code used `status` later in the method on the path where the pattern didn't match (CS0165 × 4)\n- **`Validation/SyncBatchValidator.cs` + `ValidationErrorCodes.cs`** — `InvalidValue` referenced a code that didn't exist; added `UNEXPECTED_VALUE` for the keepalive-batch-with-range invariant\n\n### Conformance fixes (found via cross-validator smoke test — protocol §6)\nThe `.NET` validators accepted fixtures the schemas reject, because `CommonRules.Pattern` treats null as \"optional\" but the schema marks these fields `required`:\n- **`user.username`** and **`user.passwordVerifier`** (user.schema.json `required`) — fixture `user/invalid/missing-verifier.json` was wrongly accepted\n- **`artifact.mimeType`** (artifact.schema.json `required`)\n- Added **`CommonRules.RequiredPattern`** (emits `REQUIRED` on null, `INVALID_PATTERN` on mismatch) and applied it at all three sites\n- Added missing fixture **`tests/schemas/fixtures/artifact/invalid/missing-mimeType.json`** so the JSON Schema suite covers the same rule\n\n### Verification (all passing)\n- `dotnet build src/HumanGateway.Protocol` → **0 warnings, 0 errors**\n- `node tests/schemas/validate.mjs` → **74/74 fixture checks pass** (Draft 2020-12, ajv)\n- Cross-implementation smoke run (throwaway console in `/tmp/opencode/protocol-smoke`): all **24 valid snapshots** across the 9 entity fixture sets round-trip stably through `ProtocolJson.Options` and pass the .NET validators; **all 50 invalid fixtures rejected** — full agreement with the JSON Schema suite\n- Embedded schemas: `ProtocolSchemas` exposes all **10 versioned documents** keyed by `$id`\n\n### Files created or changed this session\n| File | Change |\n|---|---|\n| `src/HumanGateway.Protocol/ProtocolStringEnumConverter.cs` | fixed CS0542 (renamed nested converter) |\n| `src/HumanGateway.Protocol/Schemas/ProtocolSchemas.cs` | fixed CS0102 (backing field rename) |\n| `src/HumanGateway.Protocol/Validation/CommonRules.cs` | added `RequiredPattern` helper |\n| `src/HumanGateway.Protocol/Validation/ValidationErrorCodes.cs` | added `UnexpectedValue` code |\n| `src/HumanGateway.Protocol/Validation/SyncBatchValidator.cs` | `InvalidValue` → `UnexpectedValue` |\n| `src/HumanGateway.Protocol/Validation/GatewayValidator.cs` | fixed CS0165 (status pattern) |\n| `src/HumanGateway.Protocol/Validation/UserValidator.cs` | fixed CS0165 + required `username`/`passwordVerifier` |\n| `src/HumanGateway.Protocol/Validation/DeliveryValidator.cs` | fixed CS0165 (state pattern) |\n| `src/HumanGateway.Protocol/Validation/HumanTaskValidator.cs` | fixed CS0165 (kind/status patterns) |\n| `src/HumanGateway.Protocol/Validation/ArtifactValidator.cs` | required `mimeType` |\n| `tests/schemas/fixtures/artifact/invalid/missing-mimeType.json` | new rejection fixture |\n\nThe rest of the scaffold (10 model files, 9 validators, `ProtocolValidator.Default` facade, `ProtocolJson.Options`, `ErrorCodes` catalog, csproj with embedded schemas, README) was verified intact and covering all 10 schema documents.\n\n**Note for the next task:** the TypeScript validator side (`src/HumanGateway.Client/src/protocol/`) does not exist yet, and the README's `dotnet test tests/HumanGateway.Protocol.Tests` command references a test project that is not yet scaffolded — both are follow-on protocol Phase 0 tasks (TS conformance + the xUnit test project), not part of this scaffold deliverable.\n",
+      "artifactId": "work-protocol-0-5-001",
+      "inputArtifactIds": [
+        "work-protocol-0-4-001"
+      ]
+    },
+    "LOCAL-EDGE-1.1": {
+      "taskId": "LOCAL-EDGE-1.1",
+      "status": "complete",
+      "ownerAgent": "sync-engineer",
+      "attempt": 5,
+      "outputFiles": [
+        "src/HumanGateway.Core",
+        "src/HumanGateway.Edge"
+      ],
+      "startedAt": "2026-08-28T23:25:14.871Z",
+      "completedAt": "2026-08-28T23:27:09.763Z",
+      "agentOutput": "The scaffold task is complete. I verified the existing `src/HumanGateway.Core` and `src/HumanGateway.Edge` are substantive (not hollow), match the sync-engineer contract, and pass validation. Here's the verification and the deliverable inventory.\n\n## Validation results\n\n- `dotnet build HumanGateway.slnx` — **0 warnings, 0 errors** (Protocol → Core → Edge → Core.Tests all build)\n- `dotnet test tests/HumanGateway.Core.Tests` — **58 passed, 0 failed** (cursor math, idempotency, ordering, batch invariants, content hashing, delivery state machine, field merge, sync engine)\n- Delivery state machine (`DeliveryStateMachine.cs`) transitions **exactly match product vision §10**:\n  `QUEUED → SYNCING → DELIVERED → ACKNOWLEDGED`, with `WAITING_FOR_SYNC` as a valid deferral state and `FAILED` gated behind the retry budget (`CanFail`).\n\n## Deliverables — `src/HumanGateway.Core` (sync engine)\n\n- `HumanGateway.Core.csproj` — net10.0 library, refs `HumanGateway.Protocol`\n- `Sync/ISyncEngine.cs` — the shared Edge↔Relay engine contract (`BuildPushBatchAsync` / `ApplyBatchAsync` + request/result records)\n- `Sync/SyncEngine.cs` — pure deterministic engine: cursor decode, deterministic reorder, batch identity/idempotency-key derivation, replay dedup, per-message dedup, contiguous cursor advance, delivery acks\n- `Outbox/IOutbox.cs`, `Outbox/OutboxEntry.cs`, `Outbox/InMemoryOutbox.cs`\n- `Inbox/IInbox.cs`, `Inbox/InboxEntry.cs`, `Inbox/InMemoryInbox.cs`\n- `Idempotency/IIdempotencyStore.cs`, `Idempotency/InMemoryIdempotencyStore.cs`, `Idempotency/IdempotencyKeys.cs`\n- `Delivery/DeliveryStateMachine.cs`, `Delivery/DeliveryAckBuilder.cs`\n- `Cursor/CursorMath.cs`, `Cursor/CursorCodec.cs`\n- `Ordering/SequenceOrdering.cs` (SYNC-FR-07 deterministic reorder)\n- `Retry/BackoffPolicy.cs` (capped + jittered, SYNC-FR-04)\n- `Batch/BatchSequenceValidator.cs` (batch invariants)\n- `Hashing/ContentHasher.cs`, `Conflict/FieldMerge.cs`, `Ids/IdGenerator.cs`, `Time/ProtocolTime.cs`\n- `README.md`\n\n## Deliverables — `src/HumanGateway.Edge`\n\n- `HumanGateway.Edge.csproj` — net10.0 Web SDK, refs Protocol + Core\n- `Program.cs` — boots, wires in-memory outbox/inbox/idempotency ports + `SyncEngine`; `/healthz` probe (EDGE-FR-01) and `/sync/status` stub (EDGE-FR-05)\n- `appsettings.json` — Edge gateway id, data dir, Relay URL, sync batch/backoff config\n- `README.md` — status and handoff notes to the edge-engineer (LOCAL-EDGE-1.2..1.6)\n\nNo files required modification this run — the scaffold was already present in the working tree and is complete; the durable SQLite ports (LOCAL-EDGE-1.2/1.3) are correctly deferred to the edge-engineer, whose work slots into the fixed `ISyncEngine` contract without touching the engine.\n",
+      "artifactId": "work-local-edge-1-1-001"
+    },
+    "LOCAL-EDGE-1.2": {
+      "taskId": "LOCAL-EDGE-1.2",
+      "status": "complete",
+      "ownerAgent": "edge-engineer",
+      "attempt": 4,
+      "outputFiles": [],
+      "startedAt": "2026-08-29T00:10:59.337Z",
+      "completedAt": "2026-08-29T00:15:03.369Z",
+      "agentOutput": "The SQLite schema deliverable (LOCAL-EDGE-1.2) is complete and I've verified it end-to-end. Here's the full picture.\n\n## What I verified\n\nThe Edge SQLite (WAL) store is fully implemented and passing:\n\n- **Build:** `dotnet build src/HumanGateway.Edge` → 0 errors, 0 warnings\n- **Tests:** `dotnet test` → **65 passed** (58 Core + 7 Edge), 0 failed\n- **Runtime smoke test:** `dotnet run` boots, applies the EF Core migration on startup, and serves `/healthz` (200) + `/sync/status` (200). Inspecting the resulting DB file confirmed `journal_mode=wal`, `synchronous=2` (NORMAL), and all 6 tables present.\n\n## Deliverable contents (schema, EDGE-FR-02 / NF-04)\n\nThe schema spans 6 tables via EF Core migrations, with canonical-JSON envelopes + denormalised query columns and the durability PRAGMAs applied on every connection open:\n\n| Entity | Table | Key features |\n|---|---|---|\n| Conversation | `conversations` | PK id, title, created/updated at |\n| ConversationParticipant | `conversation_participants` | composite PK (conversation_id, participant_address), FK cascade → conversations, restrict → participants |\n| MessageRecord | `messages` | canonical JSON envelope, `conversation_id`/`sender_address`/`created_at`/`content_hash` denormalised, chronological index |\n| DeliveryRecord | `deliveries` | wire-token `state`, unique index `(message_id, recipient_address)` (one delivery per recipient, PROTO-FR-05) |\n| ArtifactRecord | `artifacts` | metadata only (bytes on filesystem), `hash` indexed for dedup |\n| ParticipantRecord | `participants` | address PK, kind/display/user/gateway denormalised |\n\nDurability PRAGMAs (`WAL`, `synchronous=NORMAL`, `foreign_keys=ON`, `busy_timeout=5000`) are applied by `SqlitePragmaInterceptor` (DI) and `SqliteConnectionFactory` (tests), covering EDGE-FR-06/07 and NF-04.\n\n## Files changed in this session\n\n- **`.gitignore`** — added `src/HumanGateway.Edge/data/`, `*.db`, `*.db-wal`, `*.db-shm` so the runtime SQLite store (created on first boot under `contentroot/data/`) is never committed. This was a real gap: my smoke test proved `data/edge.db` was previously untracked-and-committable.\n\nThe schema/storage files themselves (`src/HumanGateway.Edge/Storage/**`, `Program.cs`, the migration set, and `tests/HumanGateway.Edge.Tests/*`) were already present and correct from the scaffold run; I validated them rather than rewriting.\n\n## Validation checklist\n\n- [x] `dotnet build src/HumanGateway.Edge` — zero errors\n- [x] `dotnet test` — SQLite store + pragma + round-trip + unique-index tests pass (temp DB)\n- [x] Migration applies cleanly from scratch; WAL + synchronous=NORMAL confirmed at runtime\n- [x] Service boots and serves the LAN endpoints with no Internet\n\nOne follow-up for a later task (not in scope here): `Program.cs` reads `ConnectionStrings:Edge` but `appsettings.json` only defines `Edge:DataDirectory` (`/var/lib/humangateway`), so the app currently always falls back to `contentroot/data`. That's a deploy-wiring concern for the infra task, not the schema.\n",
+      "artifactId": "work-local-edge-1-2-001",
+      "inputArtifactIds": [
+        "work-local-edge-1-1-001"
+      ]
+    },
+    "LOCAL-EDGE-1.3": {
+      "taskId": "LOCAL-EDGE-1.3",
+      "status": "complete",
+      "ownerAgent": "edge-engineer",
+      "attempt": 1,
+      "outputFiles": [],
+      "startedAt": "2026-08-29T00:15:03.375Z",
+      "completedAt": "2026-08-29T00:34:49.986Z",
+      "agentOutput": "The durable inbox/outbox (LOCAL-EDGE-1.3) is already implemented and passing, but my validation checklist has one item not yet covered anywhere in the repo: a real crash-consistency test (kill -9 during write → restart → message present exactly once). I'll add that, wire the probe into the solution, and update the Edge README status.\nThe durable inbox/outbox deliverable (LOCAL-EDGE-1.3) is complete and verified end-to-end.\n\n## What was already in place (verified, not re-authored)\n\nThe core durable inbox/outbox was implemented and passing: `SqliteOutbox`, `SqliteInbox`, and `SqliteIdempotencyStore` (wired in `Program.cs` via `IDbContextFactory<EdgeDbContext>`), plus the `AddDurableInboxOutbox` EF migration and `DurableInboxOutboxTests`. Every create commits to SQLite (WAL + `synchronous=NORMAL`) via `SaveChangesAsync` **before** any network attempt — the write-then-ack pattern holds.\n\n## Gap I filled: the kill -9 crash-consistency test\n\nMy validation checklist required a real crash-consistency test (kill -9 during write → restart → message present exactly once), which existed nowhere in the repo. I implemented it.\n\n## Files created\n\n- **`tests/HumanGateway.Edge.CrashProbe/HumanGateway.Edge.CrashProbe.csproj`** — console probe (net10.0, references the Edge project).\n- **`tests/HumanGateway.Edge.CrashProbe/Program.cs`** — continuously enqueues messages into the durable outbox until SIGKILL; reports each committed enqueue as `COMMITTED <n> <messageId> <sequence>` (flushed) and a `CrashProbeMarker` type the test uses to locate the compiled DLL.\n- **`tests/HumanGateway.Edge.Tests/CrashConsistencyTests.cs`** — spawns the probe, SIGKILLs it mid-write, reopens the same SQLite file (WAL recovery), and asserts every committed message survives exactly once with no duplicate sequence numbers.\n\n## Files modified\n\n- **`HumanGateway.slnx`** — added the crash-probe project to the `/tests/` folder.\n- **`tests/HumanGateway.Edge.Tests/HumanGateway.Edge.Tests.csproj`** — added `ProjectReference` to the crash-probe so its DLL/runtimeconfig is copied into the test output.\n- **`src/HumanGateway.Edge/README.md`** — marked LOCAL-EDGE-1.3 as **Done** and documented the crash-consistency test.\n\n## Validation\n\n- `dotnet build src/HumanGateway.Edge` — 0 errors, 0 warnings.\n- `dotnet build HumanGateway.slnx` — 0 errors, 0 warnings.\n- `dotnet test` — **76 passed, 0 failed** (58 Core + 18 Edge, including the new `KillDuringWrite_CommittedMessagesSurviveExactlyOnce`).\n",
+      "artifactId": "work-local-edge-1-3-001",
+      "inputArtifactIds": [
+        "work-local-edge-1-2-001"
+      ]
+    },
+    "LOCAL-EDGE-1.4": {
+      "taskId": "LOCAL-EDGE-1.4",
+      "status": "failed",
+      "ownerAgent": "pwa-engineer",
+      "attempt": 1,
+      "outputFiles": [],
+      "startedAt": "2026-08-29T00:34:49.988Z",
+      "completedAt": "2026-08-29T01:05:00.030Z",
+      "errorMessage": "timed out after 600000ms"
+    },
+    "LOCAL-EDGE-1.5": {
+      "taskId": "LOCAL-EDGE-1.5",
+      "status": "pending",
+      "ownerAgent": "edge-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "LOCAL-EDGE-1.6": {
+      "taskId": "LOCAL-EDGE-1.6",
+      "status": "pending",
+      "ownerAgent": "edge-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "LOCAL-EDGE-1.7": {
+      "taskId": "LOCAL-EDGE-1.7",
+      "status": "pending",
+      "ownerAgent": "infrastructure-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "OFFLINE-PWA-2.1": {
+      "taskId": "OFFLINE-PWA-2.1",
+      "status": "pending",
+      "ownerAgent": "pwa-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "OFFLINE-PWA-2.2": {
+      "taskId": "OFFLINE-PWA-2.2",
+      "status": "pending",
+      "ownerAgent": "pwa-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "OFFLINE-PWA-2.3": {
+      "taskId": "OFFLINE-PWA-2.3",
+      "status": "pending",
+      "ownerAgent": "pwa-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "OFFLINE-PWA-2.4": {
+      "taskId": "OFFLINE-PWA-2.4",
+      "status": "pending",
+      "ownerAgent": "pwa-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "OFFLINE-PWA-2.5": {
+      "taskId": "OFFLINE-PWA-2.5",
+      "status": "pending",
+      "ownerAgent": "pwa-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "OFFLINE-PWA-2.6": {
+      "taskId": "OFFLINE-PWA-2.6",
+      "status": "pending",
+      "ownerAgent": "pwa-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "OFFLINE-PWA-2.7": {
+      "taskId": "OFFLINE-PWA-2.7",
+      "status": "pending",
+      "ownerAgent": "pwa-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "OFFLINE-PWA-2.8": {
+      "taskId": "OFFLINE-PWA-2.8",
+      "status": "pending",
+      "ownerAgent": "pwa-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "SYNCHRONISATION-3.1": {
+      "taskId": "SYNCHRONISATION-3.1",
+      "status": "pending",
+      "ownerAgent": "protocol-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "SYNCHRONISATION-3.2": {
+      "taskId": "SYNCHRONISATION-3.2",
+      "status": "pending",
+      "ownerAgent": "sync-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "SYNCHRONISATION-3.3": {
+      "taskId": "SYNCHRONISATION-3.3",
+      "status": "pending",
+      "ownerAgent": "sync-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "SYNCHRONISATION-3.4": {
+      "taskId": "SYNCHRONISATION-3.4",
+      "status": "pending",
+      "ownerAgent": "sync-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "SYNCHRONISATION-3.5": {
+      "taskId": "SYNCHRONISATION-3.5",
+      "status": "pending",
+      "ownerAgent": "sync-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "SYNCHRONISATION-3.6": {
+      "taskId": "SYNCHRONISATION-3.6",
+      "status": "pending",
+      "ownerAgent": "sync-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "CLOUD-RELAY-4.1": {
+      "taskId": "CLOUD-RELAY-4.1",
+      "status": "pending",
+      "ownerAgent": "infrastructure-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "CLOUD-RELAY-4.2": {
+      "taskId": "CLOUD-RELAY-4.2",
+      "status": "pending",
+      "ownerAgent": "relay-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "CLOUD-RELAY-4.3": {
+      "taskId": "CLOUD-RELAY-4.3",
+      "status": "pending",
+      "ownerAgent": "relay-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "CLOUD-RELAY-4.4": {
+      "taskId": "CLOUD-RELAY-4.4",
+      "status": "pending",
+      "ownerAgent": "relay-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "CLOUD-RELAY-4.5": {
+      "taskId": "CLOUD-RELAY-4.5",
+      "status": "pending",
+      "ownerAgent": "relay-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "CLOUD-RELAY-4.6": {
+      "taskId": "CLOUD-RELAY-4.6",
+      "status": "pending",
+      "ownerAgent": "infrastructure-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "CLOUD-RELAY-4.7": {
+      "taskId": "CLOUD-RELAY-4.7",
+      "status": "pending",
+      "ownerAgent": "relay-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "ARTIFACTS-1.1": {
+      "taskId": "ARTIFACTS-1.1",
+      "status": "pending",
+      "ownerAgent": "artifact-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "IDENTITY-SECURITY-5.1": {
+      "taskId": "IDENTITY-SECURITY-5.1",
+      "status": "pending",
+      "ownerAgent": "security-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "IDENTITY-SECURITY-5.2": {
+      "taskId": "IDENTITY-SECURITY-5.2",
+      "status": "pending",
+      "ownerAgent": "security-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "IDENTITY-SECURITY-5.3": {
+      "taskId": "IDENTITY-SECURITY-5.3",
+      "status": "pending",
+      "ownerAgent": "security-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "IDENTITY-SECURITY-5.4": {
+      "taskId": "IDENTITY-SECURITY-5.4",
+      "status": "pending",
+      "ownerAgent": "security-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "IDENTITY-SECURITY-5.5": {
+      "taskId": "IDENTITY-SECURITY-5.5",
+      "status": "pending",
+      "ownerAgent": "security-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "IDENTITY-SECURITY-5.6": {
+      "taskId": "IDENTITY-SECURITY-5.6",
+      "status": "pending",
+      "ownerAgent": "security-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "IDENTITY-SECURITY-5.7": {
+      "taskId": "IDENTITY-SECURITY-5.7",
+      "status": "pending",
+      "ownerAgent": "security-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "EXTERNAL-WEB-ACCESS-6.1": {
+      "taskId": "EXTERNAL-WEB-ACCESS-6.1",
+      "status": "pending",
+      "ownerAgent": "pwa-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "EXTERNAL-WEB-ACCESS-6.2": {
+      "taskId": "EXTERNAL-WEB-ACCESS-6.2",
+      "status": "pending",
+      "ownerAgent": "relay-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "EXTERNAL-WEB-ACCESS-6.3": {
+      "taskId": "EXTERNAL-WEB-ACCESS-6.3",
+      "status": "pending",
+      "ownerAgent": "pwa-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "EXTERNAL-WEB-ACCESS-6.4": {
+      "taskId": "EXTERNAL-WEB-ACCESS-6.4",
+      "status": "pending",
+      "ownerAgent": "workflow-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "EXTERNAL-WEB-ACCESS-6.5": {
+      "taskId": "EXTERNAL-WEB-ACCESS-6.5",
+      "status": "pending",
+      "ownerAgent": "qa-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "FLOWFORGE-INTEGRATION-7.1": {
+      "taskId": "FLOWFORGE-INTEGRATION-7.1",
+      "status": "pending",
+      "ownerAgent": "workflow-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "FLOWFORGE-INTEGRATION-7.2": {
+      "taskId": "FLOWFORGE-INTEGRATION-7.2",
+      "status": "pending",
+      "ownerAgent": "workflow-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "FLOWFORGE-INTEGRATION-7.3": {
+      "taskId": "FLOWFORGE-INTEGRATION-7.3",
+      "status": "pending",
+      "ownerAgent": "workflow-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "FLOWFORGE-INTEGRATION-7.4": {
+      "taskId": "FLOWFORGE-INTEGRATION-7.4",
+      "status": "pending",
+      "ownerAgent": "workflow-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "FLOWFORGE-INTEGRATION-7.5": {
+      "taskId": "FLOWFORGE-INTEGRATION-7.5",
+      "status": "pending",
+      "ownerAgent": "workflow-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "FLOWFORGE-INTEGRATION-7.6": {
+      "taskId": "FLOWFORGE-INTEGRATION-7.6",
+      "status": "pending",
+      "ownerAgent": "workflow-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    },
+    "FLOWFORGE-INTEGRATION-7.7": {
+      "taskId": "FLOWFORGE-INTEGRATION-7.7",
+      "status": "pending",
+      "ownerAgent": "workflow-engineer",
+      "attempt": 0,
+      "outputFiles": []
+    }
+  },
+  "blockers": [],
+  "auditLog": []
+}

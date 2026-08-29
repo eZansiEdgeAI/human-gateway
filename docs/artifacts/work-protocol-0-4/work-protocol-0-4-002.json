@@ -1,0 +1,18 @@
+{
+  "type": "work.protocol-0.4",
+  "category": "work",
+  "taskId": "PROTOCOL-0.4",
+  "producedBy": "protocol-engineer",
+  "status": "complete",
+  "summary": "The fixtures are all in place. Let me run the validation suite to see the current state.",
+  "inputs": [
+    "work-protocol-0-3-002"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "The fixtures are all in place. Let me run the validation suite to see the current state.\nAll 65 fixture checks pass. Let me review the schemas to verify they're complete and consistent before finalizing.\nThe current task is **PROTOCOL-0.4: Publish schemas under `schemas/` with validation tests (JSON Schema validators)**. The schemas and fixture runner already exist and pass. Let me verify against the acceptance criteria in the protocol feature doc and confirm all requirements are covered.\nThe sc"
+  },
+  "nextActions": [],
+  "artifactId": "work-protocol-0-4-002",
+  "createdAt": "2026-08-28T21:40:31.325Z"
+}

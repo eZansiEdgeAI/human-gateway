@@ -1,0 +1,12 @@
+{
+  "batchId": "01JZ7F3H9I0J1K2L3M4N5O6P7Q",
+  "gatewayId": "01JZ7F3I0J1K2L3M4N5O6P7Q8R",
+  "direction": "PULL",
+  "sinceCursor": "cur-a1b4",
+  "cursor": "cur-c9d0",
+  "idempotencyKey": "batch-01JZ7F3H9I0J1K2L3M4N5O6P7Q",
+  "sequenceStart": 55,
+  "sequenceEnd": 56,
+  "items": [],
+  "createdAt": "2026-08-28T10:20:00Z"
+}

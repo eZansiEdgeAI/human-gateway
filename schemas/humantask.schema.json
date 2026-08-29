@@ -1,0 +1,244 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.humangateway.dev/human-gateway/v1/humantask.schema.json",
+  "$comment": "HumanGateway protocol v1.0.0 (2026-08-28). FLOW-FR-04, FLOW-FR-05.",
+  "title": "HumanTask",
+  "description": "The workflow primitive transported by HumanGateway: a request for human input or approval, correlated to the consumer workflow (FlowForge PendingHumanTask: nodeId, role, prompt, subject). Lifecycle: REQUESTED → DELIVERED_TO_HUMAN → RESPONSE_RECEIVED → COMPLETED, or EXPIRED (product vision §10). HumanGateway transports the task; the consumer owns task semantics and authorisation (NG1, SP-09).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "kind", "status", "workflowRef", "nodeId", "prompt", "requestMessageId", "createdAt"],
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/id",
+      "description": "Durable human task ID."
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["input", "approval"],
+      "description": "human-input (free text / choice) or human-approval (approve / reject with reason) (FLOW-FR-05)."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["REQUESTED", "DELIVERED_TO_HUMAN", "RESPONSE_RECEIVED", "COMPLETED", "EXPIRED"],
+      "description": "Human task lifecycle state."
+    },
+    "workflowRef": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "description": "Consumer workflow/run identifier; passed through unchanged."
+    },
+    "nodeId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "description": "Workflow node that requested the interaction (FlowForge nodeId)."
+    },
+    "role": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "description": "Role required to answer (e.g. 'teacher', 'reviewer'). HumanGateway does not enforce it; the consumer enforces authorisation (SP-09)."
+    },
+    "prompt": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100000,
+      "description": "The question or instruction presented to the human."
+    },
+    "subject": {
+      "type": "string",
+      "maxLength": 255,
+      "description": "Short subject / title of the task."
+    },
+    "options": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "string",
+        "maxLength": 1024
+      },
+      "description": "Choice options for kind=input prompts with a choice-style answer."
+    },
+    "requestMessageId": {
+      "$ref": "common.schema.json#/$defs/id",
+      "description": "ID of the Message envelope carrying the task request."
+    },
+    "responseMessageId": {
+      "$ref": "common.schema.json#/$defs/id",
+      "description": "ID of the Message envelope carrying the human's response, once answered."
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The human's response. Populated once answered.",
+      "properties": {
+        "text": {
+          "type": "string",
+          "maxLength": 100000,
+          "description": "Free-text answer (kind=input)."
+        },
+        "decision": {
+          "type": "string",
+          "enum": ["approved", "rejected"],
+          "description": "Approve / reject (kind=approval). Required when an approval task carries a response."
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 100000,
+          "description": "Optional reason accompanying an approval decision or an input answer."
+        },
+        "artifactRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "artifact.schema.json#/$defs/artifactReference"
+          },
+          "description": "Evidence attached by the human (photo, PDF, ...), referenced — never embedded (PROTO-FR-04)."
+        },
+        "respondedBy": {
+          "$ref": "participant.schema.json",
+          "description": "The participant who answered."
+        },
+        "respondedAt": {
+          "$ref": "common.schema.json#/$defs/timestamp",
+          "description": "When the response was recorded."
+        }
+      }
+    },
+    "correlationToken": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "description": "Opaque consumer correlation token passed through unchanged so consumers enforce role-checks and audit (SP-09, AUTH-FR-06)."
+    },
+    "expiresAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When set, the task transitions to EXPIRED if not completed by this time."
+    },
+    "requestedAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the task was requested."
+    },
+    "deliveredToHumanAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the task was presented to the human."
+    },
+    "responseReceivedAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the human's response was received."
+    },
+    "completedAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the task completed."
+    },
+    "expiredAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the task expired."
+    },
+    "createdAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the task record was created."
+    },
+    "updatedAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the task record last changed."
+    }
+  },
+  "allOf": [
+    {
+      "description": "An approval task, once answered, must carry a decision.",
+      "if": {
+        "allOf": [
+          {
+            "properties": { "kind": { "const": "approval" } },
+            "required": ["kind"]
+          },
+          {
+            "properties": { "response": { "type": "object" } },
+            "required": ["response"]
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "response": {
+            "type": "object",
+            "required": ["decision"],
+            "properties": {
+              "decision": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "REQUESTED must record when it was requested.",
+      "if": {
+        "properties": { "status": { "const": "REQUESTED" } },
+        "required": ["status"]
+      },
+      "then": {
+        "required": ["requestedAt"],
+        "properties": {
+          "requestedAt": true
+        }
+      }
+    },
+    {
+      "description": "DELIVERED_TO_HUMAN must record when it was delivered.",
+      "if": {
+        "properties": { "status": { "const": "DELIVERED_TO_HUMAN" } },
+        "required": ["status"]
+      },
+      "then": {
+        "required": ["deliveredToHumanAt"],
+        "properties": {
+          "deliveredToHumanAt": true
+        }
+      }
+    },
+    {
+      "description": "RESPONSE_RECEIVED must carry the response and its message.",
+      "if": {
+        "properties": { "status": { "const": "RESPONSE_RECEIVED" } },
+        "required": ["status"]
+      },
+      "then": {
+        "required": ["response", "responseMessageId", "responseReceivedAt"],
+        "properties": {
+          "response": true,
+          "responseMessageId": true,
+          "responseReceivedAt": true
+        }
+      }
+    },
+    {
+      "description": "COMPLETED must carry the response, its message, and the completion time.",
+      "if": {
+        "properties": { "status": { "const": "COMPLETED" } },
+        "required": ["status"]
+      },
+      "then": {
+        "required": ["response", "responseMessageId", "completedAt"],
+        "properties": {
+          "response": true,
+          "responseMessageId": true,
+          "completedAt": true
+        }
+      }
+    },
+    {
+      "description": "EXPIRED must record when it expired.",
+      "if": {
+        "properties": { "status": { "const": "EXPIRED" } },
+        "required": ["status"]
+      },
+      "then": {
+        "required": ["expiredAt"],
+        "properties": {
+          "expiredAt": true
+        }
+      }
+    }
+  ]
+}

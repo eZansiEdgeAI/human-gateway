@@ -1,0 +1,18 @@
+{
+  "type": "work.local-edge-1.2",
+  "category": "work",
+  "taskId": "LOCAL-EDGE-1.2",
+  "producedBy": "edge-engineer",
+  "status": "complete",
+  "summary": "The SQLite schema deliverable (LOCAL-EDGE-1.2) is complete and I've verified it end-to-end. Here's the full picture.",
+  "inputs": [
+    "work-local-edge-1-1-001"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "The SQLite schema deliverable (LOCAL-EDGE-1.2) is complete and I've verified it end-to-end. Here's the full picture.\n\n## What I verified\n\nThe Edge SQLite (WAL) store is fully implemented and passing:\n\n- **Build:** `dotnet build src/HumanGateway.Edge` → 0 errors, 0 warnings\n- **Tests:** `dotnet test` → **65 passed** (58 Core + 7 Edge), 0 failed\n- **Runtime smoke test:** `dotnet run` boots, applies the EF Core migration on startup, and serves `/healthz` (200) + `/sync/status` (200). Inspecting the"
+  },
+  "nextActions": [],
+  "artifactId": "work-local-edge-1-2-001",
+  "createdAt": "2026-08-29T00:15:03.367Z"
+}

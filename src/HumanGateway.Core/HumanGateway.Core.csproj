@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>HumanGateway.Core</RootNamespace>
+    <AssemblyName>HumanGateway.Core</AssemblyName>
+    <Version>1.0.0</Version>
+    <Description>Durable synchronisation engine for HumanGateway: the SyncEngine contract, outbox/inbox ports, idempotency, content hashing, delivery-state transitions, retry/backoff, deterministic ordering, cursor math, and conflict resolution (product vision §6.2/§6.3/§10, SYNC-FR-01..07). Core algorithms are pure and deterministic; durable state is read/written through the ports in this assembly.</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../HumanGateway.Protocol/HumanGateway.Protocol.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { allDepsComplete, isComplete, isTaskDone, mapLimit, nextReadyTasks, runEngine } from "./engine.ts";
+import { allDepsComplete, isComplete, isTaskDone, mapLimit, nextReadyTasks, ownerUniqueReady, runEngine } from "./engine.ts";
 import { runCommand } from "./harness/run.ts";
-import type { EngineOptions, ExecutionManifest, HarnessAdapter, ManifestTask, TaskStatus, WorkflowState } from "./types.ts";
+import { readControl, writeControl } from "./control.ts";
+import type { EngineOptions, ExecutionManifest, HarnessAdapter, ManifestTask, TaskResult, TaskStatus, WorkflowState } from "./types.ts";
 
 type ManifestPhase = ExecutionManifest["phases"][number];
 
@@ -108,6 +109,35 @@ test("nextReadyTasks blocks a downstream phase while its dependency is pending",
   assert.deepEqual(ready.map((entry) => entry.task.id), ["1.2"]);
 });
 
+test("ownerUniqueReady keeps one task per owner in manifest order", () => {
+  const withOwner = (id: string, owner: string) => ({ ...makeTask(id), ownerAgent: owner });
+  const ready = [
+    { phaseId: "1", phaseIndex: 0, task: withOwner("1.1", "alice") },
+    { phaseId: "1", phaseIndex: 0, task: withOwner("1.2", "bob") },
+    { phaseId: "1", phaseIndex: 0, task: withOwner("1.3", "alice") },
+    { phaseId: "1", phaseIndex: 0, task: withOwner("1.4", "carol") },
+    { phaseId: "1", phaseIndex: 0, task: withOwner("1.5", "bob") },
+  ] as Parameters<typeof ownerUniqueReady>[0];
+
+  const unique = ownerUniqueReady(ready);
+  assert.deepEqual(unique.map((e) => e.task.id), ["1.1", "1.2", "1.4"], "first task per owner wins, in manifest order");
+});
+
+test("ownerUniqueReady buckets unassigned tasks together (conservative)", () => {
+  const ready = [
+    { phaseId: "1", phaseIndex: 0, task: makeTask("1.1") },
+    { phaseId: "1", phaseIndex: 0, task: { ...makeTask("1.2"), ownerAgent: "bob" } },
+    { phaseId: "1", phaseIndex: 0, task: makeTask("1.3") },
+  ] as Parameters<typeof ownerUniqueReady>[0];
+
+  const unique = ownerUniqueReady(ready);
+  assert.deepEqual(unique.map((e) => e.task.id), ["1.1", "1.2"], "unassigned tasks share one bucket");
+});
+
+test("ownerUniqueReady returns an empty list for an empty frontier", () => {
+  assert.deepEqual(ownerUniqueReady([]), []);
+});
+
 test("isComplete is true when every task is complete or skipped", () => {
   const manifest = makeManifest([
     makePhase("1", [makeTask("1.1"), makeTask("1.2")]),
@@ -154,6 +184,7 @@ class RecordingHarness implements HarnessAdapter {
   readonly name = "recording";
   readonly supportsConcurrency = false;
   timeouts: number[] = [];
+  retries: number[] = [];
 
   async invoke(
     _agent: Parameters<HarnessAdapter["invoke"]>[0],
@@ -162,8 +193,10 @@ class RecordingHarness implements HarnessAdapter {
     _repoRoot: string,
     _contextBlock?: string,
     timeoutMs?: number,
+    maxRetries?: number,
   ) {
     this.timeouts.push(timeoutMs ?? -1);
+    this.retries.push(maxRetries ?? -1);
     return {
       success: true,
       outputFiles: [],
@@ -171,6 +204,73 @@ class RecordingHarness implements HarnessAdapter {
       stderr: "",
       durationMs: 1,
     };
+  }
+}
+
+/** Harness that calls `onInvoke` when a task starts and blocks until released. */
+class GatedHarness implements HarnessAdapter {
+  readonly name = "gated";
+  readonly supportsConcurrency = false;
+  private release: (() => void) | undefined;
+
+  constructor(private readonly onInvoke: () => void) {}
+
+  async invoke(): Promise<TaskResult> {
+    this.onInvoke();
+    await new Promise<void>((resolve) => { this.release = resolve; });
+    return {
+      success: true,
+      outputFiles: [],
+      stdout: "[gated] ok",
+      stderr: "",
+      durationMs: 1,
+    };
+  }
+
+  releaseNow(): void {
+    this.release?.();
+  }
+}
+
+/**
+ * Concurrency-observing harness. Each invoke blocks until the test releases
+ * that task, so the test can control exactly which tasks overlap.
+ */
+class GatedConcurrentHarness implements HarnessAdapter {
+  readonly name = "gated-concurrent";
+  readonly supportsConcurrency = true;
+  /** Task IDs currently executing (in-flight). */
+  active = new Set<string>();
+  /** Max number of concurrently executing tasks observed. */
+  maxOverlap = 0;
+  /** Task IDs that have started, in order. */
+  startedOrder: string[] = [];
+  private releases = new Map<string, () => void>();
+  private startedResolvers = new Map<string, () => void>();
+
+  async invoke(_agent: Parameters<HarnessAdapter["invoke"]>[0], task: ManifestTask): Promise<TaskResult> {
+    this.active.add(task.id);
+    this.startedOrder.push(task.id);
+    this.maxOverlap = Math.max(this.maxOverlap, this.active.size);
+    this.startedResolvers.get(task.id)?.();
+    await new Promise<void>((resolve) => this.releases.set(task.id, resolve));
+    this.active.delete(task.id);
+    return {
+      success: true,
+      outputFiles: [],
+      stdout: "[gated-concurrent] ok",
+      stderr: "",
+      durationMs: 1,
+    };
+  }
+
+  whenStarted(taskId: string): Promise<void> {
+    if (this.startedOrder.includes(taskId)) return Promise.resolve();
+    return new Promise((resolve) => this.startedResolvers.set(taskId, resolve));
+  }
+
+  release(taskId: string): void {
+    this.releases.get(taskId)?.();
   }
 }
 
@@ -251,6 +351,8 @@ function engineOptionsFor(
     progressPath: join(fixture.root, "docs", "PROGRESS.md"),
     auditPath: join(fixture.root, "docs", "EXECUTION-AUDIT.jsonl"),
     artifactsPath: join(fixture.root, "docs", "artifacts"),
+    controlPath: join(fixture.root, "docs", "engine-control.json"),
+    pidPath: join(fixture.root, "docs", "engine.pid"),
     harness,
     maxRetries: 0,
     retryDelayMs: 0,
@@ -284,6 +386,15 @@ test("effective task timeout falls back to the engine taskTimeoutMs when a task 
   assert.deepEqual(harness.timeouts, [9_999]);
 });
 
+test("engine forwards maxRetries to the harness invoke call", async () => {
+  const fixture = makeEngineFixture();
+  const harness = new RecordingHarness();
+  const state = await runEngine(engineOptionsFor(fixture, harness, 1_000, { maxRetries: 3 }));
+
+  assert.equal(state.status, "complete");
+  assert.deepEqual(harness.retries, [3]);
+});
+
 test("runEngine recovers a leftover 'running' task as pending (crash recovery)", async () => {
   const fixture = makeEngineFixture();
   const statePath = join(fixture.root, "docs", "WORKFLOW-STATE.json");
@@ -313,6 +424,116 @@ test("runEngine recovers a leftover 'running' task as pending (crash recovery)",
   assert.equal(state.status, "complete");
   assert.equal(state.tasks["1.1"]?.status, "complete");
   assert.equal(harness.timeouts.length, 1, "the recovered task should actually run, not deadlock");
+});
+
+test("a fresh run clears a stale stop request left by a killed engine", async () => {
+  const fixture = makeEngineFixture();
+  const controlPath = join(fixture.root, "docs", "engine-control.json");
+  // Simulate an engine that was SIGKILLed mid-run leaving a stop request behind.
+  writeControl(controlPath, "stop");
+
+  const harness = new RecordingHarness();
+  const state = await runEngine(engineOptionsFor(fixture, harness, 1_000));
+
+  assert.equal(state.status, "complete", "the stale stop must not halt a fresh run");
+  assert.equal(state.tasks["1.1"]?.status, "complete");
+  assert.equal(harness.timeouts.length, 1, "the task should actually run");
+  assert.equal(readControl(controlPath), null, "the stale control file should be cleared");
+});
+
+test("a stop request written mid-run pauses after the current task wave", async () => {
+  const fixture = makeEngineFixture({
+    dependencies: [],
+  });
+  // Two sequential tasks so the stop lands between waves.
+  const manifestPath = fixture.manifestPath;
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as ExecutionManifest;
+  manifest.phases[0]!.tasks.push({
+    id: "1.2",
+    title: "Build a second thing",
+    description: "Build another thing",
+    ownerAgent: "worker",
+    dependencies: ["1.1"],
+    expectedOutputs: [],
+    validationCommands: [],
+    approvalRequired: false,
+    sourceLines: ["- Task 1.2: Build a second thing"],
+  });
+  writeFileSync(manifestPath, JSON.stringify(manifest), "utf8");
+
+  const controlPath = join(fixture.root, "docs", "engine-control.json");
+  // Block the first task until the control file has been written, so the stop
+  // arrives mid-run (while task 1.1 is executing) rather than before any task.
+  let release: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const harness = new GatedHarness(() => {
+    if (!readControl(controlPath)) writeControl(controlPath, "stop");
+    release();
+  });
+
+  const runPromise = runEngine(engineOptionsFor(fixture, harness, 1_000));
+  await gate;
+  writeControl(controlPath, "stop");
+  harness.releaseNow();
+  const state = await runPromise;
+
+  assert.equal(state.status, "paused");
+  assert.equal(state.tasks["1.1"]?.status, "complete", "the in-flight task finishes before pausing");
+  assert.equal(state.tasks["1.2"]?.status, "pending", "the second task must not start after the stop");
+  assert.equal(readControl(controlPath), null);
+});
+
+test("the in-process stopRequested flag pauses the run (SIGINT/SIGTERM path)", async () => {
+  const fixture = makeEngineFixture();
+  const harness = new RecordingHarness();
+  const opts = engineOptionsFor(fixture, harness, 1_000);
+  opts.stopRequested = () => true;
+
+  const state = await runEngine(opts);
+
+  assert.equal(state.status, "paused");
+  assert.equal(state.tasks["1.1"]?.status, "pending");
+  assert.equal(harness.timeouts.length, 0);
+});
+
+test("a stop during a wave leaves same-wave siblings pending (per-task check)", async () => {
+  const fixture = makeEngineFixture({
+    dependencies: [],
+  });
+  // Two independent tasks: both are ready in the SAME wave. The stop arrives
+  // while 1.1 runs; 1.2 must not start, even though it shares the wave.
+  const manifestPath = fixture.manifestPath;
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as ExecutionManifest;
+  manifest.phases[0]!.tasks.push({
+    id: "1.2",
+    title: "Build a second thing",
+    description: "Build another thing",
+    ownerAgent: "worker",
+    dependencies: [],
+    expectedOutputs: [],
+    validationCommands: [],
+    approvalRequired: false,
+    sourceLines: ["- Task 1.2: Build a second thing"],
+  });
+  writeFileSync(manifestPath, JSON.stringify(manifest), "utf8");
+
+  const controlPath = join(fixture.root, "docs", "engine-control.json");
+  let release: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const harness = new GatedHarness(() => {
+    if (!readControl(controlPath)) writeControl(controlPath, "stop");
+    release();
+  });
+
+  const runPromise = runEngine(engineOptionsFor(fixture, harness, 1_000, { maxConcurrency: 1 }));
+  await gate;
+  harness.releaseNow();
+  const state = await runPromise;
+
+  assert.equal(state.status, "paused");
+  assert.equal(state.tasks["1.1"]?.status, "complete");
+  assert.equal(state.tasks["1.2"]?.status, "pending", "the same-wave sibling must not start after the stop");
+  assert.equal(readControl(controlPath), null);
 });
 
 test("runCommand kills a child that exceeds a custom timeout and reports it", async () => {
@@ -457,4 +678,86 @@ test("output gate: a passing manifest validation command allows completion", asy
 
   assert.equal(state.status, "complete");
   assert.equal(state.tasks["1.1"]?.status, "complete");
+});
+
+test("same-owner ready tasks run in separate waves (serialized) even with concurrency 2", async () => {
+  const fixture = makeEngineFixture();
+  const manifestPath = fixture.manifestPath;
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as ExecutionManifest;
+  manifest.phases[0]!.ownerAgents = ["worker"];
+  manifest.phases[0]!.tasks.push({
+    id: "1.2",
+    title: "Build a second thing",
+    description: "Build another thing",
+    ownerAgent: "worker",
+    dependencies: [],
+    expectedOutputs: [],
+    validationCommands: [],
+    approvalRequired: false,
+    sourceLines: ["- Task 1.2: Build a second thing"],
+  });
+  writeFileSync(manifestPath, JSON.stringify(manifest), "utf8");
+
+  const harness = new GatedConcurrentHarness();
+  const runPromise = runEngine(engineOptionsFor(fixture, harness, 1_000, { maxConcurrency: 2 }));
+
+  // Task 1.1 starts; its same-owner sibling must NOT start in the same wave.
+  await harness.whenStarted("1.1");
+  assert.deepEqual(harness.startedOrder, ["1.1"], "only 1.1 should start in wave 1");
+  harness.release("1.1");
+
+  // After 1.1 drains, 1.2 runs in a later wave.
+  await harness.whenStarted("1.2");
+  assert.deepEqual(harness.startedOrder, ["1.1", "1.2"]);
+  harness.release("1.2");
+
+  const state = await runPromise;
+  assert.equal(state.status, "complete");
+  assert.equal(state.tasks["1.1"]?.status, "complete");
+  assert.equal(state.tasks["1.2"]?.status, "complete");
+  assert.ok(harness.maxOverlap <= 1, `same-owner tasks must never overlap (saw max ${harness.maxOverlap})`);
+});
+
+test("different-owner ready tasks run concurrently with concurrency 2", async () => {
+  const fixture = makeEngineFixture();
+  writeFileSync(join(fixture.root, ".agents", "agents", "designer.md"), `---
+name: designer
+description: Designs things.
+---
+
+## Expertise
+- designing
+`, "utf8");
+  const manifestPath = fixture.manifestPath;
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as ExecutionManifest;
+  manifest.phases[0]!.ownerAgents = ["worker", "designer"];
+  manifest.phases[0]!.tasks.push({
+    id: "1.2",
+    title: "Design a second thing",
+    description: "Design another thing",
+    ownerAgent: "designer",
+    dependencies: [],
+    expectedOutputs: [],
+    validationCommands: [],
+    approvalRequired: false,
+    sourceLines: ["- Task 1.2: Design a second thing"],
+  });
+  writeFileSync(manifestPath, JSON.stringify(manifest), "utf8");
+
+  const harness = new GatedConcurrentHarness();
+  const runPromise = runEngine(engineOptionsFor(fixture, harness, 1_000, { maxConcurrency: 2 }));
+
+  // Both different-owner tasks start in the same wave.
+  await harness.whenStarted("1.1");
+  await harness.whenStarted("1.2");
+  assert.deepEqual(harness.startedOrder, ["1.1", "1.2"], "both should start in wave 1");
+  assert.equal(harness.maxOverlap, 2, "different-owner tasks should overlap");
+
+  harness.release("1.1");
+  harness.release("1.2");
+
+  const state = await runPromise;
+  assert.equal(state.status, "complete");
+  assert.equal(state.tasks["1.1"]?.status, "complete");
+  assert.equal(state.tasks["1.2"]?.status, "complete");
 });

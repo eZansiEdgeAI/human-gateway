@@ -1,0 +1,130 @@
+[
+  {
+    "batchId": "01JZ7F3H9I0J1K2L3M4N5O6P7Q",
+    "gatewayId": "01JZ7F3I0J1K2L3M4N5O6P7Q8R",
+    "direction": "PUSH",
+    "sinceCursor": "cur-9f2e",
+    "cursor": "cur-a1b4",
+    "idempotencyKey": "batch-01JZ7F3H9I0J1K2L3M4N5O6P7Q",
+    "sequenceStart": 101,
+    "sequenceEnd": 103,
+    "items": [
+      {
+        "kind": "message",
+        "sequence": 101,
+        "message": {
+          "id": "01JZ7F3B8N9M2XKQ5R4T6VWY8A",
+          "sender": {
+            "address": "human:teacher@school.example",
+            "kind": "human",
+            "displayName": "Ms. Okafor"
+          },
+          "recipients": [
+            {
+              "address": "agent:flowforge-8c2f1a9d",
+              "kind": "agent",
+              "displayName": "Assessment Agent"
+            }
+          ],
+          "conversationId": "01JZ7F3C4D5E6F7G8H9I0J1K2L",
+          "payload": {
+            "body": "Please review the attached student work."
+          },
+          "artifactRefs": [
+            {
+              "id": "01JZ7F3E6F7G8H9I0J1K2L3M4N",
+              "hash": "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+            }
+          ],
+          "createdAt": "2026-08-28T09:15:00Z",
+          "contentHash": "sha256:b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2"
+        }
+      },
+      {
+        "kind": "artifact",
+        "sequence": 102,
+        "artifact": {
+          "id": "01JZ7F3E6F7G8H9I0J1K2L3M4N",
+          "hash": "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+          "sizeBytes": 204800,
+          "mimeType": "application/pdf",
+          "filename": "student-work.pdf",
+          "createdAt": "2026-08-28T09:12:00Z"
+        }
+      },
+      {
+        "kind": "ack",
+        "sequence": 103,
+        "ack": {
+          "messageId": "01JZ7F3B8N9M2XKQ5R4T6VWY8A",
+          "recipient": {
+            "address": "agent:flowforge-8c2f1a9d",
+            "kind": "agent",
+            "displayName": "Assessment Agent"
+          },
+          "state": "ACKNOWLEDGED",
+          "acknowledgedAt": "2026-08-28T09:18:45Z"
+        }
+      }
+    ],
+    "createdAt": "2026-08-28T09:20:00Z"
+  },
+  {
+    "batchId": "01JZ7F4A2B3C4D5E6F7G8H9I0J",
+    "gatewayId": "01JZ7F3I0J1K2L3M4N5O6P7Q8R",
+    "direction": "PULL",
+    "sinceCursor": "cur-a1b4",
+    "cursor": "cur-c9d0",
+    "idempotencyKey": "batch-01JZ7F4A2B3C4D5E6F7G8H9I0J",
+    "sequenceStart": 55,
+    "sequenceEnd": 56,
+    "items": [
+      {
+        "kind": "delivery",
+        "sequence": 55,
+        "delivery": {
+          "id": "01JZ7F4C5D6E7F8G9H0I1J2K3L",
+          "messageId": "01JZ7F3B8N9M2XKQ5R4T6VWY8A",
+          "recipient": {
+            "address": "human:teacher@school.example",
+            "kind": "human",
+            "displayName": "Ms. Okafor"
+          },
+          "state": "DELIVERED",
+          "attempts": 1,
+          "maxAttempts": 5,
+          "deliveredAt": "2026-08-28T10:02:00Z",
+          "createdAt": "2026-08-28T09:16:00Z",
+          "updatedAt": "2026-08-28T10:02:00Z"
+        }
+      },
+      {
+        "kind": "ack",
+        "sequence": 56,
+        "ack": {
+          "messageId": "01JZ7F4D5E6F7G8H9I0J1K2L3M",
+          "recipient": {
+            "address": "agent:flowforge-8c2f1a9d",
+            "kind": "agent",
+            "displayName": "Assessment Agent"
+          },
+          "state": "FAILED",
+          "acknowledgedAt": "2026-08-28T10:05:00Z"
+        }
+      }
+    ],
+    "createdAt": "2026-08-28T10:10:00Z"
+  },
+  {
+    "batchId": "01JZ7F5E6F7G8H9I0J1K2L3M4N",
+    "gatewayId": "01JZ7F3I0J1K2L3M4N5O6P7Q8R",
+    "direction": "PULL",
+    "sinceCursor": "cur-c9d0",
+    "cursor": "cur-e2f3",
+    "idempotencyKey": "batch-01JZ7F5E6F7G8H9I0J1K2L3M4N",
+    "sequenceStart": null,
+    "sequenceEnd": null,
+    "items": [],
+    "createdAt": "2026-08-28T10:20:00Z"
+  }
+]

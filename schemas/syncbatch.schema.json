@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.humangateway.dev/human-gateway/v1/syncbatch.schema.json",
+  "$comment": "HumanGateway protocol v1.0.0 (2026-08-28). SYNC-FR-01..07. The sync model: durable IDs (common.$defs.id), per-gateway sequence numbers (sequence), opaque cursors (cursor), idempotency (batchId + idempotencyKey), and content hashes (common.$defs.contentHash).",
+  "title": "SyncBatch",
+  "description": "A cursor-based, idempotent batch of sync operations exchanged between an Edge Gateway and the Relay (SYNC-FR-03). Encodes the sync model: durable IDs, per-gateway sequence numbers, cursors, idempotency keys, and content hashes (SYNC-FR-01, SYNC-FR-02). Every item carries a per-gateway monotonic sequence number so receivers reorder deterministically and tolerate out-of-order arrival (SYNC-FR-07). A batch with an empty items array is a valid keepalive/cursor-advance batch (SYNC-FR-03).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["batchId", "gatewayId", "direction", "sinceCursor", "cursor", "idempotencyKey", "items", "createdAt"],
+  "allOf": [
+    {
+      "description": "A non-empty batch MUST declare the sequence range of its items (sequenceStart <= sequenceEnd; item sequences fall within it). Empty (keepalive) batches MUST leave both null.",
+      "if": {
+        "properties": {
+          "items": {
+            "type": "array",
+            "minItems": 1
+          }
+        },
+        "required": ["items"]
+      },
+      "then": {
+        "required": ["sequenceStart", "sequenceEnd"],
+        "properties": {
+          "sequenceStart": { "type": "integer" },
+          "sequenceEnd": { "type": "integer" }
+        }
+      },
+      "else": {
+        "required": ["sequenceStart", "sequenceEnd"],
+        "properties": {
+          "sequenceStart": { "const": null },
+          "sequenceEnd": { "const": null }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "batchId": {
+      "$ref": "common.schema.json#/$defs/id",
+      "description": "Durable batch ID. A retry of the same batch MUST reuse the same batchId — the receiver deduplicates on it (idempotency, SYNC-FR-02)."
+    },
+    "gatewayId": {
+      "$ref": "common.schema.json#/$defs/id",
+      "description": "The gateway that created this batch — the unique Edge Gateway identity (AUTH-FR-01, gateway.schema.json#/gatewayId). The Relay rejects batches from unregistered, suspended, or revoked gateways (SP-02)."
+    },
+    "direction": {
+      "type": "string",
+      "enum": ["PUSH", "PULL"],
+      "description": "PUSH: gateway → Relay. PULL: Relay → gateway. The receiving side applies the items and responds with a result batch."
+    },
+    "sinceCursor": {
+      "$ref": "#/$defs/cursor",
+      "description": "Opaque cursor supplied by the receiving side for incremental sync; null on the first exchange (SYNC-FR-03). Never interpreted by the sender — only stored and echoed back."
+    },
+    "cursor": {
+      "$ref": "#/$defs/cursor",
+      "description": "Opaque cursor the receiver must store and return on the next exchange, covering all items in this batch."
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:-]+$",
+      "description": "Stable per-batch key; the receiver deduplicates by batchId/idempotencyKey so replayed batches have no duplicate effect (SYNC-FR-02). A retry of the same batch MUST reuse the same batchId AND idempotencyKey; changing either creates a new logical batch."
+    },
+    "sequenceStart": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "Smallest per-gateway sequence number in this batch. Required (non-null) when items is non-empty; MUST be null for an empty keepalive batch. Combined with sequenceEnd for gap detection."
+    },
+    "sequenceEnd": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "Largest per-gateway sequence number in this batch. Required (non-null) when items is non-empty; MUST be null for an empty keepalive batch."
+    },
+    "items": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {
+        "$ref": "#/$defs/syncItem"
+      },
+      "description": "The sync operations in this batch. May be empty: an empty batch advances the cursor without carrying items (keepalive, SYNC-FR-03)."
+    },
+    "createdAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the batch was created."
+    }
+  },
+  "$defs": {
+    "cursor": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "maxLength": 1024,
+      "pattern": "^[A-Za-z0-9._:/-]*$",
+      "description": "An opaque, URL-safe cursor token issued by the receiving side (SYNC-FR-03). Senders MUST NOT parse or interpret its content; they only store it and echo it back on the next exchange. Null means 'no position yet' (first exchange). Bounded to 1024 chars to keep cursors database- and URL-friendly."
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Per-gateway monotonic sequence number. The deterministic ordering key: receivers reorder items by (gatewayId, sequence) (SYNC-FR-07). Gaps are allowed (retries); contiguity is not required. A batch declares its span via sequenceStart/sequenceEnd."
+    },
+    "deliveryAck": {
+      "title": "Delivery Acknowledgement",
+      "description": "A delivery acknowledgement returned to the sender: the recipient gateway confirms DELIVERED / ACKNOWLEDGED, or reports FAILED (SYNC-FR-05).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["messageId", "recipient", "state", "acknowledgedAt"],
+      "properties": {
+        "messageId": {
+          "$ref": "common.schema.json#/$defs/id",
+          "description": "The message being acknowledged."
+        },
+        "recipient": {
+          "$ref": "participant.schema.json",
+          "description": "The recipient that acknowledged delivery."
+        },
+        "state": {
+          "type": "string",
+          "enum": ["DELIVERED", "ACKNOWLEDGED", "FAILED"],
+          "description": "Outcome being reported back to the sender."
+        },
+        "acknowledgedAt": {
+          "$ref": "common.schema.json#/$defs/timestamp",
+          "description": "When the acknowledgement was recorded."
+        }
+      }
+    },
+    "syncItem": {
+      "title": "SyncItem",
+      "description": "One unit of sync work, discriminated by 'kind': message, delivery, artifact, or ack. Artifact items carry artifact metadata only — the bytes travel over the separate chunked artifact-transfer channel (PROTO-FR-04 exception).",
+      "oneOf": [
+        {
+          "title": "Message item",
+          "description": "A message envelope pushed to the receiving side.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "sequence", "message"],
+          "properties": {
+            "kind": { "const": "message" },
+            "sequence": { "$ref": "#/$defs/sequence" },
+            "message": { "$ref": "message.schema.json" }
+          }
+        },
+        {
+          "title": "Delivery item",
+          "description": "A delivery-state update for a message the receiving side already has.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "sequence", "delivery"],
+          "properties": {
+            "kind": { "const": "delivery" },
+            "sequence": { "$ref": "#/$defs/sequence" },
+            "delivery": { "$ref": "delivery.schema.json" }
+          }
+        },
+        {
+          "title": "Artifact item",
+          "description": "Artifact metadata (id + hash + size + mimeType + filename). The receiving gateway uses the hash to deduplicate and to verify bytes delivered over the chunked transfer channel.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "sequence", "artifact"],
+          "properties": {
+            "kind": { "const": "artifact" },
+            "sequence": { "$ref": "#/$defs/sequence" },
+            "artifact": { "$ref": "artifact.schema.json" }
+          }
+        },
+        {
+          "title": "Acknowledgement item",
+          "description": "A delivery acknowledgement returned to the sender (SYNC-FR-05).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "sequence", "ack"],
+          "properties": {
+            "kind": { "const": "ack" },
+            "sequence": { "$ref": "#/$defs/sequence" },
+            "ack": { "$ref": "#/$defs/deliveryAck" }
+          }
+        }
+      ]
+    }
+  }
+}

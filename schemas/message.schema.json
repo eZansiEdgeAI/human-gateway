@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.humangateway.dev/human-gateway/v1/message.schema.json",
+  "$comment": "HumanGateway protocol v1.0.0 (2026-08-28). PROTO-FR-03, PROTO-FR-04.",
+  "title": "Message",
+  "description": "A durable message envelope — the communication primitive of HumanGateway. Carries ID, sender, recipients, conversation, workflow/task references, payload, artifact references, correlation tokens, and timestamps (PROTO-FR-03). Artifacts are referenced by ID + hash, never embedded (PROTO-FR-04).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "sender", "recipients", "conversationId", "payload", "createdAt", "contentHash"],
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/id",
+      "description": "Durable message ID (SYNC-FR-01). Never reused; used by receivers for idempotent deduplication."
+    },
+    "sender": {
+      "$ref": "participant.schema.json",
+      "description": "The participant that created the message."
+    },
+    "recipients": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "$ref": "participant.schema.json"
+      },
+      "description": "Intended recipients. Delivery state is tracked per recipient in the Delivery entity."
+    },
+    "conversationId": {
+      "$ref": "common.schema.json#/$defs/id",
+      "description": "Conversation this message belongs to. Conversation membership governs authorisation (SP-04, AUTH-FR-03)."
+    },
+    "replyToMessageId": {
+      "$ref": "common.schema.json#/$defs/id",
+      "description": "Message ID this message replies to, if any."
+    },
+    "workflowRef": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "description": "Opaque consumer workflow/run identifier (e.g. a FlowForge workflow execution). Not interpreted by HumanGateway."
+    },
+    "humanTaskId": {
+      "$ref": "common.schema.json#/$defs/id",
+      "description": "ID of the HumanTask this message is the request or response for, if any."
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["body"],
+      "properties": {
+        "body": {
+          "type": "string",
+          "maxLength": 1000000,
+          "description": "Message text body."
+        },
+        "format": {
+          "type": "string",
+          "enum": ["plaintext", "markdown"],
+          "default": "plaintext",
+          "description": "Body rendering format."
+        },
+        "data": {
+          "type": "object",
+          "description": "Optional structured data for agent/system messages."
+        }
+      }
+    },
+    "artifactRefs": {
+      "type": "array",
+      "items": {
+        "$ref": "artifact.schema.json#/$defs/artifactReference"
+      },
+      "description": "References to attached artifacts (ID + hash + rendering metadata). Artifact bytes are never embedded in the envelope (PROTO-FR-04)."
+    },
+    "correlationTokens": {
+      "$ref": "common.schema.json#/$defs/correlationTokens",
+      "description": "Consumer correlation tokens passed through unchanged (SP-09)."
+    },
+    "createdAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the sender created the message (durable, set once)."
+    },
+    "updatedAt": {
+      "$ref": "common.schema.json#/$defs/timestamp",
+      "description": "When the envelope last changed (e.g. delivery metadata updates)."
+    },
+    "contentHash": {
+      "$ref": "common.schema.json#/$defs/contentHash",
+      "description": "SHA-256 of the canonical JSON encoding of the envelope, excluding the contentHash field itself (SYNC-FR-02). Verified by both sync peers."
+    }
+  }
+}

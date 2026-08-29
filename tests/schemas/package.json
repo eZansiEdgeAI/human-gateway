@@ -1,0 +1,14 @@
+{
+  "name": "humangateway-protocol-schema-tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "JSON Schema (Draft 2020-12) validation fixtures for the HumanGateway protocol schemas (protocol feature §6).",
+  "scripts": {
+    "test": "node validate.mjs"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  }
+}

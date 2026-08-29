@@ -1,0 +1,18 @@
+{
+  "type": "work.protocol-0.3",
+  "category": "work",
+  "taskId": "PROTOCOL-0.3",
+  "producedBy": "security-engineer",
+  "status": "complete",
+  "summary": "Let me check the remaining fixtures and how `error` is used, then plan the work.",
+  "inputs": [
+    "work-protocol-0-2-001"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "Let me check the remaining fixtures and how `error` is used, then plan the work.\nNow I have the full picture. This is **PROTOCOL-0.3** (owned by security-engineer per the responsibility matrix): define the identity model (gateway, participant, user) and error model as protocol schemas. Let me check the execution manifest/state to follow the tracking conventions, then implement.\nThe task is `PROTOCOL-0.3` — owned by me (security-engineer), currently marked `running` in WORKFLOW-STATE.json, and it"
+  },
+  "nextActions": [],
+  "artifactId": "work-protocol-0-3-002",
+  "createdAt": "2026-08-28T21:37:25.744Z"
+}

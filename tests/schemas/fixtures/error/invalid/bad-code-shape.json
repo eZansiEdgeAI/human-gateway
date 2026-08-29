@@ -1,0 +1,4 @@
+{
+  "code": "hash_mismatch",
+  "message": "Codes must be UPPER_SNAKE starting with a capital letter."
+}
