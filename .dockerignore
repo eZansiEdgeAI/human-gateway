@@ -1,0 +1,23 @@
+# Build context for the Edge (and later Relay) container images. The context is
+# the repo root (see deployment/docker/Dockerfile.edge); only sources, schemas,
+# and csproj files are needed for a publish, so everything else is excluded.
+
+**/bin/
+**/obj/
+**/data/
+**/node_modules/
+
+.git/
+.gitignore
+.codegraph/
+.opencode/
+.vscode/
+.idea/
+
+docs/
+tests/
+
+*.db
+*.db-wal
+*.db-shm
+*.log

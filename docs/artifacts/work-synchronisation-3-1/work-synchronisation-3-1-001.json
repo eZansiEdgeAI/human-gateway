@@ -1,0 +1,18 @@
+{
+  "type": "work.synchronisation-3.1",
+  "category": "work",
+  "taskId": "SYNCHRONISATION-3.1",
+  "producedBy": "protocol-engineer",
+  "status": "complete",
+  "summary": "The deliverable is already complete and verified. Here's what I found and confirmed.",
+  "inputs": [],
+  "filesChanged": [
+    "schemas/syncbatch.schema.json"
+  ],
+  "payload": {
+    "agentOutputExcerpt": "The deliverable is already complete and verified. Here's what I found and confirmed.\n\n## Result\n\n**`schemas/syncbatch.schema.json`** already exists in its final, complete form and is tracked in git (committed, unmodified). I verified it against the sync-model requirements (`synchronisation.md` SYNC-FR-01..07, `protocol.md` §5 Phase 0) rather than re-deriving it.\n\n### What the schema encodes (cursor model + sync model)\n\n| Requirement | Where in the schema |\n|---|---|\n| Draft 2020-12 + versioned `"
+  },
+  "nextActions": [],
+  "artifactId": "work-synchronisation-3-1-001",
+  "createdAt": "2026-08-30T12:42:46.694Z"
+}

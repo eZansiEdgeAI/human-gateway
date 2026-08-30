@@ -1,0 +1,18 @@
+{
+  "type": "work.offline-pwa-2.7",
+  "category": "work",
+  "taskId": "OFFLINE-PWA-2.7",
+  "producedBy": "pwa-engineer",
+  "status": "complete",
+  "summary": "The `loadTasks` coverage already exists and is green, but I want to verify there's no subtle gap before concluding. Let me check the `EdgeApiClient` interface and the store-level tests to confirm `loa",
+  "inputs": [
+    "work-offline-pwa-2-6-001"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "The `loadTasks` coverage already exists and is green, but I want to verify there's no subtle gap before concluding. Let me check the `EdgeApiClient` interface and the store-level tests to confirm `loadTasks` is fully exercised.\nThe `loadTasks` coverage is present and green. However, the \"online + cache\" test only asserts the cache *count* (length 1), not that the mirror wrote the actual remote content. I'll strengthen it to verify the cached copy equals the remote tasks — a genuine rigor improve"
+  },
+  "nextActions": [],
+  "artifactId": "work-offline-pwa-2-7-001",
+  "createdAt": "2026-08-30T12:37:45.718Z"
+}

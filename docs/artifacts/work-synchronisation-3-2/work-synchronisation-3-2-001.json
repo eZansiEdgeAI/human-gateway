@@ -1,0 +1,18 @@
+{
+  "type": "work.synchronisation-3.2",
+  "category": "work",
+  "taskId": "SYNCHRONISATION-3.2",
+  "producedBy": "sync-engineer",
+  "status": "complete",
+  "summary": "Now register the DbSet and model config in `EdgeDbContext.cs`:",
+  "inputs": [
+    "work-synchronisation-3-1-001"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "Now register the DbSet and model config in `EdgeDbContext.cs`:\nNow register `ISyncCursorStore` in Program.cs:\nSYNCHRONISATION-3.2 — \"Implement the Edge-side sync worker: push/pull cursors, idempotency keys, retry/backoff\" — is complete and verified.\n\n## What was done\n\nThe existing `SyncWorker` was a skeleton with **in-memory-only cursors** that reset to null on reconcile and did not reuse batch identity across retries. I made the worker's cursor/idempotency state **durable** and wired it through"
+  },
+  "nextActions": [],
+  "artifactId": "work-synchronisation-3-2-001",
+  "createdAt": "2026-08-30T13:00:40.628Z"
+}

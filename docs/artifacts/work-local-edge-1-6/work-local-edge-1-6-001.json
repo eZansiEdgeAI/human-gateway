@@ -1,0 +1,30 @@
+{
+  "type": "work.local-edge-1.6",
+  "category": "work",
+  "taskId": "LOCAL-EDGE-1.6",
+  "producedBy": "edge-engineer",
+  "status": "complete",
+  "summary": "Implemented the Edge background sync worker skeleton (LOCAL-EDGE-1.6, EDGE-FR-05, product vision §6.2/§10, SP-01). Added SyncWorker — a hosted BackgroundService that periodically performs outbound-only sync with the Relay, driving the sync-engineer's ISyncEngine (the engine owns cursor/idempotency/ordering decisions; the worker only orchestrates transport + lifecycle). Push builds the next batch from the durable outbox via the engine, sends it through the IRelaySyncClient seam, and marks covered entries sent only after the Relay acks (write-then-ack, EDGE-FR-04). Pull requests inbound batches, applies them idempotently via the engine, skips invalid batches without crashing, and enqueues the resulting delivery acknowledgements for the next push (SYNC-FR-05). Transient failures back off with capped, jittered exponential backoff (SYNC-FR-04); outbox entries are never dropped and never marked FAILED merely for being offline. The worker walks the product-vision §10 lifecycle (STARTING → RECOVERING → STARTED → SYNCING → STOPPING) and exposes State/LastSyncAtUtc/LastErrorAtUtc for observability (NF-09). Added the IRelaySyncClient outbound hook (IsConfigured/PushAsync/PullAsync) with a DisabledRelaySyncClient placeholder until the synchronisation feature supplies the real HTTPS transport, keeping the Edge offline-first and the durable outbox retaining every entry (local-edge §7 #4). Wired into Program.cs as a singleton hosted service with SyncWorkerOptions bound from the Sync section.   Added 7 unit tests (push+flush, transport-failure retention, cursor echo, pull+apply+ack enqueue, invalid-batch skip, offline no-op, lifecycle transitions).",
+  "inputs": [
+    "work-local-edge-1-5-001"
+  ],
+  "filesChanged": [
+    "src/HumanGateway.Edge/Sync/SyncWorker.cs",
+    "src/HumanGateway.Edge/Sync/SyncWorkerOptions.cs",
+    "src/HumanGateway.Edge/Sync/SyncWorkerState.cs",
+    "src/HumanGateway.Edge/Sync/IRelaySyncClient.cs",
+    "src/HumanGateway.Edge/Sync/DisabledRelaySyncClient.cs",
+    "src/HumanGateway.Edge/Program.cs",
+    "src/HumanGateway.Edge/README.md",
+    "docs/features/local-edge.md",
+    "tests/HumanGateway.Edge.Tests/SyncWorkerTests.cs"
+  ],
+  "payload": {
+    "agentOutputExcerpt": "LOCAL-EDGE-1.6 complete and verified. The background sync worker skeleton is in src/HumanGateway.Edge/Sync/: SyncWorker (hosted BackgroundService) drives ISyncEngine for push (durable outbox flush — entries marked sent only after the Relay acks) and pull (inbound apply + delivery-ack enqueue), with capped jittered exponential backoff and the product-vision §10 lifecycle (STARTING → RECOVERING → STARTED → SYNCING → STOPPING). The IRelaySyncClient seam + DisabledRelaySyncClient placeholder keep outbound sync off (offline-first) until the synchronisation feature's HTTPS transport lands. Wired in Program.cs as a singleton hosted service bound to the Sync section. Validation: dotnet build HumanGateway.slnx -> 0 errors/0 warnings; dotnet test -> Core 58/58 passed, Edge 50/50 passed including the 7 new SyncWorkerTests."
+  },
+  "nextActions": [
+    "LOCAL-EDGE-1.7: Docker/Podman image for the Edge; run script for Raspberry Pi / old PC (infrastructure-engineer)"
+  ],
+  "artifactId": "work-local-edge-1-6-001",
+  "createdAt": "2026-08-30T12:20:00.000Z"
+}

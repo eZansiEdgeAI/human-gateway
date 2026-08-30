@@ -1,0 +1,18 @@
+{
+  "type": "work.synchronisation-3.5",
+  "category": "work",
+  "taskId": "SYNCHRONISATION-3.5",
+  "producedBy": "sync-engineer",
+  "status": "complete",
+  "summary": "I'll start by exploring the existing sync engine code and requirements to build the convergence logic consistently with prior work.",
+  "inputs": [
+    "work-synchronisation-3-4-001"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "I'll start by exploring the existing sync engine code and requirements to build the convergence logic consistently with prior work.\nNow I'll implement the convergence logic. First, the pure gap/convergence analyzer:\nNow wire convergence status into the sync engine result. First the interface:\nNow update the SyncEngine to compute and surface convergence:\nNow the property tests:\nTask **SYNCHRONISATION-3.5: Convergence logic after long disconnects and partial failures** (SYNC-FR-04, SYNC-FR-06) is "
+  },
+  "nextActions": [],
+  "artifactId": "work-synchronisation-3-5-002",
+  "createdAt": "2026-08-30T13:25:43.790Z"
+}

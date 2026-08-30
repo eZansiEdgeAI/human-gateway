@@ -64,6 +64,7 @@
         "SIZE_EXCEEDED",
         "QUOTA_EXCEEDED",
         "MAX_ATTEMPTS_EXCEEDED",
+        "DELIVERY_REJECTED",
         "MESSAGE_EXPIRED",
         "IDEMPOTENCY_CONFLICT",
         "SEQUENCE_GAP",

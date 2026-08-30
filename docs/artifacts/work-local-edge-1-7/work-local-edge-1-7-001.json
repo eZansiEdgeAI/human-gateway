@@ -1,0 +1,18 @@
+{
+  "type": "work.local-edge-1.7",
+  "category": "work",
+  "taskId": "LOCAL-EDGE-1.7",
+  "producedBy": "infrastructure-engineer",
+  "status": "complete",
+  "summary": "The task is complete and verified end-to-end. The Docker/Podman packaging for the Edge Gateway (LOCAL-EDGE-1.7) is in place.",
+  "inputs": [
+    "work-local-edge-1-6-001"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "The task is complete and verified end-to-end. The Docker/Podman packaging for the Edge Gateway (LOCAL-EDGE-1.7) is in place.\n\n## Files created/changed\n\n- **`deployment/docker/Dockerfile.edge`** — multi-stage image (`sdk:10.0` build → `aspnet:10.0` runtime). Restores csproj+schemas first (cache-friendly), publishes framework-dependent for `$TARGETARCH` (native `arm64`/`amd64`), runs as unprivileged `app` (uid 1654), pre-creates `/data/artifacts` owned by `app` so a fresh named volume is writable,"
+  },
+  "nextActions": [],
+  "artifactId": "work-local-edge-1-7-001",
+  "createdAt": "2026-08-30T10:34:01.346Z"
+}

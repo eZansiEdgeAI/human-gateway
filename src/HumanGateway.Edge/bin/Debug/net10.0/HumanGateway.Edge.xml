@@ -164,6 +164,56 @@
         <member name="M:HumanGateway.Edge.Api.LocalApiService.GetSyncStatusAsync(System.Threading.CancellationToken)">
             <summary>Builds the sync-status snapshot for the PWA sync banner (EDGE-FR-05).</summary>
         </member>
+        <member name="T:HumanGateway.Edge.Artifacts.ArtifactStoreOptions">
+            <summary>Configuration for the Edge local filesystem artifact store (LOCAL-EDGE-1.5, ARTF-FR-03).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Artifacts.ArtifactStoreOptions.RootPath">
+            <summary>
+            Root directory for content-addressed artifact bytes. When null/empty, the service falls back to
+            <c>&lt;ContentRoot&gt;/data/artifacts</c> (see Program.cs).
+            </summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Artifacts.FilesystemArtifactStore">
+            <summary>
+            Local filesystem <see cref="T:HumanGateway.Core.Artifacts.IArtifactStore"/> (LOCAL-EDGE-1.5, EDGE-FR-02, ARTF-FR-01): bytes are stored
+            content-addressed, named by their SHA-256 hex digest and sharded into two-level subdirectories
+            (<c>&lt;root&gt;/&lt;aa&gt;/&lt;bb&gt;/&lt;64-hex&gt;</c>). Equal content always lands on the same path, so duplicate
+            uploads are deduplicated with no re-transfer, and the address is verified against the bytes as they are
+            written (tamper/corruption detection, SP-06).
+            </summary>
+            <remarks>
+            Writes are atomic and crash-safe: bytes are streamed to a temp file in the destination directory, hashed
+            incrementally, flushed to disk, then renamed into place (<see cref="M:System.IO.File.Move(System.String,System.String,System.Boolean)"/> with
+            <c>overwrite: false</c>). A partial write therefore never appears at a content-addressed path — a killed
+            process leaves only an orphaned temp file, never a corrupt artifact. Concurrent saves of identical content
+            race to the same path and collapse to a single file (the loser observes the winner's rename and reports
+            dedup).
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Edge.Artifacts.FilesystemArtifactStore.#ctor(System.String)">
+            <summary>Creates the store rooted at <paramref name="root"/> (created on demand).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Artifacts.FilesystemArtifactStore.SaveAsync(System.IO.Stream,System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Artifacts.FilesystemArtifactStore.OpenReadAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Artifacts.FilesystemArtifactStore.ExistsAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Artifacts.FilesystemArtifactStore.DeleteAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="P:HumanGateway.Edge.Artifacts.FilesystemArtifactStore.ContentHashPrefix">
+            <summary>The canonical <c>sha256:</c> prefix used to re-format a computed digest for error reporting.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Artifacts.FilesystemArtifactStore.WriteTempAsync(System.IO.Stream,System.String,System.Threading.CancellationToken)">
+            <summary>Streams content to <paramref name="tempPath"/>, hashing it incrementally and flushing to disk.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Artifacts.FilesystemArtifactStore.PathFor(System.String)">
+            <summary>Maps a lowercase hex digest to its sharded path (<c>&lt;root&gt;/&lt;aa&gt;/&lt;bb&gt;/&lt;hex&gt;</c>).</summary>
+        </member>
         <member name="T:HumanGateway.Edge.Endpoints.LocalApiEndpoints">
             <summary>
             Maps the Edge local REST API (EDGE-FR-03, product vision §6.3): conversations, messages, tasks, artifacts,
@@ -218,6 +268,9 @@
         </member>
         <member name="P:HumanGateway.Edge.Storage.EdgeDbContext.Idempotency">
             <summary>Durable applied-batch records (SYNC-FR-02, NF-05).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.EdgeDbContext.SyncCursors">
+            <summary>Durable per-gateway sync-cursor state (SYNC-FR-03, SYNC-FR-02).</summary>
         </member>
         <member name="M:HumanGateway.Edge.Storage.EdgeDbContext.OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder)">
             <inheritdoc />
@@ -508,6 +561,31 @@
         <member name="M:HumanGateway.Edge.Storage.Entities.ParticipantRecord.FromParticipant(HumanGateway.Protocol.Models.Participant)">
             <summary>Creates a storage record from a protocol participant, deriving the query columns.</summary>
         </member>
+        <member name="T:HumanGateway.Edge.Storage.Entities.SyncCursorRecord">
+            <summary>
+            Durable per-gateway sync-cursor state (SYNC-FR-03): the Relay-issued push cursor, the gateway's own pull
+            cursor, and the in-flight push batch identity used to keep retries idempotent (SYNC-FR-02). Cursors are
+            opaque tokens — the worker stores and echoes them without interpreting them. One row per gateway.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.SyncCursorRecord.GatewayId">
+            <summary>The gateway whose sync state this is — the primary key.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.SyncCursorRecord.PushCursor">
+            <summary>The Relay's push cursor (ack watermark), echoed as <c>sinceCursor</c> on the next push.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.SyncCursorRecord.PullCursor">
+            <summary>The gateway's own pull cursor, echoed as <c>sinceCursor</c> on the next pull.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.SyncCursorRecord.InFlightBatchId">
+            <summary>The in-flight push batch identity to reuse on retry (null when nothing is in flight).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.SyncCursorRecord.InFlightIdempotencyKey">
+            <summary>The in-flight push batch idempotency key to reuse on retry.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.SyncCursorRecord.InFlightAfterSequence">
+            <summary>The sequence watermark the in-flight push batch advanced to (null when nothing is in flight).</summary>
+        </member>
         <member name="T:HumanGateway.Edge.Storage.Migrations.InitialCreate">
             <inheritdoc />
         </member>
@@ -542,6 +620,18 @@
             <inheritdoc />
         </member>
         <member name="M:HumanGateway.Edge.Storage.Migrations.AddHumanTasks.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.Migrations.AddSyncCursors">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Migrations.AddSyncCursors.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Migrations.AddSyncCursors.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Migrations.AddSyncCursors.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
             <inheritdoc />
         </member>
         <member name="T:HumanGateway.Edge.Storage.OutboxWriter">
@@ -707,6 +797,195 @@
         </member>
         <member name="M:HumanGateway.Edge.Storage.SqlitePragmaInterceptor.ConnectionOpenedAsync(System.Data.Common.DbConnection,Microsoft.EntityFrameworkCore.Diagnostics.ConnectionEndEventData,System.Threading.CancellationToken)">
             <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.SqliteSyncCursorStore">
+            <summary>
+            Durable SQLite <see cref="T:HumanGateway.Core.Cursor.ISyncCursorStore"/> (SYNC-FR-03): persists each gateway's push/pull cursors and
+            the in-flight push batch identity (SYNC-FR-02). The worker reads this state on reconcile (so a reconnect
+            resumes from the last cursor, never full-state resync — NF-02) and writes it before/after each exchange
+            (so a retried push reuses the same <c>batchId</c> + <c>idempotencyKey</c>). Each operation opens a
+            short-lived context from the injected factory, so the store is safe across concurrent callers and restarts.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteSyncCursorStore.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{HumanGateway.Edge.Storage.EdgeDbContext})">
+            <summary>Creates the durable cursor store over the context factory.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteSyncCursorStore.GetAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteSyncCursorStore.SaveAsync(HumanGateway.Core.Cursor.SyncCursorState,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Edge.Sync.DisabledRelaySyncClient">
+            <summary>
+            Placeholder <see cref="T:HumanGateway.Edge.Sync.IRelaySyncClient"/> used until the synchronisation feature provides the real HTTPS
+            transport. <see cref="P:HumanGateway.Edge.Sync.DisabledRelaySyncClient.IsConfigured"/> is false, so the worker never touches the network: the Edge stays
+            fully functional on the LAN and the durable outbox retains every entry for later sync (local-edge §7 #4).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Sync.DisabledRelaySyncClient.IsConfigured">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.DisabledRelaySyncClient.PushAsync(HumanGateway.Protocol.Models.SyncBatch,System.Threading.CancellationToken)">
+            <inheritdoc />
+            <remarks>Never called — the worker guards on <see cref="P:HumanGateway.Edge.Sync.DisabledRelaySyncClient.IsConfigured"/> first.</remarks>
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.DisabledRelaySyncClient.PullAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+            <remarks>Never called — the worker guards on <see cref="P:HumanGateway.Edge.Sync.DisabledRelaySyncClient.IsConfigured"/> first.</remarks>
+        </member>
+        <member name="T:HumanGateway.Edge.Sync.IRelaySyncClient">
+            <summary>
+            The Edge Gateway's outbound sync hook to the Cloud Relay (EDGE-FR-05, SP-01). The worker dials out to push
+            its outbox batches and pull inbound batches; the Edge never accepts inbound sync connections. The concrete
+            HTTPS transport (registration, TLS, wire framing) is owned by the synchronisation feature — this interface
+            is the seam the worker drives today, so the full protocol can drop in without changing the worker loop.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Sync.IRelaySyncClient.IsConfigured">
+            <summary>
+            True when a Relay is configured (base URL + identity present). When false the worker skips the network
+            entirely and simply retains outbox entries for later sync (offline-first, NF-01).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.IRelaySyncClient.PushAsync(HumanGateway.Protocol.Models.SyncBatch,System.Threading.CancellationToken)">
+            <summary>Sends a PUSH batch to the Relay and returns its acknowledged cursor (SYNC-FR-03).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.IRelaySyncClient.PullAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Requests inbound batches from the Relay after the local pull cursor, or returns <see langword="null"/>
+            when there is nothing new (SYNC-FR-03).
+            </summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Sync.PushResult">
+            <summary>The Relay's response to a push batch.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Sync.PushResult.Cursor">
+            <summary>The Relay's new cursor (opaque); null at the start position. Echoed back on the next push.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Sync.SyncWorker">
+             <summary>
+             The Edge Gateway's background sync worker (EDGE-FR-05, product vision §6.2/§10): a hosted service that
+             periodically performs outbound-only sync with the Cloud Relay (SP-01). It drives the sync-engineer's
+             <see cref="T:HumanGateway.Core.Sync.ISyncEngine"/> — the engine owns cursor/idempotency/ordering decisions, the worker only
+             orchestrates transport and lifecycle:
+            
+             <list type="number">
+             <item><b>Push</b> — build the next batch from the durable outbox via the engine, send it through
+             <see cref="T:HumanGateway.Edge.Sync.IRelaySyncClient"/>, and mark the covered entries sent only after the Relay acknowledges
+             (write-then-ack, EDGE-FR-04).</item>
+             <item><b>Pull</b> — request inbound batches, apply them idempotently via the engine, and enqueue the
+             resulting delivery acknowledgements for the next push (SYNC-FR-05).</item>
+             </list>
+            
+             The worker's cursor state is <em>durable</em> (SYNC-FR-03): the Relay-issued push cursor, the gateway's own
+             pull cursor, and the in-flight push batch identity are persisted through <see cref="T:HumanGateway.Core.Cursor.ISyncCursorStore"/> so
+             a restart resumes from the last cursor (never full-state resync, NF-02) and a retried push reuses the same
+             <c>batchId</c> + <c>idempotencyKey</c> (SYNC-FR-02, NF-05). Transient failures back off with capped,
+             jittered exponential backoff (SYNC-FR-04); outbox entries are never dropped and are never marked FAILED
+             merely for being offline — they are retained and retried (WAITING_FOR_SYNC is a valid state, never an
+             error). Every create was committed to SQLite before this worker ever saw it, so a crash mid-cycle can never
+             lose or duplicate a message (EDGE-FR-07).
+             </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.SyncWorker.#ctor(HumanGateway.Core.Sync.ISyncEngine,HumanGateway.Core.Outbox.IOutbox,HumanGateway.Core.Cursor.ISyncCursorStore,HumanGateway.Edge.Sync.IRelaySyncClient,Microsoft.Extensions.Options.IOptions{HumanGateway.Edge.Api.GatewayOptions},Microsoft.Extensions.Options.IOptions{HumanGateway.Edge.Sync.SyncWorkerOptions},Microsoft.Extensions.Logging.ILogger{HumanGateway.Edge.Sync.SyncWorker},System.TimeProvider)">
+            <summary>Creates the worker over the sync engine, durable outbox, durable cursor store, transport hook, and options.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Sync.SyncWorker.State">
+            <summary>The worker's current lifecycle state (product vision §10), surfaced for observability (NF-09).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Sync.SyncWorker.LastSyncAtUtc">
+            <summary>UTC time of the last completed sync cycle, or null before the first.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Sync.SyncWorker.LastErrorAtUtc">
+            <summary>UTC time of the last sync failure, or null when the last cycle succeeded.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Sync.SyncWorker.LocalReceiver">
+            <summary>The local participant stamped on delivery acknowledgements (SYNC-FR-05).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.SyncWorker.ExecuteAsync(System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.SyncWorker.SyncOnceAsync(System.Threading.CancellationToken)">
+            <summary>
+            Runs one sync cycle: push pending outbox entries, then pull and apply inbound batches (EDGE-FR-05).
+            When no Relay is configured this is a no-op that leaves the outbox untouched.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.SyncWorker.ReconcileAsync(System.Threading.CancellationToken)">
+            <summary>
+            RECOVERING (product vision §10): reconcile the local store with Relay cursors before resuming sync.
+            The durable cursor state (push cursor, pull cursor, in-flight push batch identity) is reloaded from the
+            <see cref="T:HumanGateway.Core.Cursor.ISyncCursorStore"/>, so a restart resumes from the last cursor rather than re-pulling
+            everything (NF-02, SYNC-FR-03) and a retried push reuses the same idempotency key (SYNC-FR-02).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.SyncWorker.EnsureStateLoadedAsync(System.Threading.CancellationToken)">
+            <summary>Loads the durable cursor state exactly once (idempotent; the worker loop is single-threaded).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.SyncWorker.SaveCursorStateAsync(System.Threading.CancellationToken)">
+            <summary>Persists the current cursor + in-flight state durably.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Sync.SyncWorkerOptions">
+            <summary>
+            Configuration for the background sync worker (EDGE-FR-05), bound from the <c>Sync</c> configuration
+            section. The worker is outbound-only (SP-01): it periodically pushes the durable outbox to the Relay and
+            pulls inbound batches, retrying transient failures with capped, jittered exponential backoff (SYNC-FR-04,
+            synchronisation Open Q #2).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Sync.SyncWorkerOptions.BatchSize">
+            <summary>Maximum items per push batch (clamped to the engine's batch-item cap).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Sync.SyncWorkerOptions.PollIntervalSeconds">
+            <summary>Delay between successful sync cycles (seconds).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Sync.SyncWorkerOptions.Backoff">
+            <summary>Backoff shape for transient sync failures.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Sync.SyncWorkerOptions.PollInterval">
+            <summary>The delay between successful cycles.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Sync.SyncBackoffOptions">
+            <summary>Backoff settings (seconds/attempts) mapped onto the core <see cref="T:HumanGateway.Core.Retry.BackoffPolicy"/>.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Sync.SyncBackoffOptions.BaseDelaySeconds">
+            <summary>Delay before the first retry (seconds).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Sync.SyncBackoffOptions.MaxDelaySeconds">
+            <summary>Upper bound on any single backoff delay (seconds).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Sync.SyncBackoffOptions.MaxAttempts">
+            <summary>Maximum attempts before a delivery becomes FAILED (configurable).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.SyncBackoffOptions.ToPolicy">
+            <summary>Builds the core <see cref="T:HumanGateway.Core.Retry.BackoffPolicy"/> that drives retry-delay computation.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Sync.SyncWorkerState">
+            <summary>
+            Edge Gateway lifecycle states for the background sync worker (product vision §10):
+            <c>STARTING → STARTED (serving LAN) → SYNCING (outbound to Relay) → RECOVERING (reconcile) → STOPPING</c>.
+            On restart the worker re-enters <see cref="F:HumanGateway.Edge.Sync.SyncWorkerState.Recovering"/> to reconcile the local store with Relay cursors
+            before resuming sync.
+            </summary>
+        </member>
+        <member name="F:HumanGateway.Edge.Sync.SyncWorkerState.Starting">
+            <summary>The worker is initialising before its first cycle.</summary>
+        </member>
+        <member name="F:HumanGateway.Edge.Sync.SyncWorkerState.Started">
+            <summary>Healthy: serving the LAN and, when a Relay is configured, syncing periodically.</summary>
+        </member>
+        <member name="F:HumanGateway.Edge.Sync.SyncWorkerState.Syncing">
+            <summary>Actively exchanging a push/pull batch with the Relay.</summary>
+        </member>
+        <member name="F:HumanGateway.Edge.Sync.SyncWorkerState.Recovering">
+            <summary>Reconciling local store state with Relay cursors after startup or failure.</summary>
+        </member>
+        <member name="F:HumanGateway.Edge.Sync.SyncWorkerState.Stopping">
+            <summary>Shutdown requested; draining the current cycle before stopping.</summary>
+        </member>
+        <member name="F:HumanGateway.Edge.Sync.SyncWorkerState.Stopped">
+            <summary>Terminal: the loop has exited.</summary>
         </member>
     </members>
 </doc>

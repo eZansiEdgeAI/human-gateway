@@ -1,0 +1,18 @@
+{
+  "type": "work.synchronisation-3.3",
+  "category": "work",
+  "taskId": "SYNCHRONISATION-3.3",
+  "producedBy": "sync-engineer",
+  "status": "complete",
+  "summary": "Task complete. Here's what I implemented for **SYNCHRONISATION-3.2: delivery-state transitions and acknowledgements** (SYNC-FR-05, product vision §10).",
+  "inputs": [
+    "work-synchronisation-3-2-001"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "Task complete. Here's what I implemented for **SYNCHRONISATION-3.2: delivery-state transitions and acknowledgements** (SYNC-FR-05, product vision §10).\n\n## Files created\n\n| File | Purpose |\n|---|---|\n| `src/HumanGateway.Core/Delivery/DeliveryTransitioner.cs` | Pure, deterministic state-transition + ack-application logic (`DeliveryTransitioner`, `DeliveryTransitionResult`) |\n| `tests/HumanGateway.Core.Tests/DeliveryTransitionerTests.cs` | 18 property tests pinning the transition table, FAILED gat"
+  },
+  "nextActions": [],
+  "artifactId": "work-synchronisation-3-3-001",
+  "createdAt": "2026-08-30T13:12:09.928Z"
+}

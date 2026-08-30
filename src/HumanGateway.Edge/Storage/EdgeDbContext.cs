@@ -51,6 +51,9 @@ public sealed class EdgeDbContext : DbContext
     /// <summary>Durable applied-batch records (SYNC-FR-02, NF-05).</summary>
     public DbSet<IdempotencyRecord> Idempotency => Set<IdempotencyRecord>();
 
+    /// <summary>Durable per-gateway sync-cursor state (SYNC-FR-03, SYNC-FR-02).</summary>
+    public DbSet<SyncCursorRecord> SyncCursors => Set<SyncCursorRecord>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -243,6 +246,18 @@ public sealed class EdgeDbContext : DbContext
             idempotency.Property(e => e.BatchId).HasColumnName("batch_id").IsRequired();
             idempotency.Property(e => e.IdempotencyKey).HasColumnName("idempotency_key").IsRequired();
             idempotency.Property(e => e.AppliedAtUtc).HasColumnName("applied_at_utc").IsRequired();
+        });
+
+        modelBuilder.Entity<SyncCursorRecord>(cursor =>
+        {
+            cursor.ToTable("sync_cursors");
+            cursor.HasKey(e => e.GatewayId);
+            cursor.Property(e => e.GatewayId).HasColumnName("gateway_id").IsRequired();
+            cursor.Property(e => e.PushCursor).HasColumnName("push_cursor");
+            cursor.Property(e => e.PullCursor).HasColumnName("pull_cursor");
+            cursor.Property(e => e.InFlightBatchId).HasColumnName("in_flight_batch_id");
+            cursor.Property(e => e.InFlightIdempotencyKey).HasColumnName("in_flight_idempotency_key");
+            cursor.Property(e => e.InFlightAfterSequence).HasColumnName("in_flight_after_sequence");
         });
     }
 }

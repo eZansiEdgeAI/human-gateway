@@ -1,4 +1,5 @@
 using HumanGateway.Core.Batch;
+using HumanGateway.Core.Convergence;
 using HumanGateway.Core.Cursor;
 using HumanGateway.Core.Delivery;
 using HumanGateway.Core.Idempotency;
@@ -102,13 +103,14 @@ public sealed class SyncEngine : ISyncEngine
         if (alreadyApplied)
         {
             // Replay: echo back the receiver's current contiguous position, with no further effect (SYNC-FR-02).
-            var position = await CurrentPositionAsync(batch.GatewayId, ct).ConfigureAwait(false);
+            var (replayPosition, replayConvergence) = await ComputePositionAsync(batch.GatewayId, ct).ConfigureAwait(false);
             return new ApplyBatchResult
             {
                 IsValid = true,
                 IsDuplicate = true,
-                Position = position,
-                Cursor = CursorCodec.Encode(position),
+                Position = replayPosition,
+                Cursor = CursorCodec.Encode(replayPosition),
+                Convergence = replayConvergence,
             };
         }
 
@@ -142,9 +144,18 @@ public sealed class SyncEngine : ISyncEngine
         // The cursor is the highest contiguous applied sequence, derived from the *full* applied history (the
         // inbox, now including this batch's items) rather than only this batch — so a batch that fills a gap
         // converges the cursor in one step, and nothing past a gap is ever skipped (SYNC-FR-03/06/07).
-        var newPosition = await CurrentPositionAsync(batch.GatewayId, ct).ConfigureAwait(false);
+        var (newPosition, convergence) = await ComputePositionAsync(batch.GatewayId, ct).ConfigureAwait(false);
 
         var acks = DeliveryAckBuilder.BuildDeliveredAcks(appliedItems, request.Receiver, request.Now);
+
+        // Inbound delivery acknowledgements (acknowledgements returned to *this* gateway) are surfaced so the
+        // caller can transition its own outgoing delivery records (SYNC-FR-05). They are also recorded in the
+        // inbox above (they are not message items, so the per-message dedup is not applied), but the engine
+        // separates them out for the delivery-ack wiring.
+        var receivedAcks = appliedItems
+            .Where(i => i.Kind == SyncItemKind.Ack && i.Ack is not null)
+            .Select(i => i.Ack!)
+            .ToList();
 
         return new ApplyBatchResult
         {
@@ -152,14 +163,26 @@ public sealed class SyncEngine : ISyncEngine
             IsDuplicate = false,
             AppliedItems = appliedItems,
             DeliveryAcks = acks,
+            ReceivedAcks = receivedAcks,
             Position = newPosition,
             Cursor = CursorCodec.Encode(newPosition),
+            Convergence = convergence,
         };
     }
 
-    private async Task<CursorPosition> CurrentPositionAsync(string gatewayId, CancellationToken ct)
+    /// <summary>
+    /// Computes the receiver's position and convergence status from its full applied history (the inbox), in a
+    /// single read. The cursor is the contiguous high-watermark; the convergence state additionally reports any
+    /// gaps below the applied high-watermark (partial failures, SYNC-FR-04/06).
+    /// </summary>
+    private async Task<(CursorPosition Position, ConvergenceState Convergence)> ComputePositionAsync(
+        string gatewayId,
+        CancellationToken ct)
     {
         var sequences = await _inbox.GetSequencesAsync(gatewayId, ct).ConfigureAwait(false);
-        return CursorMath.AdvanceContiguous(CursorPosition.Start, sequences);
+        return (
+            CursorMath.AdvanceContiguous(CursorPosition.Start, sequences),
+            ConvergenceAnalyzer.Analyze(sequences)
+        );
     }
 }

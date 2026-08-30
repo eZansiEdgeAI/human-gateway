@@ -4,6 +4,71 @@
         <name>HumanGateway.Core</name>
     </assembly>
     <members>
+        <member name="T:HumanGateway.Core.Artifacts.ArtifactHash">
+            <summary>
+            Validation and normalisation of content-hash strings: <c>sha256:&lt;64 lowercase hex&gt;</c>
+            (ARTF-FR-01, schemas/common.schema.json#/$defs/contentHash). A well-formed hash is the algorithm prefix
+            from <see cref="F:HumanGateway.Core.Hashing.ContentHasher.AlgorithmPrefix"/> followed by exactly <see cref="F:HumanGateway.Core.Artifacts.ArtifactHash.HexLength"/> hexadecimal
+            characters (case-insensitive on input, normalised to lowercase).
+            </summary>
+        </member>
+        <member name="F:HumanGateway.Core.Artifacts.ArtifactHash.HexLength">
+            <summary>The number of hexadecimal characters in a SHA-256 digest.</summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.ArtifactHash.TryGetHex(System.String,System.String@)">
+            <summary>
+            Parses a content-hash string into its lowercase hex digest. Returns <c>false</c> when the string is
+            null/empty, lacks the <c>sha256:</c> prefix, or is not exactly <see cref="F:HumanGateway.Core.Artifacts.ArtifactHash.HexLength"/> hex characters.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.ArtifactHash.RequireHex(System.String)">
+            <summary>
+            Returns the lowercase hex digest of a content hash, throwing <see cref="T:System.FormatException"/> when it is
+            malformed. Call this on untrusted input before addressing the store.
+            </summary>
+        </member>
+        <member name="T:HumanGateway.Core.Artifacts.ArtifactHashMismatchException">
+            <summary>
+            Raised when stored artifact bytes do not match the declared content hash (ARTF-FR-01, SP-06). Carries both
+            hashes so callers can produce a precise, machine-readable error without leaking bytes.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Core.Artifacts.ArtifactHashMismatchException.DeclaredHash">
+            <summary>The hash the caller declared (as received).</summary>
+        </member>
+        <member name="P:HumanGateway.Core.Artifacts.ArtifactHashMismatchException.ActualHash">
+            <summary>The hash computed over the actual bytes (<c>sha256:&lt;hex&gt;</c>).</summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.ArtifactHashMismatchException.#ctor(System.String,System.String)">
+            <summary>Creates the exception for a declared/actual hash pair.</summary>
+        </member>
+        <member name="T:HumanGateway.Core.Artifacts.IArtifactStore">
+            <summary>
+            Content-addressed artifact byte store port (ARTF-FR-01, PROTO-FR-04). Bytes are addressed by their SHA-256
+            content hash (<c>sha256:&lt;hex&gt;</c>); equal content yields an equal address, so duplicate uploads are
+            deduplicated without re-transfer. The Edge owns the filesystem implementation (content-hash-named files,
+            LOCAL-EDGE-1.5); the Relay owns the PostgreSQL BYTEA implementation. This port stores only bytes — artifact
+            metadata lives in the durable schema and is correlated by ID + hash.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.IArtifactStore.SaveAsync(System.IO.Stream,System.String,System.Threading.CancellationToken)">
+            <summary>
+            Durably stores <paramref name="content"/>, verifying it matches <paramref name="expectedHash"/> as it is
+            written (tamper/corruption detection, SP-06). Returns <c>true</c> when bytes were newly written, or
+            <c>false</c> when identical bytes were already present (dedup — no rewrite). Throws
+            <see cref="T:HumanGateway.Core.Artifacts.ArtifactHashMismatchException"/> when the content hash does not match, and
+            <see cref="T:System.FormatException"/> when <paramref name="expectedHash"/> is not a well-formed content hash.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.IArtifactStore.OpenReadAsync(System.String,System.Threading.CancellationToken)">
+            <summary>Opens a read stream over the stored bytes, or returns <c>null</c> when absent.</summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.IArtifactStore.ExistsAsync(System.String,System.Threading.CancellationToken)">
+            <summary>Returns <c>true</c> when bytes for the given hash are present.</summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.IArtifactStore.DeleteAsync(System.String,System.Threading.CancellationToken)">
+            <summary>Removes stored bytes for the hash; a no-op when absent.</summary>
+        </member>
         <member name="T:HumanGateway.Core.Batch.BatchValidationResult">
             <summary>
             The result of validating a batch's cross-field shape invariants (syncbatch.schema.json, schemas/README.md
@@ -122,6 +187,122 @@
             introduced without changing call sites.
             </summary>
         </member>
+        <member name="T:HumanGateway.Core.Convergence.ConvergenceAckPolicy">
+            <summary>
+            The sender-side safe-acknowledgement rule for the durable outbox (SYNC-FR-04, SYNC-FR-06, NF-05). An
+            outbox entry may be marked sent — and discarded from the durable outbox — only once the receiver's
+            <em>contiguous</em> cursor covers its sequence. This is the complement to <see cref="T:HumanGateway.Core.Convergence.ConvergenceAnalyzer"/>
+            on the sender's side of the store-and-forward loop.
+            </summary>
+            <remarks>
+            <para>
+            Marking an entry sent on <em>any</em> successful response, regardless of the receiver's cursor, can strand a
+            sequence past a gap: if the sender discards entries the receiver has not contiguously acknowledged, a partial
+            failure leaves a permanent hole that no retry can fill (the entry is gone, and the receiver never advances
+            past the missing predecessor). Retaining everything past the contiguous cursor guarantees the next push
+            re-sends the tail, so a gap is always fillable from the sender's side (SYNC-FR-06).
+            </para>
+            <para>
+            The receiver's cursor is opaque on the wire; the sender decodes its own issued position via
+            <see cref="T:HumanGateway.Core.Cursor.CursorCodec"/> before applying this policy. This policy is pure — it decides from the two
+            numbers (entry sequence, receiver contiguous cursor) and carries no I/O.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Core.Convergence.ConvergenceAckPolicy.IsSafeToMarkSent(System.Int64,System.Int64)">
+            <summary>
+            True when an outbox entry with <paramref name="sequence"/> is safe to mark sent: the receiver has
+            contiguously applied through (and including) that sequence, so it cannot be lost.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Convergence.ConvergenceAckPolicy.Partition(System.Collections.Generic.IEnumerable{System.Int64},System.Int64)">
+            <summary>
+            Partitions a batch's entry sequences into those safe to mark sent (contiguously covered by the
+            receiver's cursor) and those that must be retained for a later push (past the cursor — either a gap or an
+            in-flight tail the receiver has not yet contiguously acknowledged). The result is order-independent and
+            deduplicated.
+            </summary>
+        </member>
+        <member name="T:HumanGateway.Core.Convergence.AckPartition">
+            <summary>The result of <see cref="M:HumanGateway.Core.Convergence.ConvergenceAckPolicy.Partition(System.Collections.Generic.IEnumerable{System.Int64},System.Int64)"/> (see <see cref="T:HumanGateway.Core.Convergence.ConvergenceAckPolicy"/>).</summary>
+        </member>
+        <member name="P:HumanGateway.Core.Convergence.AckPartition.SafeToMarkSent">
+            <summary>Entry sequences safe to mark sent (contiguously covered by the receiver's cursor).</summary>
+        </member>
+        <member name="P:HumanGateway.Core.Convergence.AckPartition.RetainForRetry">
+            <summary>Entry sequences that must remain pending (past the receiver's contiguous cursor).</summary>
+        </member>
+        <member name="T:HumanGateway.Core.Convergence.SequenceGap">
+            <summary>A closed (inclusive) range of missing per-gateway sequence numbers below the applied high-watermark.</summary>
+        </member>
+        <member name="M:HumanGateway.Core.Convergence.SequenceGap.#ctor(System.Int64,System.Int64)">
+            <summary>A closed (inclusive) range of missing per-gateway sequence numbers below the applied high-watermark.</summary>
+        </member>
+        <member name="P:HumanGateway.Core.Convergence.SequenceGap.Count">
+            <summary>The number of missing sequences covered by this gap.</summary>
+        </member>
+        <member name="T:HumanGateway.Core.Convergence.ConvergenceState">
+            <summary>
+            The convergence status of one gateway's applied sequence stream (SYNC-FR-04, SYNC-FR-06, product vision §11).
+            "Converged" means the applied set is contiguous from sequence 1 up to <see cref="P:HumanGateway.Core.Convergence.ConvergenceState.HighWatermark"/> — every
+            message has been applied exactly once and nothing is waiting on a missing predecessor. A gap below the
+            high-watermark is the signature of a partial failure or a lost batch, and it is exactly what must be filled
+            before the receiver can advance its cursor past the hole.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Core.Convergence.ConvergenceState.ContiguousCursor">
+            <summary>The highest contiguous applied sequence (0 when nothing has been applied).</summary>
+        </member>
+        <member name="P:HumanGateway.Core.Convergence.ConvergenceState.HighWatermark">
+            <summary>The highest applied sequence, contiguous or not (0 when the stream is empty).</summary>
+        </member>
+        <member name="P:HumanGateway.Core.Convergence.ConvergenceState.Gaps">
+            <summary>Closed ranges of missing sequences below <see cref="P:HumanGateway.Core.Convergence.ConvergenceState.HighWatermark"/> (empty when converged).</summary>
+        </member>
+        <member name="P:HumanGateway.Core.Convergence.ConvergenceState.IsEmpty">
+            <summary>True when the stream is empty (nothing applied yet).</summary>
+        </member>
+        <member name="P:HumanGateway.Core.Convergence.ConvergenceState.HasGaps">
+            <summary>True when any sequence below the high-watermark is missing (a partial failure / lost batch).</summary>
+        </member>
+        <member name="P:HumanGateway.Core.Convergence.ConvergenceState.IsConverged">
+            <summary>
+            True when the stream has converged: it is empty, or contiguous from 1 to <see cref="P:HumanGateway.Core.Convergence.ConvergenceState.HighWatermark"/>
+            with no gaps (SYNC-FR-06 — "converge without loss or duplication").
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Core.Convergence.ConvergenceState.FirstGap">
+            <summary>The smallest missing sequence (the first gap), or null when converged.</summary>
+        </member>
+        <member name="T:HumanGateway.Core.Convergence.ConvergenceAnalyzer">
+            <summary>
+            Pure, deterministic convergence analysis for a gateway's applied sequence stream (SYNC-FR-04, SYNC-FR-06).
+            This is the long-disconnect / partial-failure primitive: given the full set of sequences a receiver has
+            applied, it reports the contiguous cursor (reusing <see cref="T:HumanGateway.Core.Cursor.CursorMath"/>), the applied high-watermark,
+            and the exact missing ranges below it. The receiver is converged iff there are no such gaps.
+            </summary>
+            <remarks>
+            <para>
+            Analysis is <em>order-independent</em> and <em>idempotent</em>: the same multiset of applied sequences
+            always yields the same <see cref="T:HumanGateway.Core.Convergence.ConvergenceState"/> regardless of arrival order, and duplicates collapse.
+            This makes the result safe to property-test by shuffling, and safe to recompute from a durable inbox that
+            may contain replays.
+            </para>
+            <para>
+            The gap list is represented as closed ranges rather than an enumeration of individual sequences, so a
+            pathological stream (e.g. applied <c>{1, 1_000_000_000}</c>) yields a single gap range instead of a
+            billion-entry list. The number of ranges is bounded by the number of distinct applied sequences.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Core.Convergence.ConvergenceAnalyzer.Analyze(System.Collections.Generic.IEnumerable{System.Int64})">
+            <summary>
+            Analyzes the applied sequence set for a gateway (the receiver's own full applied history, from the
+            beginning — see <see cref="M:HumanGateway.Core.Inbox.IInbox.GetSequencesAsync(System.String,System.Threading.CancellationToken)"/>). Sequences at or below 0 are ignored
+            (unset). The result reports whether the stream has converged and, if not, exactly which sequences are
+            missing below the applied high-watermark.
+            </summary>
+        </member>
         <member name="T:HumanGateway.Core.Cursor.CursorPosition">
             <summary>
             A receiver-side sync position: the highest per-gateway sequence number the receiver has applied.
@@ -183,11 +364,75 @@
             (the per-item <c>sequence</c> field), ignoring items whose sequence is at or below the prior position.
             </summary>
         </member>
+        <member name="T:HumanGateway.Core.Cursor.InMemorySyncCursorStore">
+            <summary>
+            In-memory reference implementation of <see cref="T:HumanGateway.Core.Cursor.ISyncCursorStore"/> (single-process; used by tests and
+            simple deployments). Durable deployments use a SQLite/PostgreSQL-backed store. State is keyed by gateway
+            ID and thread-safe under concurrent access.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Cursor.InMemorySyncCursorStore.GetAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Core.Cursor.InMemorySyncCursorStore.SaveAsync(HumanGateway.Core.Cursor.SyncCursorState,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Core.Cursor.ISyncCursorStore">
+            <summary>
+            Durable port for the sync worker's per-gateway cursor state (SYNC-FR-03): the Relay-issued push cursor,
+            the gateway's own pull cursor, and the in-flight push batch identity used to keep retries idempotent
+            (SYNC-FR-02). Cursors are <em>opaque</em> to the worker — it stores and echoes them, never interprets
+            them. The SQLite implementation is owned by the edge-engineer; the in-memory reference implementation
+            (<see cref="T:HumanGateway.Core.Cursor.InMemorySyncCursorStore"/>) is used by tests and simple deployments.
+            </summary>
+            <remarks>
+            Durability matters here: a reconnect resumes from the last cursor rather than re-pulling everything
+            (NF-02, SYNC-FR-03), and a retried push reuses the same <c>batchId</c> + <c>idempotencyKey</c> so the
+            receiver collapses it as a replay (SYNC-FR-02, NF-05). The worker persists this state before and after
+            each exchange, so a crash mid-push or a lost acknowledgement never duplicates delivery.
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Core.Cursor.ISyncCursorStore.GetAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Returns the stored cursor state for a gateway, or an empty <see cref="T:HumanGateway.Core.Cursor.SyncCursorState"/> (start
+            position) when nothing has been saved yet.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Cursor.ISyncCursorStore.SaveAsync(HumanGateway.Core.Cursor.SyncCursorState,System.Threading.CancellationToken)">
+            <summary>Durably saves (upserts) the cursor state for a gateway.</summary>
+        </member>
+        <member name="T:HumanGateway.Core.Cursor.SyncCursorState">
+            <summary>
+            The sync worker's durable per-gateway cursor + in-flight push state. Immutable (records are copied with
+            <c>with</c> expressions); a <see langword="null"/> cursor means "start position / first exchange".
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Core.Cursor.SyncCursorState.GatewayId">
+            <summary>The gateway whose sync state this is.</summary>
+        </member>
+        <member name="P:HumanGateway.Core.Cursor.SyncCursorState.PushCursor">
+            <summary>The Relay's push cursor (ack watermark), echoed as <c>sinceCursor</c> on the next push.</summary>
+        </member>
+        <member name="P:HumanGateway.Core.Cursor.SyncCursorState.PullCursor">
+            <summary>The gateway's own pull cursor, echoed as <c>sinceCursor</c> on the next pull.</summary>
+        </member>
+        <member name="P:HumanGateway.Core.Cursor.SyncCursorState.InFlightBatchId">
+            <summary>The in-flight push batch identity to reuse on retry (null when nothing is in flight).</summary>
+        </member>
+        <member name="P:HumanGateway.Core.Cursor.SyncCursorState.InFlightIdempotencyKey">
+            <summary>The in-flight push batch idempotency key to reuse on retry.</summary>
+        </member>
+        <member name="P:HumanGateway.Core.Cursor.SyncCursorState.InFlightAfterSequence">
+            <summary>The sequence watermark the in-flight push batch advanced to (null when nothing is in flight).</summary>
+        </member>
+        <member name="M:HumanGateway.Core.Cursor.SyncCursorState.Empty(System.String)">
+            <summary>The "nothing stored yet" state for a gateway (start position, no in-flight batch).</summary>
+        </member>
         <member name="T:HumanGateway.Core.Delivery.DeliveryAckBuilder">
             <summary>
             Builds delivery acknowledgements returned to senders (SYNC-FR-05, syncbatch.schema.json#/$defs/deliveryAck).
             The receiving side confirms DELIVERED / ACKNOWLEDGED, or reports FAILED, for each delivered message so the
-            sender can advance its own delivery records.
+            sender can advance its own delivery records via <see cref="M:HumanGateway.Core.Delivery.DeliveryTransitioner.ApplyAck(HumanGateway.Protocol.Models.Delivery,HumanGateway.Protocol.Models.DeliveryAck,System.DateTimeOffset)"/>.
             </summary>
         </member>
         <member name="M:HumanGateway.Core.Delivery.DeliveryAckBuilder.BuildDeliveredAcks(System.Collections.Generic.IEnumerable{HumanGateway.Protocol.Models.SyncItem},HumanGateway.Protocol.Models.Participant,System.DateTimeOffset)">
@@ -195,6 +440,22 @@
             Builds a DELIVERED acknowledgement for every message item in an applied (reordered) batch, from the
             perspective of the <paramref name="receiver"/> participant at <paramref name="acknowledgedAt"/>.
             </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Delivery.DeliveryAckBuilder.BuildAcknowledgedAcks(System.Collections.Generic.IEnumerable{HumanGateway.Protocol.Models.SyncItem},HumanGateway.Protocol.Models.Participant,System.DateTimeOffset)">
+            <summary>
+            Builds an ACKNOWLEDGED acknowledgement for every message item in an applied batch — used when the
+            recipient has confirmed the message was actually received/read (the DELIVERED → ACKNOWLEDGED step of
+            product vision §10).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Delivery.DeliveryAckBuilder.BuildFailedAcks(System.Collections.Generic.IEnumerable{HumanGateway.Protocol.Models.SyncItem},HumanGateway.Protocol.Models.Participant,System.DateTimeOffset)">
+            <summary>
+            Builds a FAILED acknowledgement for every message item the receiver is permanently rejecting — reported
+            back to the sender so it can mark its own delivery FAILED (SYNC-FR-05).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Delivery.DeliveryAckBuilder.BuildAck(HumanGateway.Protocol.Models.Message,HumanGateway.Protocol.Models.Participant,System.DateTimeOffset,HumanGateway.Protocol.Models.DeliveryAckState)">
+            <summary>Builds one acknowledgement for a single message.</summary>
         </member>
         <member name="T:HumanGateway.Core.Delivery.DeliveryStateMachine">
              <summary>
@@ -228,6 +489,83 @@
             retryable state. This is what prevents <see cref="F:HumanGateway.Protocol.Models.DeliveryState.WaitingForSync"/> from being marked FAILED and
             alerted on merely for being offline.
             </summary>
+        </member>
+        <member name="T:HumanGateway.Core.Delivery.DeliveryTransitioner">
+             <summary>
+             Performs delivery-state transitions on a <see cref="T:HumanGateway.Protocol.Models.Delivery"/> (product vision §10, SYNC-FR-05).
+             This is the deterministic, pure counterpart to <see cref="T:HumanGateway.Core.Delivery.DeliveryStateMachine"/>: the state machine answers
+             "is this transition legal?", while the transitioner performs it — stamping the state-entry timestamp,
+             advancing the attempt counter where appropriate, and attaching failure details — and returns the <em>next</em>
+             envelope. It never mutates its input.
+            
+             Two entry points mirror the two sides of the store-and-forward contract:
+             <list type="bullet">
+             <item><see cref="M:HumanGateway.Core.Delivery.DeliveryTransitioner.Transition(HumanGateway.Protocol.Models.Delivery,HumanGateway.Protocol.Models.DeliveryState,System.DateTimeOffset,HumanGateway.Protocol.Models.ProtocolError)"/> drives the sender's own lifecycle: <c>QUEUED → SYNCING → DELIVERED →
+             ACKNOWLEDGED</c>, with <c>WAITING_FOR_SYNC</c> for offline deferral and <c>FAILED</c> gated by the retry
+             budget (<see cref="M:HumanGateway.Core.Delivery.DeliveryStateMachine.CanFail(HumanGateway.Protocol.Models.DeliveryState,System.Int64,System.Int64)"/>).</item>
+             <item><see cref="M:HumanGateway.Core.Delivery.DeliveryTransitioner.ApplyAck(HumanGateway.Protocol.Models.Delivery,HumanGateway.Protocol.Models.DeliveryAck,System.DateTimeOffset)"/> consumes a delivery acknowledgement returned by the recipient (SYNC-FR-05):
+             <c>DELIVERED</c>/<c>ACKNOWLEDGED</c> advance the sender's record, and <c>FAILED</c> marks a permanent
+             recipient rejection (independent of the sender's retry budget).</item>
+             </list>
+            
+             Both are idempotent (at-least-once → exactly-once effect, NF-05): a replayed transition or a replayed ack
+             that has already been satisfied has no further effect.
+             </summary>
+        </member>
+        <member name="F:HumanGateway.Core.Delivery.DeliveryTransitioner.IllegalTransition">
+            <summary>The transition is not in the allowed set for the current state.</summary>
+        </member>
+        <member name="F:HumanGateway.Core.Delivery.DeliveryTransitioner.RetryBudgetNotExhausted">
+            <summary>A transition to FAILED requires the retry budget to be exhausted.</summary>
+        </member>
+        <member name="F:HumanGateway.Core.Delivery.DeliveryTransitioner.ErrorRequired">
+            <summary>A transition to FAILED requires error details (delivery.schema.json allOf).</summary>
+        </member>
+        <member name="M:HumanGateway.Core.Delivery.DeliveryTransitioner.Transition(HumanGateway.Protocol.Models.Delivery,HumanGateway.Protocol.Models.DeliveryState,System.DateTimeOffset,HumanGateway.Protocol.Models.ProtocolError)">
+            <summary>
+            Transitions <paramref name="current"/> to <paramref name="target"/> at <paramref name="at"/>, returning
+            the next envelope. Entering <c>SYNCING</c> (from <c>QUEUED</c> or <c>WAITING_FOR_SYNC</c>) or retrying
+            in <c>SYNCING</c> advances the attempt counter; every other transition preserves it. A transition to
+            <c>FAILED</c> requires <paramref name="error"/> and an exhausted retry budget. Re-entering a non-SYNCING
+            state is an idempotent no-op that returns <paramref name="current"/> unchanged.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Delivery.DeliveryTransitioner.ApplyAck(HumanGateway.Protocol.Models.Delivery,HumanGateway.Protocol.Models.DeliveryAck,System.DateTimeOffset)">
+            <summary>
+            Applies a delivery acknowledgement received from the recipient (SYNC-FR-05) to the sender's delivery
+            record: <c>DELIVERED</c> advances <c>SYNCING → DELIVERED</c>, <c>ACKNOWLEDGED</c> advances
+            <c>DELIVERED → ACKNOWLEDGED</c>, and <c>FAILED</c> marks a permanent recipient rejection. Idempotent —
+            a replayed ack that has already been satisfied (or superseded by a later terminal state) is a no-op, so
+            at-least-once ack delivery converges to exactly-once effect (NF-05).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Delivery.DeliveryTransitioner.ForceReject(HumanGateway.Protocol.Models.Delivery,HumanGateway.Protocol.Models.DeliveryAck,System.DateTimeOffset)">
+            <summary>Marks a permanent recipient rejection as FAILED, from an in-flight (non-terminal, non-delivered) state.</summary>
+        </member>
+        <member name="M:HumanGateway.Core.Delivery.DeliveryTransitioner.AlreadySatisfied(System.Nullable{HumanGateway.Protocol.Models.DeliveryState},HumanGateway.Protocol.Models.DeliveryState)">
+            <summary>
+            True when the delivery is already at (or past) the ack's target, so the ack can be discarded without
+            effect. Terminal states subsume earlier acknowledgements (an <c>ACKNOWLEDGED</c> delivery is trivially
+            <c>DELIVERED</c>); a delivery is never regressed by a stale ack.
+            </summary>
+        </member>
+        <member name="T:HumanGateway.Core.Delivery.DeliveryTransitionResult">
+            <summary>The result of a delivery-state transition (see <see cref="T:HumanGateway.Core.Delivery.DeliveryTransitioner"/>).</summary>
+        </member>
+        <member name="P:HumanGateway.Core.Delivery.DeliveryTransitionResult.Delivery">
+            <summary>The next delivery envelope, or null when the transition was rejected.</summary>
+        </member>
+        <member name="P:HumanGateway.Core.Delivery.DeliveryTransitionResult.Violation">
+            <summary>The violation code when the transition was rejected (see <see cref="T:HumanGateway.Core.Delivery.DeliveryTransitioner"/>).</summary>
+        </member>
+        <member name="P:HumanGateway.Core.Delivery.DeliveryTransitionResult.IsValid">
+            <summary>True when the transition succeeded (including idempotent no-ops).</summary>
+        </member>
+        <member name="M:HumanGateway.Core.Delivery.DeliveryTransitionResult.Success(HumanGateway.Protocol.Models.Delivery)">
+            <summary>Builds a successful result carrying the next envelope.</summary>
+        </member>
+        <member name="M:HumanGateway.Core.Delivery.DeliveryTransitionResult.Invalid(System.String)">
+            <summary>Builds a rejected result carrying the violation code.</summary>
         </member>
         <member name="T:HumanGateway.Core.Hashing.ContentHasher">
             <summary>
@@ -397,17 +735,40 @@
             items are reordered by their monotonic sequence and never dropped. Gaps are allowed (retries) and
             preserved — contiguity is not required.
             </summary>
+            <remarks>
+            <para>
+            Determinism is <em>order-independent</em>: the same multiset of items always reorders to the same
+            sequence regardless of arrival order, so <c>Reorder(shuffle(x)) == Reorder(x)</c> for any permutation.
+            This is a stronger guarantee than a plain stable sort, which would leak the arrival order into the result
+            whenever two items share a sequence number (which must not happen per gateway, but can arrive when a
+            retry overlaps, or when batches from distinct sources are merged).
+            </para>
+            <para>
+            Equal sequence numbers are therefore tie-broken by a <em>stable payload identity</em> derived from the
+            item's durable ID (the message, delivery, artifact, or ack ID), never by input position. The result is a
+            pure function of the item contents, which is what makes the reorder safe to property-test by shuffling.
+            </para>
+            </remarks>
         </member>
         <member name="M:HumanGateway.Core.Ordering.SequenceOrdering.Reorder(System.Collections.Generic.IEnumerable{HumanGateway.Protocol.Models.SyncItem})">
             <summary>
-            Stable-sorts items by ascending <see cref="P:HumanGateway.Protocol.Models.SyncItem.Sequence"/>. Items with equal sequence retain
-            their input order (LINQ-to-objects <c>OrderBy</c> is a stable sort), so the result is deterministic.
+            Reorders items by ascending <see cref="P:HumanGateway.Protocol.Models.SyncItem.Sequence"/>, tie-breaking equal sequences by the
+            item's stable payload identity (ordinal). The result is deterministic regardless of input order.
+            Gaps are preserved and no item is ever dropped.
             </summary>
         </member>
         <member name="M:HumanGateway.Core.Ordering.SequenceOrdering.Reorder(System.Collections.Generic.IEnumerable{System.ValueTuple{System.String,HumanGateway.Protocol.Models.SyncItem}})">
             <summary>
-            Reorders items across multiple gateways by the composite ordering key <c>(gatewayId, sequence)</c>
-            (syncbatch.schema.json#/$defs/sequence).
+            Reorders items across multiple gateways by the composite ordering key
+            <c>(gatewayId, sequence, identity)</c> (syncbatch.schema.json#/$defs/sequence). Deterministic
+            regardless of input order; gateway identity compares ordinal.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Ordering.SequenceOrdering.StableIdentity(HumanGateway.Protocol.Models.SyncItem)">
+            <summary>
+            A stable, order-independent identity for an item, used only to break ties between equal sequence
+            numbers. Derived from the item's durable payload ID (message, delivery, artifact, or ack). Items
+            without a usable ID fall back to the empty string, which sorts before identified items deterministically.
             </summary>
         </member>
         <member name="T:HumanGateway.Core.Outbox.InMemoryOutbox">
@@ -601,11 +962,26 @@
         <member name="P:HumanGateway.Core.Sync.ApplyBatchResult.DeliveryAcks">
             <summary>Delivery acknowledgements for the applied message items (SYNC-FR-05).</summary>
         </member>
+        <member name="P:HumanGateway.Core.Sync.ApplyBatchResult.ReceivedAcks">
+            <summary>
+            Inbound delivery acknowledgements carried by this batch (acknowledgements returned <em>to</em> this
+            gateway by the recipient). The caller applies them to its own delivery records via
+            <see cref="M:HumanGateway.Core.Delivery.DeliveryTransitioner.ApplyAck(HumanGateway.Protocol.Models.Delivery,HumanGateway.Protocol.Models.DeliveryAck,System.DateTimeOffset)"/> (SYNC-FR-05).
+            </summary>
+        </member>
         <member name="P:HumanGateway.Core.Sync.ApplyBatchResult.Position">
             <summary>The receiver's new cursor position after applying this batch.</summary>
         </member>
         <member name="P:HumanGateway.Core.Sync.ApplyBatchResult.Cursor">
             <summary>The receiver's new opaque cursor token (null at the start position).</summary>
+        </member>
+        <member name="P:HumanGateway.Core.Sync.ApplyBatchResult.Convergence">
+            <summary>
+            The receiver's convergence status after applying this batch (SYNC-FR-04/06, product vision §11): the
+            contiguous cursor, applied high-watermark, and any missing sequences below it. Null when the batch was
+            rejected (shape-invalid). A caller surfaces this to report whether the stream has converged, or that a
+            gap (partial failure) still awaits a fill.
+            </summary>
         </member>
         <member name="T:HumanGateway.Core.Sync.SyncEngine">
             <summary>
@@ -622,6 +998,13 @@
         </member>
         <member name="M:HumanGateway.Core.Sync.SyncEngine.ApplyBatchAsync(HumanGateway.Protocol.Models.SyncBatch,HumanGateway.Core.Sync.ApplyBatchRequest,System.Threading.CancellationToken)">
             <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Core.Sync.SyncEngine.ComputePositionAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Computes the receiver's position and convergence status from its full applied history (the inbox), in a
+            single read. The cursor is the contiguous high-watermark; the convergence state additionally reports any
+            gaps below the applied high-watermark (partial failures, SYNC-FR-04/06).
+            </summary>
         </member>
         <member name="T:HumanGateway.Core.Time.ProtocolTime">
             <summary>

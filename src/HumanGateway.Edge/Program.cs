@@ -1,12 +1,17 @@
+using HumanGateway.Core.Artifacts;
+using HumanGateway.Core.Cursor;
 using HumanGateway.Core.Idempotency;
 using HumanGateway.Core.Inbox;
 using HumanGateway.Core.Outbox;
 using HumanGateway.Core.Sync;
 using HumanGateway.Edge.Api;
+using HumanGateway.Edge.Artifacts;
 using HumanGateway.Edge.Endpoints;
 using HumanGateway.Edge.Storage;
+using HumanGateway.Edge.Sync;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -45,7 +50,44 @@ builder.Services.AddDbContextFactory<EdgeDbContext>((sp, options) =>
 builder.Services.AddSingleton<IOutbox, SqliteOutbox>();
 builder.Services.AddSingleton<IInbox, SqliteInbox>();
 builder.Services.AddSingleton<IIdempotencyStore, SqliteIdempotencyStore>();
+builder.Services.AddSingleton<ISyncCursorStore, SqliteSyncCursorStore>();
 builder.Services.AddSingleton<ISyncEngine, SyncEngine>();
+
+// ---------------------------------------------------------------------------
+// Background sync worker (LOCAL-EDGE-1.6, EDGE-FR-05, product vision §10): a
+// hosted BackgroundService that periodically dials out to the Relay (SP-01),
+// driving the SyncEngine through the outbound IRelaySyncClient hook. The full
+// HTTPS transport arrives with the synchronisation feature; until then the
+// DisabledRelaySyncClient keeps outbound sync off and the durable outbox retains
+// every entry for later sync (local-edge §7 #4). The worker is registered as a
+// singleton so its lifecycle state is observable for a future health endpoint
+// (NF-09).
+// ---------------------------------------------------------------------------
+builder.Services.Configure<SyncWorkerOptions>(builder.Configuration.GetSection(SyncWorkerOptions.SectionName));
+builder.Services.AddSingleton<IRelaySyncClient, DisabledRelaySyncClient>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<SyncWorker>();
+builder.Services.AddHostedService(static sp => sp.GetRequiredService<SyncWorker>());
+
+// ---------------------------------------------------------------------------
+// Local filesystem artifact store (LOCAL-EDGE-1.5, EDGE-FR-02, ARTF-FR-01):
+// content-hash-named files with deduplication, rooted under the configured
+// directory (default <ContentRoot>/data/artifacts). Bytes are written
+// atomically (temp + rename) so a killed process never leaves a partial
+// artifact at a content-addressed path.
+// ---------------------------------------------------------------------------
+builder.Services.Configure<ArtifactStoreOptions>(builder.Configuration.GetSection(ArtifactStoreOptions.SectionName));
+builder.Services.AddSingleton<IArtifactStore>(sp =>
+{
+    var root = sp.GetRequiredService<IOptions<ArtifactStoreOptions>>().Value.RootPath;
+    if (string.IsNullOrWhiteSpace(root))
+    {
+        root = Path.Combine(builder.Environment.ContentRootPath, "data", "artifacts");
+    }
+
+    Directory.CreateDirectory(root);
+    return new FilesystemArtifactStore(root);
+});
 
 // ---------------------------------------------------------------------------
 // Local REST API (LOCAL-EDGE-1.4, EDGE-FR-03). The HTTP JSON layer shares the

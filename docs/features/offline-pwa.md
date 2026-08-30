@@ -66,14 +66,14 @@
 ## 5. Implementation Tasks
 
 ### Phase 2: Offline PWA
-- [ ] Scaffold `src/HumanGateway.Client` (Vite + React + TS PWA, Workbox)
-- [ ] Service Worker app-shell caching and offline detection; versioned caches
-- [ ] IndexedDB store for conversations, messages, tasks, and local outbox
-- [ ] Edge API client with offline-first fetch wrapper (queue to outbox when offline)
-- [ ] Inbox/Outbox + Compose + delivery-status UI
-- [ ] Task answering UI (input and approval), artifact attachment UI
-- [ ] Sync banner / offline indicator
-- [ ] Responsive layout for small Android screens and old desktops
+- [x] Scaffold `src/HumanGateway.Client` (Vite + React + TS PWA, Workbox)
+- [x] Service Worker app-shell caching and offline detection; versioned caches
+- [x] IndexedDB store for conversations, messages, tasks, and local outbox
+- [x] Edge API client with offline-first fetch wrapper (queue to outbox when offline)
+- [x] Inbox/Outbox + Compose + delivery-status UI
+- [x] Task answering UI (input and approval), artifact attachment UI
+- [x] Sync banner / offline indicator
+- [x] Responsive layout for small Android screens and old desktops
 
 ---
 

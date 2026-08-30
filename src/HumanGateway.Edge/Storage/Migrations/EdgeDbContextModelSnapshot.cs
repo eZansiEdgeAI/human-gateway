@@ -385,6 +385,37 @@ namespace HumanGateway.Edge.Storage.Migrations
                     b.ToTable("participants", (string)null);
                 });
 
+            modelBuilder.Entity("HumanGateway.Edge.Storage.Entities.SyncCursorRecord", b =>
+                {
+                    b.Property<string>("GatewayId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("gateway_id");
+
+                    b.Property<long?>("InFlightAfterSequence")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("in_flight_after_sequence");
+
+                    b.Property<string>("InFlightBatchId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("in_flight_batch_id");
+
+                    b.Property<string>("InFlightIdempotencyKey")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("in_flight_idempotency_key");
+
+                    b.Property<string>("PullCursor")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("pull_cursor");
+
+                    b.Property<string>("PushCursor")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("push_cursor");
+
+                    b.HasKey("GatewayId");
+
+                    b.ToTable("sync_cursors", (string)null);
+                });
+
             modelBuilder.Entity("HumanGateway.Edge.Storage.Entities.ConversationParticipant", b =>
                 {
                     b.HasOne("HumanGateway.Edge.Storage.Entities.Conversation", "Conversation")

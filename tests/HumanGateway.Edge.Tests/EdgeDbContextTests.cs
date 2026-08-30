@@ -99,6 +99,7 @@ public sealed class EdgeDbContextTests : IDisposable
                 "outbox",
                 "outbox_sequences",
                 "participants",
+                "sync_cursors",
                 "tasks",
             },
             tables);

@@ -7,7 +7,7 @@ with no Internet, queuing everything for later sync to the Relay (product vision
 - **Depends on:** `HumanGateway.Protocol` (entity model + schemas + validation) and `HumanGateway.Core`
   (sync engine, outbox/inbox, idempotency)
 
-## Status: local REST API (LOCAL-EDGE-1.4)
+## Status: local REST API + background sync worker skeleton (LOCAL-EDGE-1.6)
 
 This project carries the durable SQLite (WAL) store (EDGE-FR-02): an EF Core schema for conversations,
 messages, deliveries, artifacts, and participants, with the durability PRAGMAs (WAL + synchronous=NORMAL +
@@ -25,6 +25,14 @@ It now also exposes the local REST API the PWA consumes over the LAN (EDGE-FR-03
 write-then-queue dance for every create (EDGE-FR-04). All responses use the protocol wire contract — camelCase
 keys, exact string enum tokens, omit-null — and errors are `ProtocolError`-shaped via the global exception
 handler (`ApiErrors.FromException`) so the PWA always receives the stable machine-readable error contract.
+
+It also carries the background sync worker skeleton (`Sync/SyncWorker.cs`, EDGE-FR-05): a hosted
+`BackgroundService` that periodically dials out to the Relay (outbound-only, SP-01) through the
+`IRelaySyncClient` hook, driving the `ISyncEngine` for push (durable outbox flush — entries marked sent only
+after the Relay acks) and pull (inbound apply + delivery-ack enqueue). It walks the product-vision §10
+lifecycle (`STARTING → RECOVERING → STARTED → SYNCING → STOPPING`) and retries transient failures with capped,
+jittered exponential backoff. The full HTTPS transport arrives with the synchronisation feature; until then the
+`DisabledRelaySyncClient` keeps outbound sync off and the durable outbox retains every entry for later sync.
 
 ### Local REST API endpoints
 
@@ -51,8 +59,8 @@ handler (`ApiErrors.FromException`) so the PWA always receives the stable machin
 | LOCAL-EDGE-1.2 | **Done** — ASP.NET Core minimal API + SQLite (WAL) schema (conversations, messages, deliveries, artifacts, participants) |
 | LOCAL-EDGE-1.3 | **Done** — Durable SQLite inbox/outbox/idempotency (`SqliteOutbox`/`SqliteInbox`/`SqliteIdempotencyStore`) |
 | LOCAL-EDGE-1.4 | **Done** — Local REST API endpoints (conversations, messages, tasks, artifacts, sync status) |
-| LOCAL-EDGE-1.5 | Local filesystem artifact store (content-hash naming, dedup) |
-| LOCAL-EDGE-1.6 | Background sync worker skeleton |
+| LOCAL-EDGE-1.5 | **Done** — Local filesystem artifact store (content-hash naming, dedup) |
+| LOCAL-EDGE-1.6 | **Done** — Background sync worker skeleton (outbound `IRelaySyncClient` hook; full protocol in synchronisation feature) |
 
 The `ISyncEngine` contract (Core) is already fixed; swapping the in-memory ports for durable stores requires
 no change to the engine or the endpoints in `Program.cs`.

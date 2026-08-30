@@ -1,0 +1,18 @@
+{
+  "type": "work.local-edge-1.5",
+  "category": "work",
+  "taskId": "LOCAL-EDGE-1.5",
+  "producedBy": "edge-engineer",
+  "status": "complete",
+  "summary": "Two failures, both clear-cut:",
+  "inputs": [
+    "work-local-edge-1-4-002"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "Two failures, both clear-cut:\n\n1. **`Delete_RemovesBytes_AndIsNoOpWhenAbsent`** — `File.Delete` throws `DirectoryNotFoundException` when the shard directory was never created (hash never stored). I documented \"no-op when absent\" but the code doesn't guard it. Need to check existence first.\n\n2. **`Save_HashIsCaseInsensitive_NormalisesToLowercase`** — my test uppercased the *entire* hash including the `sha256:` prefix (`SHA256:...`), which the canonical protocol format defines as lowercase. My int"
+  },
+  "nextActions": [],
+  "artifactId": "work-local-edge-1-5-002",
+  "createdAt": "2026-08-30T10:02:54.075Z"
+}

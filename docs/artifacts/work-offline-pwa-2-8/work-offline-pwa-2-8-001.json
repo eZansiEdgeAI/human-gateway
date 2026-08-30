@@ -1,0 +1,18 @@
+{
+  "type": "work.offline-pwa-2.8",
+  "category": "work",
+  "taskId": "OFFLINE-PWA-2.8",
+  "producedBy": "pwa-engineer",
+  "status": "complete",
+  "summary": "I have a full picture now. The app has a solid CSS base but no responsive breakpoints beyond `pointer: coarse`. Let me check the product-vision §9 wording and the PRD FR-20 for any final specifics, th",
+  "inputs": [
+    "work-offline-pwa-2-7-001"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "I have a full picture now. The app has a solid CSS base but no responsive breakpoints beyond `pointer: coarse`. Let me check the product-vision §9 wording and the PRD FR-20 for any final specifics, then implement.\nAll green — build, lint, and 154 tests pass. Let me mark the Phase 2 task checkbox complete in the feature doc so the traceability stays accurate.\nDone. Implemented **PWA-FR-07 — responsive layout for small Android screens and old desktops**.\n\n## What changed\n\n**`src/HumanGateway.Clien"
+  },
+  "nextActions": [],
+  "artifactId": "work-offline-pwa-2-8-001",
+  "createdAt": "2026-08-30T12:41:05.580Z"
+}

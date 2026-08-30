@@ -1,0 +1,18 @@
+{
+  "type": "work.synchronisation-3.4",
+  "category": "work",
+  "taskId": "SYNCHRONISATION-3.4",
+  "producedBy": "sync-engineer",
+  "status": "complete",
+  "summary": "Task **SYNCHRONISATION-3.4: Deterministic ordering/reordering by sequence number** (SYNC-FR-07) is complete.",
+  "inputs": [
+    "work-synchronisation-3-3-001"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "Task **SYNCHRONISATION-3.4: Deterministic ordering/reordering by sequence number** (SYNC-FR-07) is complete.\n\n## What I did\n\nThe `SequenceOrdering` primitive already existed but relied on LINQ's *stable* `OrderBy`, which leaks arrival order into the result whenever two items share a sequence number — not truly deterministic. I hardened it so reordering is **order-independent** (a pure function of item contents), making it genuinely property-testable.\n\n### Files created\n\n| File | Purpose |\n|---|-"
+  },
+  "nextActions": [],
+  "artifactId": "work-synchronisation-3-4-001",
+  "createdAt": "2026-08-30T13:17:14.287Z"
+}

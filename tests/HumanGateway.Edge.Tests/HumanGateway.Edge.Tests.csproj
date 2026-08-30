@@ -22,7 +22,11 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/HumanGateway.Edge/HumanGateway.Edge.csproj" />
-    <ProjectReference Include="../HumanGateway.Edge.CrashProbe/HumanGateway.Edge.CrashProbe.csproj" />
+    <!-- Aliased so its top-level-statement-generated global `Program` type does not collide with the Edge
+         project's own global `Program` type (both are referenced by this test assembly, LOCAL-EDGE-1.4). -->
+    <ProjectReference Include="../HumanGateway.Edge.CrashProbe/HumanGateway.Edge.CrashProbe.csproj">
+      <Aliases>crashprobe</Aliases>
+    </ProjectReference>
   </ItemGroup>
 
 </Project>

@@ -1,3 +1,5 @@
+extern alias crashprobe;
+
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
@@ -55,7 +57,7 @@ public sealed class CrashConsistencyTests : IDisposable
     [Fact]
     public async Task KillDuringWrite_CommittedMessagesSurviveExactlyOnce()
     {
-        var probeDll = typeof(HumanGateway.Edge.CrashProbe.CrashProbeMarker).Assembly.Location;
+        var probeDll = typeof(crashprobe::HumanGateway.Edge.CrashProbe.CrashProbeMarker).Assembly.Location;
 
         var startInfo = new ProcessStartInfo
         {

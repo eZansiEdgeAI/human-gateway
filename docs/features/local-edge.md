@@ -64,8 +64,8 @@ No user-facing UI (service-side). Admin visibility via structured logs and (late
 - [ ] Implement durable inbox/outbox: every create is committed to SQLite before any network attempt
 - [ ] Implement local REST API endpoints: conversations, messages, tasks, artifacts, sync status
 - [ ] Local filesystem artifact store with content-hash naming and deduplication
-- [ ] Background sync worker skeleton (outbound sync hooks; full protocol in synchronisation feature)
-- [ ] Docker/Podman image for the Edge; run script for Raspberry Pi / old PC
+- [x] Background sync worker skeleton (outbound sync hooks; full protocol in synchronisation feature)
+- [x] Docker/Podman image for the Edge; run script for Raspberry Pi / old PC
 
 ---
 

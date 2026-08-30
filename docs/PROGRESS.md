@@ -1,9 +1,9 @@
 # Project Progress
 
 ## Current State
-**Phase**: LOCAL-EDGE-1
-**Status**: Failed
-**Last Updated**: 2026-08-29T01:05:00.037Z
+**Phase**: SYNCHRONISATION-3
+**Status**: Paused
+**Last Updated**: 2026-08-30T13:25:43.796Z
 **Run ID**: cc1dad89-27a5-4765-8655-91bea28ec9c3
 **Harness**: opencode
 
@@ -18,13 +18,30 @@
   - Files: src/HumanGateway.Core, src/HumanGateway.Edge
 - [x] Phase LOCAL-EDGE-1, Task LOCAL-EDGE-1.2: [ ] Build ASP (@edge-engineer)
 - [x] Phase LOCAL-EDGE-1, Task LOCAL-EDGE-1.3: [ ] Implement durable inbox/outbox (@edge-engineer)
+- [x] Phase LOCAL-EDGE-1, Task LOCAL-EDGE-1.4: [ ] Implement local REST API endpoints (@edge-engineer)
+- [x] Phase LOCAL-EDGE-1, Task LOCAL-EDGE-1.5: [ ] Local filesystem artifact store with content-hash naming and deduplication (@edge-engineer)
+- [x] Phase LOCAL-EDGE-1, Task LOCAL-EDGE-1.6: [ ] Background sync worker skeleton (outbound sync hooks; full protocol in synchronisation feature) (@edge-engineer)
+- [x] Phase LOCAL-EDGE-1, Task LOCAL-EDGE-1.7: [ ] Docker/Podman image for the Edge; run script for Raspberry Pi / old PC (@infrastructure-engineer)
+- [x] Phase OFFLINE-PWA-2, Task OFFLINE-PWA-2.1: [ ] Scaffold `src/HumanGateway (@pwa-engineer)
+  - Files: src/HumanGateway.Client
+- [x] Phase OFFLINE-PWA-2, Task OFFLINE-PWA-2.2: [ ] Service Worker app-shell caching and offline detection; versioned caches (@pwa-engineer)
+- [x] Phase OFFLINE-PWA-2, Task OFFLINE-PWA-2.3: [ ] IndexedDB store for conversations, messages, tasks, and local outbox (@pwa-engineer)
+- [x] Phase OFFLINE-PWA-2, Task OFFLINE-PWA-2.4: [ ] Edge API client with offline-first fetch wrapper (queue to outbox when offline) (@pwa-engineer)
+- [x] Phase OFFLINE-PWA-2, Task OFFLINE-PWA-2.5: [ ] Inbox/Outbox + Compose + delivery-status UI (@pwa-engineer)
+- [x] Phase OFFLINE-PWA-2, Task OFFLINE-PWA-2.6: [ ] Task answering UI (input and approval), artifact attachment UI (@pwa-engineer)
+- [x] Phase OFFLINE-PWA-2, Task OFFLINE-PWA-2.7: [ ] Sync banner / offline indicator (@pwa-engineer)
+- [x] Phase OFFLINE-PWA-2, Task OFFLINE-PWA-2.8: [ ] Responsive layout for small Android screens and old desktops (@pwa-engineer)
+- [x] Phase SYNCHRONISATION-3, Task SYNCHRONISATION-3.1: [x] Define the sync batch schema and cursor model in `schemas/syncbatch (@protocol-engineer)
+  - Files: schemas/syncbatch.schema.json
+- [x] Phase SYNCHRONISATION-3, Task SYNCHRONISATION-3.2: [ ] Implement the Edge-side sync worker (@sync-engineer)
+- [x] Phase SYNCHRONISATION-3, Task SYNCHRONISATION-3.3: [ ] Implement delivery-state transitions and acknowledgements (@sync-engineer)
+- [x] Phase SYNCHRONISATION-3, Task SYNCHRONISATION-3.4: [ ] Deterministic ordering/reordering by sequence number (@sync-engineer)
+- [x] Phase SYNCHRONISATION-3, Task SYNCHRONISATION-3.5: [ ] Convergence logic after long disconnects and partial failures (@sync-engineer)
 
 ## Current Task
 - None currently running
 
 ## Remaining
-- [ ] Phase LOCAL-EDGE-1: Phase 1: Local Edge
-- [ ] Phase OFFLINE-PWA-2: Phase 2: Offline PWA
 - [ ] Phase SYNCHRONISATION-3: Phase 3: Synchronisation
 - [ ] Phase CLOUD-RELAY-4: Phase 4: Cloud Relay
 - [ ] Phase ARTIFACTS-1: Phase 1: artifacts

@@ -65,6 +65,7 @@ public static class ErrorCodes
     public const string SizeExceeded = "SIZE_EXCEEDED";
     public const string QuotaExceeded = "QUOTA_EXCEEDED";
     public const string MaxAttemptsExceeded = "MAX_ATTEMPTS_EXCEEDED";
+    public const string DeliveryRejected = "DELIVERY_REJECTED";
     public const string MessageExpired = "MESSAGE_EXPIRED";
     public const string IdempotencyConflict = "IDEMPOTENCY_CONFLICT";
     public const string SequenceGap = "SEQUENCE_GAP";

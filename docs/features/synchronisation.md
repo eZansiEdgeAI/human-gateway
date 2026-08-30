@@ -58,10 +58,10 @@ No direct UI. Surfaces through the PWA delivery-status indicators (SYNC feature)
 
 ### Phase 3: Synchronisation
 - [x] Define the sync batch schema and cursor model in `schemas/syncbatch.schema.json` (with protocol feature)
-- [ ] Implement the Edge-side sync worker: push/pull cursors, idempotency keys, retry/backoff
-- [ ] Implement delivery-state transitions and acknowledgements
-- [ ] Deterministic ordering/reordering by sequence number
-- [ ] Convergence logic after long disconnects and partial failures
+- [x] Implement the Edge-side sync worker: push/pull cursors, idempotency keys, retry/backoff
+- [x] Implement delivery-state transitions and acknowledgements
+- [x] Deterministic ordering/reordering by sequence number
+- [x] Convergence logic after long disconnects and partial failures
 - [ ] Property/chaos tests: duplication, out-of-order, multi-day disconnection
 
 ---

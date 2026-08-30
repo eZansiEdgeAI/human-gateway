@@ -1,0 +1,18 @@
+{
+  "type": "work.offline-pwa-2.2",
+  "category": "work",
+  "taskId": "OFFLINE-PWA-2.2",
+  "producedBy": "pwa-engineer",
+  "status": "complete",
+  "summary": "The scaffold exists. Let me run the validation gates to verify it's complete and working.",
+  "inputs": [
+    "work-offline-pwa-2-1-001"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "The scaffold exists. Let me run the validation gates to verify it's complete and working.\nThe scaffold is complete and all three gates pass. Now I'll complete the actual OFFLINE-PWA-2.2 deliverable (\"Service Worker app-shell caching and offline detection; versioned caches\") by hardening the offline-detection into a testable module, adding test coverage for the currently-untested offline paths, and making cache versioning explicit. Let me write the files.\nNow the test files and the config/AppShel"
+  },
+  "nextActions": [],
+  "artifactId": "work-offline-pwa-2-2-001",
+  "createdAt": "2026-08-30T10:50:17.533Z"
+}

@@ -1,0 +1,11 @@
+{
+  "harness": "opencode",
+  "granularity": "",
+  "concurrency": "",
+  "taskTimeoutMs": "900000",
+  "maxRetries": "",
+  "viz": false,
+  "vizPort": "",
+  "keepAlive": false,
+  "attach": ""
+}

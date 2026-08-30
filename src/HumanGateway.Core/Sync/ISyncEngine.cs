@@ -1,3 +1,4 @@
+using HumanGateway.Core.Convergence;
 using HumanGateway.Core.Cursor;
 using HumanGateway.Protocol.Models;
 
@@ -90,9 +91,24 @@ public sealed record ApplyBatchResult
     /// <summary>Delivery acknowledgements for the applied message items (SYNC-FR-05).</summary>
     public IReadOnlyList<DeliveryAck> DeliveryAcks { get; init; } = Array.Empty<DeliveryAck>();
 
+    /// <summary>
+    /// Inbound delivery acknowledgements carried by this batch (acknowledgements returned <em>to</em> this
+    /// gateway by the recipient). The caller applies them to its own delivery records via
+    /// <see cref="Delivery.DeliveryTransitioner.ApplyAck"/> (SYNC-FR-05).
+    /// </summary>
+    public IReadOnlyList<DeliveryAck> ReceivedAcks { get; init; } = Array.Empty<DeliveryAck>();
+
     /// <summary>The receiver's new cursor position after applying this batch.</summary>
     public CursorPosition Position { get; init; }
 
     /// <summary>The receiver's new opaque cursor token (null at the start position).</summary>
     public string? Cursor { get; init; }
+
+    /// <summary>
+    /// The receiver's convergence status after applying this batch (SYNC-FR-04/06, product vision §11): the
+    /// contiguous cursor, applied high-watermark, and any missing sequences below it. Null when the batch was
+    /// rejected (shape-invalid). A caller surfaces this to report whether the stream has converged, or that a
+    /// gap (partial failure) still awaits a fill.
+    /// </summary>
+    public ConvergenceState? Convergence { get; init; }
 }

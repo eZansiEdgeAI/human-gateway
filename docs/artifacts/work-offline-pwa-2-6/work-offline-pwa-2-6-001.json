@@ -1,0 +1,18 @@
+{
+  "type": "work.offline-pwa-2.6",
+  "category": "work",
+  "taskId": "OFFLINE-PWA-2.6",
+  "producedBy": "pwa-engineer",
+  "status": "complete",
+  "summary": "Now update the repository tests to cover `loadTasks`:",
+  "inputs": [
+    "work-offline-pwa-2-5-001"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "Now update the repository tests to cover `loadTasks`:\nNow update AppStore.tsx:\nNow create the TaskList component:\nAll 154 tests pass. Now run lint and build:\nTask **OFFLINE-PWA-2.5 — Task answering UI (input and approval), artifact attachment UI** is complete.\n\nThe plumbing (`answerTask` API client, outbox operation, dispatcher, `db/tasks` repository) already existed; the gap was the UI layer. I built the full task-answering view plus the store wiring and navigation, and verified everything gree"
+  },
+  "nextActions": [],
+  "artifactId": "work-offline-pwa-2-6-001",
+  "createdAt": "2026-08-30T12:33:19.371Z"
+}

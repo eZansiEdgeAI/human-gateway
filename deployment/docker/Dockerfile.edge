@@ -1,0 +1,67 @@
+# syntax=docker/dockerfile:1
+
+# ---------------------------------------------------------------------------
+# HumanGateway Edge Gateway container image (LOCAL-EDGE-1.7, EDGE-FR-01,
+# product vision §6.2 "docker/"). Multi-arch: builds natively for the local
+# architecture, so it produces an arm64 image on a Raspberry Pi (64-bit Pi OS)
+# and an amd64 image on an old PC / x86_64 Linux. Docker and Podman both read
+# this file; the `run-edge.sh` script drives either.
+#
+#   podman build -f deployment/docker/Dockerfile.edge -t humangateway-edge .
+#
+# The Edge serves the local REST API over HTTP on the LAN (no Internet needed);
+# data durability (SQLite WAL + filesystem artifact store) lives on the /data
+# volume the run script bind-mounts. It runs as the unprivileged `app` user
+# (uid 1654) from the ASP.NET base image.
+# ---------------------------------------------------------------------------
+
+# ---- build stage: restore + publish the Edge project ----
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+ARG TARGETARCH
+WORKDIR /src
+
+# Project files first so a dependency-only change reuses the restore layer.
+COPY src/HumanGateway.Edge/HumanGateway.Edge.csproj src/HumanGateway.Edge/
+COPY src/HumanGateway.Core/HumanGateway.Core.csproj src/HumanGateway.Core/
+COPY src/HumanGateway.Protocol/HumanGateway.Protocol.csproj src/HumanGateway.Protocol/
+# The Protocol project embeds the versioned JSON Schemas (../../schemas).
+COPY schemas/ schemas/
+
+RUN dotnet restore src/HumanGateway.Edge/HumanGateway.Edge.csproj --arch $TARGETARCH
+
+# Remaining sources, then a framework-dependent publish for the target arch.
+COPY src/ src/
+RUN dotnet publish src/HumanGateway.Edge/HumanGateway.Edge.csproj \
+        --configuration Release \
+        --arch $TARGETARCH \
+        --self-contained false \
+        --output /app/publish \
+        -p:DebugType=None \
+        -p:DebugSymbols=false \
+        -p:UseAppHost=false
+
+# ---- runtime stage ----
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+WORKDIR /app
+
+COPY --from=build /app/publish .
+
+# Create the /data mount point owned by the unprivileged runtime user so a fresh
+# named volume is writable out of the box (a bind mount inherits the host dir's
+# ownership; run-edge.sh handles that). /data holds the SQLite DB (WAL) and the
+# content-addressed artifact store.
+RUN mkdir -p /data/artifacts && chown -R app:app /data
+
+# Unprivileged runtime user from the ASP.NET base image (uid 1654).
+USER app
+
+# Durable state lives on the /data volume (SQLite DB + content-addressed
+# artifacts). Both paths can be overridden at run time.
+ENV ASPNETCORE_URLS=http://0.0.0.0:8080 \
+    ConnectionStrings__Edge="Data Source=/data/edge.db" \
+    Artifacts__RootPath="/data/artifacts"
+
+VOLUME ["/data"]
+EXPOSE 8080
+
+ENTRYPOINT ["dotnet", "HumanGateway.Edge.dll"]

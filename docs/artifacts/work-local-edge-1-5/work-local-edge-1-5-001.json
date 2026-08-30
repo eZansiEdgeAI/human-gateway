@@ -1,0 +1,29 @@
+{
+  "type": "work.local-edge-1.5",
+  "category": "work",
+  "taskId": "LOCAL-EDGE-1.5",
+  "producedBy": "edge-engineer",
+  "status": "complete",
+  "summary": "Implemented the Edge local filesystem artifact store with content-hash naming and deduplication (LOCAL-EDGE-1.5, EDGE-FR-02, ARTF-FR-01). Added the IArtifactStore port in HumanGateway.Core (Core pattern: port in Core, impl in Edge/Relay) with ArtifactHash validation matching the protocol's canonical ^sha256:[0-9a-f]{64}$ and an ArtifactHashMismatchException carrying declared+actual hashes. FilesystemArtifactStore stores bytes content-addressed, sharded <root>/<aa>/<bb>/<64-hex>, with dedup via fast-exists + atomic same-volume rename, incremental SHA-256 while streaming, and flush-to-disk before publish so a killed process never leaves a partial artifact at a content-addressed path; concurrent identical writes collapse to one file. Wired into DI in Program.cs via ArtifactStoreOptions (Artifacts:RootPath, default <ContentRoot>/data/artifacts). Added 9 unit tests (naming, round-trip, hex-case normalisation, non-canonical prefix rejection, dedup, 32-way concurrent-save collapse, hash-mismatch leaves no artifact, delete no-op, no leftover temp files).",
+  "inputs": [
+    "work-local-edge-1-4-002"
+  ],
+  "filesChanged": [
+    "src/HumanGateway.Core/Artifacts/IArtifactStore.cs",
+    "src/HumanGateway.Core/Artifacts/ArtifactHash.cs",
+    "src/HumanGateway.Core/Artifacts/ArtifactHashMismatchException.cs",
+    "src/HumanGateway.Edge/Artifacts/FilesystemArtifactStore.cs",
+    "src/HumanGateway.Edge/Artifacts/ArtifactStoreOptions.cs",
+    "src/HumanGateway.Edge/Program.cs",
+    "tests/HumanGateway.Edge.Tests/FilesystemArtifactStoreTests.cs",
+    "tests/HumanGateway.Edge.Tests/LocalApiEndpointTests.cs"
+  ],
+  "payload": {
+    "agentOutputExcerpt": "LOCAL-EDGE-1.5 complete and verified. Built the local filesystem artifact store: IArtifactStore port in HumanGateway.Core/Artifacts (SaveAsync/OpenReadAsync/ExistsAsync/DeleteAsync, SaveAsync returns true=new/false=dedup), FilesystemArtifactStore in HumanGateway.Edge/Artifacts with content-hash-named sharded files, atomic temp+rename publish, and inline hash verification. Registered as a singleton in Program.cs bound to Artifacts:RootPath. Validation: dotnet build HumanGateway.slnx -> 0 errors/0 warnings; dotnet test -> Core 58/58 passed, Edge 43/43 passed including the 9 new FilesystemArtifactStoreTests."
+  },
+  "nextActions": [
+    "LOCAL-EDGE-1.6: Background sync worker skeleton (outbound sync hooks; full protocol in synchronisation feature) (edge-engineer)"
+  ],
+  "artifactId": "work-local-edge-1-5-001",
+  "createdAt": "2026-08-30T12:05:00.000Z"
+}

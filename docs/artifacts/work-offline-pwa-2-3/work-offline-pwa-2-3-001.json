@@ -1,0 +1,18 @@
+{
+  "type": "work.offline-pwa-2.3",
+  "category": "work",
+  "taskId": "OFFLINE-PWA-2.3",
+  "producedBy": "pwa-engineer",
+  "status": "complete",
+  "summary": "I completed the IndexedDB store task for the offline PWA. All validation gates pass.",
+  "inputs": [
+    "work-offline-pwa-2-2-001"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "I completed the IndexedDB store task for the offline PWA. All validation gates pass.\n\n## What I built\n\nThe IndexedDB store layer for `src/HumanGateway.Client`, covering the four required stores plus the shared types they operate on:\n\n**Files created:**\n- `src/types/protocol.ts` — TypeScript mirror of the JSON schemas (`Message`, `Participant`, `Delivery`, `HumanTask`, `Artifact`, `ProtocolError`, etc.) plus the Edge local-API view/request shapes (`ConversationView`, `MessageView`, `SendMessageRe"
+  },
+  "nextActions": [],
+  "artifactId": "work-offline-pwa-2-3-001",
+  "createdAt": "2026-08-30T11:06:46.511Z"
+}

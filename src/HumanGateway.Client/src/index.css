@@ -1,0 +1,963 @@
+/* =============================================================================
+   HumanGateway PWA — global stylesheet
+   =============================================================================
+   One coherent stylesheet for the Inbox/Outbox, Compose, Message thread, and
+   delivery-status views (offline-pwa §4). The dark palette is tuned for the
+   4.5:1 contrast required by WCAG 2.1 AA (ACC-03); delivery status is always
+   icon + text, never colour alone. Touch targets are ≥ 44×44 px (ACC-04).
+   ========================================================================== */
+
+:root {
+  --color-bg: #0b1220;
+  --color-surface: #111a2e;
+  --color-surface-raised: #18243c;
+  --color-border: #2b3a57;
+  --color-text: #eef2f8;
+  --color-text-muted: #a7b3c7;
+  --color-accent: #1d4ed8;
+  --color-accent-strong: #2563eb;
+  --color-warning-bg: #3a2c10;
+  --color-warning-text: #fde68a;
+  --color-error-bg: #3a1f1f;
+  --color-error-text: #fca5a5;
+  --color-focus: #7dd3fc;
+  /* Delivery-status tones (light variants for ≥ 4.5:1 contrast on dark
+     surfaces; always paired with an icon + text, never colour alone ACC-03). */
+  --color-status-muted: #a7b3c7;
+  --color-status-active: #93c5fd;
+  --color-status-success: #6ee7b7;
+  --color-status-danger: #fca5a5;
+
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+  color-scheme: dark;
+  line-height: 1.5;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* ---------------------------------------------------------------------------
+   App shell (PWA-FR-01)
+   --------------------------------------------------------------------------- */
+
+.app-shell {
+  min-height: 100vh; /* fallback for older desktop browsers */
+  min-height: 100dvh; /* dynamic viewport: correct around the mobile URL bar */
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.app-header__brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.5rem;
+  background-color: var(--color-accent);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.app-header__title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.app-main {
+  flex: 1;
+  width: 100%;
+  /* Cap the content column and center it so wide (old-desktop) windows stay a
+     comfortable reading measure instead of stretching edge-to-edge (PWA-FR-07). */
+  max-width: 48rem;
+  margin-inline: auto;
+  padding: 1rem;
+}
+
+.app-footer {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.app-footer p {
+  margin: 0;
+}
+
+.app-footer__version {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
+.placeholder {
+  padding: 1rem;
+  background-color: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  border-radius: 0.5rem;
+  color: var(--color-text-muted);
+}
+
+.app-status {
+  color: var(--color-text-muted);
+  padding: 0.5rem 0;
+}
+
+.app-error {
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.5rem;
+  background-color: var(--color-error-bg);
+  color: var(--color-error-text);
+}
+
+/* ---------------------------------------------------------------------------
+   Accessibility primitives (ACC-01, ACC-03)
+   --------------------------------------------------------------------------- */
+
+/* Visible focus everywhere — WCAG 2.1 AA (ACC-01). */
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--color-accent-strong);
+  color: #ffffff;
+  padding: 0.75rem 1rem;
+  z-index: 100;
+}
+
+.skip-link:focus {
+  left: 0;
+  top: 0;
+}
+
+/* Visually hidden but still available to assistive technology. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Touch targets are ≥ 44×44px on coarse pointers (ACC-04). */
+@media (pointer: coarse) {
+  a,
+  button,
+  [role='button'] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Sync banner (offline-pwa §4)
+   --------------------------------------------------------------------------- */
+
+/* Status conveyed by icon (dot) + text, never colour alone (ACC-03).
+   Contrast between warning text and its background is ≥ 4.5:1. */
+.sync-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning-text);
+  font-size: 0.9375rem;
+}
+
+.sync-banner__dot {
+  flex: 0 0 auto;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+/* ---------------------------------------------------------------------------
+   Buttons
+   --------------------------------------------------------------------------- */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  font: inherit;
+  font-size: 0.9375rem;
+  cursor: pointer;
+}
+
+.button--primary {
+  background-color: var(--color-accent-strong);
+  border-color: var(--color-accent-strong);
+  color: #ffffff;
+}
+
+.button--primary:hover {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.button--secondary {
+  background-color: transparent;
+  color: var(--color-text);
+}
+
+.button--secondary:hover {
+  background-color: var(--color-surface-raised);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------------------------
+   Inbox/Outbox — conversation list (offline-pwa §4)
+   --------------------------------------------------------------------------- */
+
+.conversation-list__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.conversation-list__heading {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.conversation-list__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.conversation-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.conversation-item:hover {
+  background-color: var(--color-surface-raised);
+}
+
+.conversation-item__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.conversation-item__title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.conversation-item__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.conversation-item__count {
+  white-space: nowrap;
+}
+
+.conversation-item__time {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.conversation-item__status {
+  align-self: flex-start;
+}
+
+.conversation-item__unread {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 0.625rem;
+  height: 0.625rem;
+}
+
+.conversation-item__unread-dot {
+  display: block;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  background-color: var(--color-accent-strong);
+}
+
+/* ---------------------------------------------------------------------------
+   Delivery status badge (PWA-FR-05, ACC-03)
+   --------------------------------------------------------------------------- */
+
+.delivery-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.delivery-status__icon {
+  flex: 0 0 auto;
+}
+
+.delivery-status--muted {
+  color: var(--color-status-muted);
+}
+
+.delivery-status--active {
+  color: var(--color-status-active);
+}
+
+.delivery-status--success {
+  color: var(--color-status-success);
+}
+
+.delivery-status--danger {
+  color: var(--color-status-danger);
+}
+
+/* ---------------------------------------------------------------------------
+   Message thread (offline-pwa §4, PWA-FR-05)
+   --------------------------------------------------------------------------- */
+
+.message-thread__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.message-thread__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.message {
+  display: flex;
+}
+
+.message--mine {
+  justify-content: flex-end;
+}
+
+.message--theirs {
+  justify-content: flex-start;
+}
+
+.message__bubble {
+  max-width: 85%;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.75rem;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.message__sender {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.message__body {
+  margin: 0.25rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.message__artifacts {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.message__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Compose view (offline-pwa §4, PWA-FR-04)
+   --------------------------------------------------------------------------- */
+
+.compose__header {
+  margin-bottom: 0.75rem;
+}
+
+.compose__heading {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.compose__field {
+  margin-bottom: 1rem;
+}
+
+.compose__label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.compose__optional {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.compose__from {
+  display: block;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.compose input[type='text'],
+.compose textarea {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 1rem; /* 16px prevents iOS auto-zoom on focus */
+}
+
+.compose input[type='text']:focus-visible,
+.compose textarea:focus-visible {
+  border-color: var(--color-focus);
+}
+
+.compose__hint {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin-top: 0.25rem;
+}
+
+.compose__error {
+  color: var(--color-error-text);
+  font-size: 0.9375rem;
+}
+
+.compose__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Artifact picker (PWA-FR-04)
+   --------------------------------------------------------------------------- */
+
+.artifact-picker__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Hide the raw file inputs; the buttons drive them programmatically. */
+.artifact-picker__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.artifact-picker__list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.artifact-picker__item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+}
+
+.artifact-picker__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artifact-picker__size {
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.artifact-picker__remove {
+  min-height: 44px;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--color-border);
+  background-color: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.artifact-picker__remove:hover {
+  background-color: var(--color-surface-raised);
+}
+
+/* ---------------------------------------------------------------------------
+   Shared empty state
+   --------------------------------------------------------------------------- */
+
+.empty-state {
+  padding: 1.5rem 1rem;
+  background-color: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  border-radius: 0.5rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* ---------------------------------------------------------------------------
+   Primary navigation (Inbox / Tasks)
+   --------------------------------------------------------------------------- */
+
+.app-nav {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.app-nav__tab {
+  flex: 1;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  background-color: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.9375rem;
+  cursor: pointer;
+}
+
+.app-nav__tab:hover {
+  color: var(--color-text);
+}
+
+.app-nav__tab[aria-current='page'] {
+  color: var(--color-text);
+  border-bottom-color: var(--color-accent-strong);
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------------------
+   Task list (PWA-FR-06)
+   --------------------------------------------------------------------------- */
+
+.task-list__header {
+  margin-bottom: 0.75rem;
+}
+
+.task-list__heading {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.task-list__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.task-item:hover {
+  background-color: var(--color-surface-raised);
+}
+
+.task-item__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.task-item__top {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.task-item__subject {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.task-item__prompt {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.task-item__expiry {
+  font-size: 0.8125rem;
+  color: var(--color-warning-text);
+}
+
+/* ---------------------------------------------------------------------------
+   Task view + answering form (PWA-FR-06)
+   --------------------------------------------------------------------------- */
+
+.task-view__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.task-view__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.task-view__subject {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.task-view__prompt {
+  margin: 0.5rem 0 0;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.task-view__expiry {
+  margin: 0.5rem 0 0;
+  color: var(--color-warning-text);
+  font-size: 0.875rem;
+}
+
+.task-answer {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+}
+
+.task-answer__field {
+  margin: 0 0 1rem;
+  padding: 0;
+  border: none;
+}
+
+.task-answer__field:last-of-type {
+  margin-bottom: 0;
+}
+
+.task-answer__legend {
+  padding: 0;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.task-answer__label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.task-answer__optional {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.task-answer__options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.task-answer__option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.task-answer__option:hover {
+  background-color: var(--color-surface-raised);
+}
+
+.task-answer__option input[type='radio'] {
+  width: 1.125rem;
+  height: 1.125rem;
+  accent-color: var(--color-accent-strong);
+}
+
+.task-answer textarea {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 1rem; /* 16px prevents iOS auto-zoom on focus */
+}
+
+.task-answer textarea:focus-visible {
+  border-color: var(--color-focus);
+}
+
+.task-answer__error {
+  color: var(--color-error-text);
+  font-size: 0.9375rem;
+}
+
+.task-answer__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+/* Read-only summary for answered/expired tasks. */
+.task-summary {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+}
+
+.task-summary__status {
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.task-summary__decision {
+  margin: 0 0 0.25rem;
+  font-weight: 600;
+}
+
+.task-summary__text {
+  margin: 0 0 0.25rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.task-summary__reason {
+  margin: 0 0 0.25rem;
+}
+
+.task-summary__reason-label {
+  font-weight: 600;
+}
+
+.task-summary__artifacts {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.task-summary__empty {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Responsive layout (PWA-FR-07)
+   ---------------------------------------------------------------------------
+   The base rules above are mobile-first; these overrides adapt to viewport
+   width and input modality so the UI stays usable on inexpensive Android
+   devices (320–480px logical width, coarse pointers, notched screens) and old
+   desktops (wide windows — content is capped and centered by `.app-main`).
+   --------------------------------------------------------------------------- */
+
+/* Notched screens: honour safe-area insets (index.html sets
+   `viewport-fit=cover`). `max()` keeps the base padding as a floor; browsers
+   that don't understand `env()` drop the whole declaration and the base
+   padding stands unchanged. */
+.app-header {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+.app-footer {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.sync-banner {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+/* Small phones (up to ≈ 544px): tighten spacing, widen bubbles for legibility,
+   let header rows wrap instead of overflow, and stack form actions full-width
+   so every touch target stays ≥ 44×44px (ACC-04). */
+@media (max-width: 34rem) {
+  .app-main {
+    padding: 0.75rem;
+  }
+
+  .app-header {
+    gap: 0.5rem;
+  }
+
+  .app-header__title {
+    font-size: 1rem;
+  }
+
+  .conversation-list__header,
+  .message-thread__header,
+  .task-view__header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .message__bubble {
+    max-width: 92%;
+  }
+
+  /* Stack action buttons full-width. `flex-direction: column` (not
+     `column-reverse`) keeps visual order aligned with DOM order for keyboard
+     and screen-reader focus (ACC-01). */
+  .compose__actions,
+  .task-answer__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

@@ -134,6 +134,33 @@ public class SyncEngineTests
     }
 
     [Fact]
+    public async Task ApplyBatch_surfaces_inbound_delivery_acks()
+    {
+        var (engine, _, _, _) = NewEngine();
+        var ack = new DeliveryAck
+        {
+            MessageId = "msg-0001",
+            Recipient = Receiver,
+            State = DeliveryAckState.Delivered,
+            AcknowledgedAt = "2026-08-29T00:00:00.000Z",
+        };
+        var batch = MakeBatch("batch-0001", new[]
+        {
+            new SyncItem { Kind = SyncItemKind.Ack, Sequence = 1, Ack = ack },
+        });
+
+        var result = await engine.ApplyBatchAsync(batch, new ApplyBatchRequest { Receiver = Receiver, Now = Now });
+
+        // The acknowledgement returned to *this* gateway is surfaced for delivery-record wiring (SYNC-FR-05).
+        var received = Assert.Single(result.ReceivedAcks);
+        Assert.Equal("msg-0001", received.MessageId);
+        Assert.Equal(DeliveryAckState.Delivered, received.State);
+
+        // It is also durably recorded in the inbox (a non-message item is not subject to message dedup).
+        Assert.Equal(1, result.Position.Sequence);
+    }
+
+    [Fact]
     public async Task ApplyBatch_replayed_batch_is_idempotent()
     {
         var (engine, _, inbox, _) = NewEngine();

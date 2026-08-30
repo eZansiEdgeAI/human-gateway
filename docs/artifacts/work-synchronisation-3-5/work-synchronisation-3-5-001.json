@@ -1,0 +1,28 @@
+{
+  "type": "work.synchronisation-3.5",
+  "category": "work",
+  "taskId": "SYNCHRONISATION-3.5",
+  "producedBy": "sync-engineer",
+  "status": "complete",
+  "summary": "Task **SYNCHRONISATION-3.5: Convergence logic after long disconnects and partial failures** (SYNC-FR-04, SYNC-FR-06) is complete.",
+  "inputs": [
+    "work-synchronisation-3-4-001"
+  ],
+  "filesChanged": [
+    "src/HumanGateway.Core/Convergence/ConvergenceAnalyzer.cs",
+    "src/HumanGateway.Core/Convergence/ConvergenceAckPolicy.cs",
+    "src/HumanGateway.Core/Sync/ISyncEngine.cs",
+    "src/HumanGateway.Core/Sync/SyncEngine.cs",
+    "tests/HumanGateway.Core.Tests/ConvergenceTests.cs",
+    "docs/features/synchronisation.md"
+  ],
+  "payload": {
+    "agentOutputExcerpt": "Task **SYNCHRONISATION-3.5: Convergence logic after long disconnects and partial failures** (SYNC-FR-04, SYNC-FR-06) is complete.\n\n## What I did\n\nAdded a pure, deterministic convergence layer to `HumanGateway.Core` that makes long-disconnect and partial-failure convergence explicit and property-testable, then surfaced it on the engine's apply result.\n\n- `ConvergenceAnalyzer` + `ConvergenceState` + `SequenceGap` — gap detection: given a gateway's applied sequence set, reports the contiguous cursor (reusing `CursorMath`), the applied high-watermark, and the missing sequences below it as closed ranges. `IsConverged` is the observable behind product vision §11's 'converge within one sync cycle'. Order-independent, duplicate-idempotent, and range-based (a sparse stream yields one gap range, never an enumerated list).\n- `ConvergenceAckPolicy` + `AckPartition` — the sender-side safe-acknowledgement rule: an outbox entry may be marked sent only once the receiver's contiguous cursor covers it. Retaining everything past the cursor guarantees a gap is always fillable from the sender side (no stranding a sequence past a hole).\n- `SyncEngine` + `ISyncEngine` — `ApplyBatchResult` now surfaces `Convergence` (nullable `ConvergenceState`) so the worker/observer can report convergence or a pending gap after each pull; computed from a single inbox read alongside the cursor.\n\n### Verification\n\n- `dotnet build src/HumanGateway.Core` — 0 warnings, 0 errors.\n- `dotnet test` — 100 Core + 58 Edge tests pass (16 new convergence tests: gap detection, permutation invariance, multi-day outage recovery, safe-ack partitioning, engine gap recovery)."
+  },
+  "nextActions": [
+    "Hand ConvergenceAckPolicy to edge-engineer so SyncWorker marks outbox entries sent only up to the receiver's contiguous cursor (SYNC-FR-06).",
+    "SYNCHRONISATION-3.6: property/chaos tests (duplication, out-of-order, multi-day disconnection) with qa-engineer."
+  ],
+  "artifactId": "work-synchronisation-3-5-001",
+  "createdAt": "2026-08-30T13:17:14.287Z"
+}
