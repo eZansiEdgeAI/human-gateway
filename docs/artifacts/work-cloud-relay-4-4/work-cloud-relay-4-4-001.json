@@ -1,0 +1,18 @@
+{
+  "type": "work.cloud-relay-4.4",
+  "category": "work",
+  "taskId": "CLOUD-RELAY-4.4",
+  "producedBy": "relay-engineer",
+  "status": "complete",
+  "summary": "The Relay project builds cleanly. The previous attempt left a substantial uncommitted implementation. Let me assess completeness against the docs and review the new files.",
+  "inputs": [
+    "work-cloud-relay-4-3-001"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "The Relay project builds cleanly. The previous attempt left a substantial uncommitted implementation. Let me assess completeness against the docs and review the new files.\npodman is available with a Docker-compatible socket. Let me run the tests through it.\n51/52 pass — one real failure in the delivery-ack path. Let me examine the transitioner to understand why the ack is rejected.\nThe ack transition QUEUED → DELIVERED is illegal per the state machine (QUEUED only allows SYNCING/WAITING_FOR_SYNC"
+  },
+  "nextActions": [],
+  "artifactId": "work-cloud-relay-4-4-001",
+  "createdAt": "2026-08-31T21:13:42.581Z"
+}
