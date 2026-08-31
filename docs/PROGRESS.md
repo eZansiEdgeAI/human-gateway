@@ -3,7 +3,7 @@
 ## Current State
 **Phase**: IDENTITY-SECURITY-5
 **Status**: In Progress
-**Last Updated**: 2026-08-31T23:20:34.655Z
+**Last Updated**: 2026-08-31T23:43:01.921Z
 **Run ID**: cc1dad89-27a5-4765-8655-91bea28ec9c3
 **Harness**: opencode
 
@@ -49,6 +49,7 @@
 - [x] Phase ARTIFACTS-1, Task ARTIFACTS-1.1: | ID | Requirement | Priority | (@artifact-engineer)
 - [x] Phase IDENTITY-SECURITY-5, Task IDENTITY-SECURITY-5.1: [ ] Gateway identity (@security-engineer)
 - [x] Phase IDENTITY-SECURITY-5, Task IDENTITY-SECURITY-5.2: [ ] User identity + authentication at the Edge (local) and Relay (remote) with signed tokens/sessions (@security-engineer)
+- [x] Phase IDENTITY-SECURITY-5, Task IDENTITY-SECURITY-5.3: [ ] Authorisation middleware (@security-engineer)
 
 ## Current Task
 - None currently running

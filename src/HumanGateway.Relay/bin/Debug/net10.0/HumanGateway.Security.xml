@@ -57,6 +57,96 @@
         <member name="T:HumanGateway.Security.BootstrapUserOptions">
             <summary>Credentials for the first user account, supplied via env/secret store (SP-07).</summary>
         </member>
+        <member name="T:HumanGateway.Security.AuthorizationMiddleware">
+            <summary>
+            Authorisation middleware (AUTH-FR-03, SP-04): the per-conversation/task/artifact access-control gate that
+            runs after <see cref="T:HumanGateway.Security.SessionAuthenticationMiddleware"/> in the request pipeline. It recognises the
+            protected local-API route families (conversations, messages, tasks, artifacts, and the gateway sync-status
+            snapshot) and enforces two things:
+            <list type="number">
+            <item><b>Session required</b> — every protected route must carry a valid bearer session, else 401
+            <c>UNAUTHORIZED</c> (a broken client cannot silently fall back to anonymous).</item>
+            <item><b>Resource access</b> — routes naming a single resource
+            (<c>/conversations/{id}</c>, <c>/messages/{id}</c>, <c>/tasks/{id}[/response]</c>, and the artifact
+            <em>download</em> <c>/artifacts/{id}/content</c>) are delegated to the store-backed
+            <see cref="T:HumanGateway.Security.IResourceAuthorizer"/>, which enforces membership / assignment. Denials are 403 with the
+            resource-specific reserved code (<c>CONVERSATION_ACCESS_DENIED</c>, <c>TASK_ACCESS_DENIED</c>,
+            <c>ARTIFACT_ACCESS_DENIED</c>) — never a 404, so a non-existent resource is indistinguishable from an
+            inaccessible one (SP-07). Artifact metadata, uploads, and content status are session-only: the creator's
+            register → upload → attach flow must work before a message references the artifact.</item>
+            </list>
+            List and write routes without a resource id in the path (<c>/conversations</c>, <c>/messages</c>,
+            <c>/tasks</c>, <c>/artifacts</c>) are session-gated here; the service layer filters lists to the user's
+            accessible set and validates the acting participant on writes (no cross-participant access, SP-04).
+            Routes outside the protected table (auth, health probes) pass through untouched.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Security.AuthorizationMiddleware.#ctor(Microsoft.AspNetCore.Http.RequestDelegate)">
+            <summary>Creates the middleware over the next delegate.</summary>
+        </member>
+        <member name="M:HumanGateway.Security.AuthorizationMiddleware.InvokeAsync(Microsoft.AspNetCore.Http.HttpContext)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Security.AuthorizationMiddleware.RouteMatch">
+            <summary>Recognised protected route descriptor. A null <see cref="P:HumanGateway.Security.AuthorizationMiddleware.RouteMatch.Resource"/>/<see cref="P:HumanGateway.Security.AuthorizationMiddleware.RouteMatch.ResourceId"/>
+            means the route is session-only (the service layer filters or validates the actor).</summary>
+        </member>
+        <member name="M:HumanGateway.Security.AuthorizationMiddleware.RouteMatch.#ctor(System.Nullable{HumanGateway.Security.AuthorizedResource},System.String,System.String)">
+            <summary>Recognised protected route descriptor. A null <see cref="P:HumanGateway.Security.AuthorizationMiddleware.RouteMatch.Resource"/>/<see cref="P:HumanGateway.Security.AuthorizationMiddleware.RouteMatch.ResourceId"/>
+            means the route is session-only (the service layer filters or validates the actor).</summary>
+        </member>
+        <member name="M:HumanGateway.Security.AuthorizationMiddleware.Match(Microsoft.AspNetCore.Http.HttpRequest)">
+            <summary>
+            Maps a request to the protected-route table. Returns null for routes the middleware does not gate.
+            Segment shapes mirror the Edge local API (LocalApiEndpoints): the middleware is host-agnostic, so the
+            same table applies to the Relay once user-facing resource endpoints land (external-web-access).
+            </summary>
+        </member>
+        <member name="T:HumanGateway.Security.AuthorizationExtensions">
+            <summary>Convenience extension for wiring <see cref="T:HumanGateway.Security.AuthorizationMiddleware"/>.</summary>
+        </member>
+        <member name="M:HumanGateway.Security.AuthorizationExtensions.UseResourceAuthorization(Microsoft.AspNetCore.Builder.IApplicationBuilder)">
+            <summary>
+            Adds per-conversation/task/artifact authorisation to the pipeline (AUTH-FR-03, SP-04). Must be added
+            after <c>UseSessionAuthentication</c> (it reads the resolved <see cref="T:HumanGateway.Security.AuthenticatedUser"/>) and after
+            an <c>IResourceAuthorizer</c> is registered in DI. Named <c>UseResourceAuthorization</c> to avoid
+            colliding with ASP.NET Core's <c>UseAuthorization</c>.
+            </summary>
+        </member>
+        <member name="T:HumanGateway.Security.AuthorizedResource">
+            <summary>
+            The protected resource kinds the authorisation middleware can gate (AUTH-FR-03, SP-04):
+            conversations, messages, human tasks, and artifacts. Each maps to the protocol error code
+            reserved for its denial (ErrorCodes.ConversationAccessDenied / TaskAccessDenied /
+            ArtifactAccessDenied) — message access derives from the message's conversation membership,
+            so a message denial reuses <c>CONVERSATION_ACCESS_DENIED</c>.
+            </summary>
+        </member>
+        <member name="F:HumanGateway.Security.AuthorizedResource.Conversation">
+            <summary>A conversation and its message list (membership governs access).</summary>
+        </member>
+        <member name="F:HumanGateway.Security.AuthorizedResource.Message">
+            <summary>A single message envelope (access via its conversation).</summary>
+        </member>
+        <member name="F:HumanGateway.Security.AuthorizedResource.Task">
+            <summary>A human task (access via its conversation or assignment).</summary>
+        </member>
+        <member name="F:HumanGateway.Security.AuthorizedResource.Artifact">
+            <summary>An artifact's metadata and bytes (access via a referencing conversation).</summary>
+        </member>
+        <member name="T:HumanGateway.Security.IResourceAuthorizer">
+            <summary>
+            Store-backed authorisation check used by the authorisation middleware (AUTH-FR-03, SP-04). Given the
+            authenticated user and a protected resource (conversation / message / task / artifact), returns whether
+            the user may access it — membership in the resource's conversation, or assignment for tasks. Each host
+            (Edge SQLite, Relay PostgreSQL) implements this over its own store; the middleware stays host-agnostic.
+            A <see langword="false"/> result is a hard denial (403): the middleware never distinguishes "you are not
+            a member" from "this does not exist" so resource existence cannot be probed (SP-07).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Security.IResourceAuthorizer.CanAccessAsync(HumanGateway.Security.AuthenticatedUser,HumanGateway.Security.AuthorizedResource,System.String,System.Threading.CancellationToken)">
+            <summary>Returns true when the user may access the named resource, false otherwise.</summary>
+        </member>
         <member name="T:HumanGateway.Security.BearerTokens">
             <summary>
             Extracts the session bearer token from an incoming request (AUTH-FR-02, SP-03). Both the Edge local API

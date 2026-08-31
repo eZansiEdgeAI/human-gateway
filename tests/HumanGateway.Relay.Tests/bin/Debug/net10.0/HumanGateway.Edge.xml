@@ -134,19 +134,29 @@
             </summary>
         </member>
         <member name="T:HumanGateway.Edge.Api.LocalApiService">
-            <summary>
-            Domain logic behind the Edge local REST API (EDGE-FR-03). Every write is committed to SQLite and, where a
-            message must leave this gateway, enqueued to the durable outbox <em>in the same transaction</em> (EDGE-FR-04:
-            no durable message row without its outbox entry, and no network attempt before the durable write). Methods
-            return <c>null</c> for not-found and throw <see cref="T:HumanGateway.Edge.Api.LocalApiException"/> for domain-rule violations; the
-            exception handler wired in <c>Program.cs</c> maps both to HTTP responses.
-            </summary>
+             <summary>
+             Domain logic behind the Edge local REST API (EDGE-FR-03). Every write is committed to SQLite and, where a
+             message must leave this gateway, enqueued to the durable outbox <em>in the same transaction</em> (EDGE-FR-04:
+             no durable message row without its outbox entry, and no network attempt before the durable write). Methods
+             return <c>null</c> for not-found and throw <see cref="T:HumanGateway.Edge.Api.LocalApiException"/> for domain-rule violations; the
+             exception handler wired in <c>Program.cs</c> maps both to HTTP responses.
+            
+             Per-conversation/task/artifact authorisation (AUTH-FR-03, SP-04) is enforced here where the middleware
+             cannot reach — list endpoints are filtered to the user's accessible set, and writes validate the acting
+             participant (no cross-participant access). Single-resource reads (<c>GET /conversations/{id}</c> etc.) are
+             gated by the <see cref="T:HumanGateway.Security.AuthorizationMiddleware"/> via <see cref="T:HumanGateway.Security.IResourceAuthorizer"/>; the methods below
+             never see an unauthenticated request on a protected route (the middleware rejects it with 401 first).
+             </summary>
         </member>
         <member name="M:HumanGateway.Edge.Api.LocalApiService.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{HumanGateway.Edge.Storage.EdgeDbContext},Microsoft.Extensions.Options.IOptions{HumanGateway.Edge.Api.GatewayOptions},HumanGateway.Core.Artifacts.IArtifactStore,Microsoft.Extensions.Options.IOptions{HumanGateway.Edge.Artifacts.ArtifactStoreOptions})">
             <summary>Creates the service over the durable store factory, gateway options, and the artifact byte store.</summary>
         </member>
-        <member name="M:HumanGateway.Edge.Api.LocalApiService.ListConversationsAsync(System.Threading.CancellationToken)">
-            <summary>Lists conversations with membership and activity metadata (message count + last message).</summary>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.ListConversationsAsync(HumanGateway.Security.AuthenticatedUser,System.Threading.CancellationToken)">
+            <summary>
+            Lists conversations with membership and activity metadata (message count + last message), filtered to
+            the conversations the authenticated user is a member of (AUTH-FR-03, SP-04: no cross-participant
+            access). A user with no linked <c>human:</c> participant sees no conversations.
+            </summary>
         </member>
         <member name="M:HumanGateway.Edge.Api.LocalApiService.GetConversationAsync(System.String,System.Threading.CancellationToken)">
             <summary>Gets one conversation with membership and activity metadata, or null when absent.</summary>
@@ -157,39 +167,64 @@
         <member name="M:HumanGateway.Edge.Api.LocalApiService.ListConversationMessagesAsync(System.String,System.Threading.CancellationToken)">
             <summary>Lists a conversation's messages in chronological order, each with its delivery records.</summary>
         </member>
-        <member name="M:HumanGateway.Edge.Api.LocalApiService.SendMessageAsync(HumanGateway.Edge.Api.SendMessageRequest,System.Threading.CancellationToken)">
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.SendMessageAsync(HumanGateway.Edge.Api.SendMessageRequest,HumanGateway.Security.AuthenticatedUser,System.Threading.CancellationToken)">
             <summary>
             Composes and sends a message: validates it, computes its content hash, durably stores it plus a
             per-recipient delivery record, and enqueues it to the outbox for relay sync (PWA-FR-04, EDGE-FR-04).
+            Authorisation (AUTH-FR-03, SP-04): the sender must be the authenticated user's own participant and a
+            member of the target conversation, and every recipient must be a member too — a message cannot be
+            composed as another participant or pushed into a conversation (or to a participant) the sender cannot
+            access.
             </summary>
+            <exception cref="T:HumanGateway.Edge.Api.LocalApiException">403 FORBIDDEN when the sender is not the authenticated user;
+            403 CONVERSATION_ACCESS_DENIED when the sender or a recipient is not a member of the conversation.</exception>
         </member>
         <member name="M:HumanGateway.Edge.Api.LocalApiService.GetMessageAsync(System.String,System.Threading.CancellationToken)">
             <summary>Gets a message with its delivery records, or null when absent.</summary>
         </member>
-        <member name="M:HumanGateway.Edge.Api.LocalApiService.CreateTaskAsync(HumanGateway.Edge.Api.CreateTaskRequest,System.Threading.CancellationToken)">
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.CreateTaskAsync(HumanGateway.Edge.Api.CreateTaskRequest,HumanGateway.Security.AuthenticatedUser,System.Threading.CancellationToken)">
             <summary>
             Creates a human task (input or approval): stores the task durably and sends the request message carrying
             it to the assignees (FLOW-FR-05, PWA-FR-06). The full task content lives in the task record; the request
-            message carries the prompt plus the <c>humanTaskId</c> correlation for transport.
+            message carries the prompt plus the <c>humanTaskId</c> correlation for transport. Authorisation
+            (AUTH-FR-03, SP-04): a human requester must be the authenticated user's own participant; when the task
+            is placed in an existing conversation, the user must be a member and every assignee must be a member
+            (the task-request message must not reach a participant outside the conversation).
             </summary>
+            <exception cref="T:HumanGateway.Edge.Api.LocalApiException">403 FORBIDDEN when a human requester is not the authenticated user;
+            403 CONVERSATION_ACCESS_DENIED when the user or an assignee is not a member of the target conversation.</exception>
         </member>
-        <member name="M:HumanGateway.Edge.Api.LocalApiService.ListTasksAsync(System.String,System.Threading.CancellationToken)">
-            <summary>Lists tasks, optionally filtered to a single lifecycle state token (e.g. <c>REQUESTED</c>).</summary>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.ListTasksAsync(System.String,HumanGateway.Security.AuthenticatedUser,System.Threading.CancellationToken)">
+            <summary>
+            Lists tasks, optionally filtered to a single lifecycle state token (e.g. <c>REQUESTED</c>), restricted
+            to the tasks the authenticated user may access — they are a member of the task's conversation or one of
+            its assigned recipients (AUTH-FR-03, SP-04).
+            </summary>
         </member>
         <member name="M:HumanGateway.Edge.Api.LocalApiService.GetTaskAsync(System.String,System.Threading.CancellationToken)">
             <summary>Gets a task by ID, or null when absent.</summary>
         </member>
-        <member name="M:HumanGateway.Edge.Api.LocalApiService.AnswerTaskAsync(System.String,HumanGateway.Edge.Api.AnswerTaskRequest,System.Threading.CancellationToken)">
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.AnswerTaskAsync(System.String,HumanGateway.Edge.Api.AnswerTaskRequest,HumanGateway.Security.AuthenticatedUser,System.Threading.CancellationToken)">
             <summary>
             Records the human's answer to a task: updates the task to RESPONSE_RECEIVED and sends the response
             message back to the requester (PWA-FR-06, FLOW-FR-05). Returns the updated task, or null when absent.
+            Authorisation (AUTH-FR-03, SP-04, AUTH-US-01): the responder must be the authenticated user's own
+            participant <em>and</em> one of the task's assigned recipients — a reviewer can only answer their own
+            tasks. The authorisation check runs before any task-state check so a non-assignee cannot probe a
+            task's lifecycle.
             </summary>
+            <exception cref="T:HumanGateway.Edge.Api.LocalApiException">403 FORBIDDEN when the responder is not the authenticated user;
+            403 TASK_ACCESS_DENIED when the responder is not an assigned recipient of the task.</exception>
         </member>
         <member name="M:HumanGateway.Edge.Api.LocalApiService.RegisterArtifactAsync(HumanGateway.Edge.Api.RegisterArtifactRequest,System.Threading.CancellationToken)">
             <summary>Registers artifact metadata (bytes land via the filesystem artifact store, LOCAL-EDGE-1.5).</summary>
         </member>
-        <member name="M:HumanGateway.Edge.Api.LocalApiService.ListArtifactsAsync(System.Threading.CancellationToken)">
-            <summary>Lists artifact metadata records.</summary>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.ListArtifactsAsync(HumanGateway.Security.AuthenticatedUser,System.Threading.CancellationToken)">
+            <summary>
+            Lists artifact metadata records the authenticated user may access: artifacts referenced by a message in
+            a conversation they are a member of (AUTH-FR-05, SP-04). An artifact that is not referenced in any
+            accessible conversation is not listed — secure artifact access is per participant/conversation.
+            </summary>
         </member>
         <member name="M:HumanGateway.Edge.Api.LocalApiService.GetArtifactAsync(System.String,System.Threading.CancellationToken)">
             <summary>Gets artifact metadata by ID, or null when absent.</summary>
@@ -219,6 +254,22 @@
         </member>
         <member name="M:HumanGateway.Edge.Api.LocalApiService.GetSyncStatusAsync(System.Threading.CancellationToken)">
             <summary>Builds the sync-status snapshot for the PWA sync banner (EDGE-FR-05).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.ResolveUserParticipantAddressesAsync(HumanGateway.Edge.Storage.EdgeDbContext,System.String,System.Threading.CancellationToken)">
+            <summary>Resolves the participant addresses linked to a local user account (participant.userId, AUTH-FR-02).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.IsConversationMemberAsync(HumanGateway.Edge.Storage.EdgeDbContext,System.String,System.String,System.Threading.CancellationToken)">
+            <summary>True when the participant address is a member of the conversation.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.IsUserConversationMemberAsync(HumanGateway.Edge.Storage.EdgeDbContext,System.String,System.Collections.Generic.IReadOnlySet{System.String},System.Threading.CancellationToken)">
+            <summary>True when any of the user's participant addresses is a member of the conversation.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.EnsureActorIsUser(HumanGateway.Protocol.Models.Participant,HumanGateway.Security.AuthenticatedUser,System.Collections.Generic.IReadOnlySet{System.String},System.String)">
+            <summary>
+            Enforces no-cross-participant writes: the acting participant must be the authenticated user's own — the
+            request claims the user's id, or the address is already registered to the user in the directory. Throws
+            403 FORBIDDEN otherwise (SP-04).
+            </summary>
         </member>
         <member name="T:HumanGateway.Edge.Artifacts.ArtifactStoreOptions">
             <summary>Configuration for the Edge local filesystem artifact store (LOCAL-EDGE-1.5, ARTF-FR-03).</summary>
@@ -305,12 +356,18 @@
             <summary>Maps the local auth endpoint group onto the app.</summary>
         </member>
         <member name="T:HumanGateway.Edge.Endpoints.LocalApiEndpoints">
-            <summary>
-            Maps the Edge local REST API (EDGE-FR-03, product vision §6.3): conversations, messages, tasks, artifacts,
-            and sync status. Handlers stay thin — the domain logic lives in <see cref="T:HumanGateway.Edge.Api.LocalApiService"/>, and
-            exceptions raised there are translated to <see cref="T:HumanGateway.Protocol.Models.ProtocolError"/> responses
-            by the global exception handler wired in <c>Program.cs</c>.
-            </summary>
+             <summary>
+             Maps the Edge local REST API (EDGE-FR-03, product vision §6.3): conversations, messages, tasks, artifacts,
+             and sync status. Handlers stay thin — the domain logic lives in <see cref="T:HumanGateway.Edge.Api.LocalApiService"/>, and
+             exceptions raised there are translated to <see cref="T:HumanGateway.Protocol.Models.ProtocolError"/> responses
+             by the global exception handler wired in <c>Program.cs</c>.
+            
+             Every route here is behind the authorisation middleware (AUTH-FR-03, SP-04): the middleware rejects
+             unauthenticated requests to these routes with 401 and enforces per-conversation/task/artifact access for
+             single-resource reads. Handlers therefore call <see cref="M:HumanGateway.Security.CurrentUser.Require(Microsoft.AspNetCore.Http.HttpContext)"/> to resolve the
+             authenticated user for the service layer's list filters and write-actor checks (never null on a protected
+             route).
+             </summary>
         </member>
         <member name="M:HumanGateway.Edge.Endpoints.LocalApiEndpoints.MapLocalApiEndpoints(Microsoft.AspNetCore.Builder.WebApplication)">
             <summary>Maps every local API endpoint onto the app.</summary>
@@ -336,6 +393,35 @@
         <member name="M:HumanGateway.Edge.Security.DisabledGatewayRegistrationClient.RotateTokenAsync(System.String,System.String,System.Threading.CancellationToken)">
             <inheritdoc />
             <remarks>Never called — the identity manager guards on <see cref="P:HumanGateway.Edge.Security.DisabledGatewayRegistrationClient.IsConfigured"/> first.</remarks>
+        </member>
+        <member name="T:HumanGateway.Edge.Security.EdgeAuthorizer">
+            <summary>
+            Store-backed <see cref="T:HumanGateway.Security.IResourceAuthorizer"/> for the Edge local store (AUTH-FR-03, SP-04): resolves the
+            authenticated user's local participant addresses (<c>participants.user_id</c> → <c>human:</c> addresses) and
+            checks them against conversation membership. Access rules, applied uniformly by the authorisation
+            middleware for single-resource routes and by the service layer for lists/writes:
+            <list type="bullet">
+            <item><b>Conversation</b> — the user is a member (<c>conversation_participants</c>).</item>
+            <item><b>Message</b> — the user can access the message's conversation.</item>
+            <item><b>Task</b> — the user can access the task's conversation <i>or</i> is one of the assigned
+            recipients of the task's request message.</item>
+            <item><b>Artifact</b> — the artifact is referenced (message <c>artifactRefs</c>) in a conversation the
+            user can access; unreferenced artifacts are not accessible to anyone (AUTH-FR-05).</item>
+            </list>
+            No cross-participant access: a user with no linked <c>human:</c> participant can access nothing.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.EdgeAuthorizer.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{HumanGateway.Edge.Storage.EdgeDbContext})">
+            <summary>Creates the authorizer over the pooled SQLite context factory.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.EdgeAuthorizer.CanAccessAsync(HumanGateway.Security.AuthenticatedUser,HumanGateway.Security.AuthorizedResource,System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Security.EdgeAuthorizer.ResolveParticipantAddressesAsync(HumanGateway.Edge.Storage.EdgeDbContext,System.String,System.Threading.CancellationToken)">
+            <summary>Resolves the participant addresses linked to a local user account (participant.userId, AUTH-FR-02).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.EdgeAuthorizer.AccessibleConversationIdsAsync(HumanGateway.Edge.Storage.EdgeDbContext,System.Collections.Generic.IReadOnlySet{System.String},System.Threading.CancellationToken)">
+            <summary>Conversation ids the user is a member of (any of their participant addresses).</summary>
         </member>
         <member name="T:HumanGateway.Edge.Security.FileGatewaySecretStore">
             <summary>
