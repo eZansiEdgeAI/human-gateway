@@ -245,6 +245,7 @@
         "dependencies": {
           "HumanGateway.Core": "1.0.0",
           "HumanGateway.Protocol": "1.0.0",
+          "HumanGateway.Security": "1.0.0",
           "Microsoft.EntityFrameworkCore.Sqlite": "10.0.11"
         },
         "runtime": {
@@ -257,6 +258,17 @@
       "HumanGateway.Protocol/1.0.0": {
         "runtime": {
           "HumanGateway.Protocol.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "HumanGateway.Security/1.0.0": {
+        "dependencies": {
+          "HumanGateway.Protocol": "1.0.0"
+        },
+        "runtime": {
+          "HumanGateway.Security.dll": {
             "assemblyVersion": "1.0.0.0",
             "fileVersion": "1.0.0.0"
           }
@@ -358,6 +370,11 @@
       "sha512": ""
     },
     "HumanGateway.Protocol/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "HumanGateway.Security/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

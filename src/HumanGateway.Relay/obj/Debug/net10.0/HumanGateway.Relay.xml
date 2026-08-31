@@ -258,6 +258,18 @@
         <member name="M:HumanGateway.Relay.Endpoints.RelayEndpoints.MapRelayEndpoints(Microsoft.AspNetCore.Builder.WebApplication)">
             <summary>Maps every Relay endpoint onto the app.</summary>
         </member>
+        <member name="T:HumanGateway.Relay.Endpoints.RemoteAuthEndpoints">
+            <summary>
+            Maps the Relay remote user-authentication endpoints (AUTH-FR-02, SP-03, external-web-access): the remote
+            login gate for users outside the school. Username + password login issues signed opaque session tokens;
+            logout revokes; <c>/auth/me</c> resolves the bearer token. Login failures surface the stable
+            <c>AUTH_REJECTED</c>/<c>FORBIDDEN</c> codes via <see cref="T:HumanGateway.Relay.Services.GatewayServiceException"/> (the global exception
+            handler in Program.cs maps them to <see cref="T:HumanGateway.Protocol.Models.ProtocolError"/> responses); the token is never logged (SP-07).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Endpoints.RemoteAuthEndpoints.MapRemoteAuthEndpoints(Microsoft.AspNetCore.Builder.WebApplication)">
+            <summary>Maps the remote auth endpoint group onto the app.</summary>
+        </member>
         <member name="T:HumanGateway.Relay.Endpoints.RendezvousEndpoints">
             <summary>
             Rendezvous endpoints (RELAY-FR-03, WEBX-FR-02): remote clients discover which registered school Edge
@@ -752,6 +764,58 @@
         <member name="M:HumanGateway.Relay.Services.RelaySyncService.IsUniqueViolation(Microsoft.EntityFrameworkCore.DbUpdateException)">
             <summary>Detects a PostgreSQL unique/primary-key constraint violation from a save failure (SQLSTATE 23505).</summary>
         </member>
+        <member name="T:HumanGateway.Relay.Services.RemoteAuthService">
+            <summary>
+            Remote user identity + authentication at the Relay (AUTH-FR-02, SP-03, external-web-access): the remote
+            login gate for users outside the school. Account provisioning, username + password login issuing signed
+            opaque session tokens, session validation, and logout — over the PostgreSQL store, sharing the identical
+            token/verifier semantics as the Edge (IUserSessionService). Passwords are stored only as PHC verifiers
+            (SP-07); session rows hold only the token fingerprint (SP-07). HumanGateway performs no role-checking here
+            (SP-09); the returned identity feeds the authorisation middleware (AUTH-FR-03) and the Relay-side remote
+            access gates.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RemoteAuthService.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{HumanGateway.Relay.Storage.RelayDbContext},Microsoft.Extensions.Options.IOptions{HumanGateway.Security.AuthOptions},Microsoft.Extensions.Logging.ILogger{HumanGateway.Relay.Services.RemoteAuthService})">
+            <summary>Creates the service over the durable store factory and shared auth options.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RemoteAuthService.CreateUserAsync(System.String,System.String,System.String,System.Threading.CancellationToken)">
+            <summary>
+            Provisions a remote user account (AUTH-FR-02). The username is normalised to lowercase; the password is
+            stored as a PHC verifier only (SP-07). DISABLED users may not log in.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RemoteAuthService.LoginAsync(System.String,System.String,System.Threading.CancellationToken)">
+            <summary>
+            Authenticates a username + password and, on success, issues a signed session token (AUTH-FR-02). The
+            remote login gate used by external-web-access.
+            </summary>
+            <exception cref="T:HumanGateway.Relay.Services.GatewayServiceException">401 AUTH_REJECTED on unknown user / wrong password (never
+            reveals which); 403 FORBIDDEN on a DISABLED account.</exception>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RemoteAuthService.AuthenticateAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RemoteAuthService.RevokeSessionAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RemoteAuthService.SeedBootstrapUserAsync(System.Threading.CancellationToken)">
+            <summary>Seeds the configured bootstrap user on first boot (AUTH-FR-02, SP-07: credentials from env).</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RemoteAuthService.IssueSessionAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RemoteAuthService.GetUserByIdAsync(System.String,System.Threading.CancellationToken)">
+            <summary>Returns the public view of a remote user by id, or null when the account does not exist.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RemoteAuthService.GetUserByUsernameAsync(System.String,System.Threading.CancellationToken)">
+            <summary>Returns the public view of a remote user by (case-insensitive) username, or null when absent.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RemoteAuthService.ListUsersAsync(System.Threading.CancellationToken)">
+            <summary>Lists all remote user accounts (public views, no verifier — SP-07), ordered by username.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RemoteAuthService.ToView(HumanGateway.Protocol.Models.User)">
+            <summary>Builds the public user view (no verifier — SP-07).</summary>
+        </member>
         <member name="T:HumanGateway.Relay.Services.RendezvousService">
             <summary>
             Rendezvous routing for remote web access (RELAY-FR-03, WEBX-FR-02): resolves a remote participant's
@@ -1088,6 +1152,29 @@
         <member name="P:HumanGateway.Relay.Storage.Entities.RelayOutboxSequenceRecord.LastSequence">
             <summary>The most recently allocated sequence number (≥ 0).</summary>
         </member>
+        <member name="T:HumanGateway.Relay.Storage.Entities.SessionRecord">
+            <summary>
+            Durable remote user-session row at the Relay (AUTH-FR-02, SP-03, external-web-access). Stores only the
+            SHA-256 fingerprint of the issued session token (SP-07 — the plaintext token is returned to the client
+            exactly once and never persisted), together with its expiry and revocation state. One row per issued
+            token.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.SessionRecord.TokenFingerprint">
+            <summary><c>sha256:&lt;hex&gt;</c> fingerprint of the session token — the primary key (SP-07).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.SessionRecord.UserId">
+            <summary>The remote user this session authenticates.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.SessionRecord.IssuedAt">
+            <summary>RFC 3339 UTC instant when the session was issued.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.SessionRecord.ExpiresAt">
+            <summary>RFC 3339 UTC instant when the session expires; expired sessions are rejected.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.SessionRecord.RevokedAt">
+            <summary>RFC 3339 UTC instant when the session was revoked (logout); null while active.</summary>
+        </member>
         <member name="T:HumanGateway.Relay.Storage.Entities.SyncCursorRecord">
             <summary>
             Durable per-gateway sync-cursor state at the Relay (SYNC-FR-03). <see cref="P:HumanGateway.Relay.Storage.Entities.SyncCursorRecord.PushCursor"/> is the opaque
@@ -1106,6 +1193,37 @@
         </member>
         <member name="P:HumanGateway.Relay.Storage.Entities.SyncCursorRecord.PullCursor">
             <summary>The cursor covering what the gateway has pulled, updated on each PULL response.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.Entities.UserRecord">
+            <summary>
+            Durable remote user account at the Relay (user.schema.json, AUTH-FR-02, external-web-access). Remote users
+            authenticate at the Relay with a username + password (the remote login gate) before the PWA can reach
+            external web access. The full protocol <see cref="T:HumanGateway.Protocol.Models.User"/> envelope — including the PHC
+            <c>passwordVerifier</c> — is stored as canonical wire JSON (local store ONLY; the verifier is never
+            transmitted in any protocol payload, SP-07). Denormalised columns (username, status) exist for indexed
+            login lookups.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.UserRecord.Id">
+            <summary>Durable remote user id (user.schema.json#/id). Referenced from participant.userId.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.UserRecord.Username">
+            <summary>Login username, normalised to lowercase (unique).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.UserRecord.Status">
+            <summary>Wire-token status (<c>ACTIVE</c> | <c>DISABLED</c>) for indexed filtering.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.UserRecord.LastLoginAt">
+            <summary>RFC 3339 UTC instant of the last successful login.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.UserRecord.Envelope">
+            <summary>The full protocol user record (canonical wire JSON, verifier included — local store only).</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.Entities.UserRecord.FromEnvelope(HumanGateway.Protocol.Models.User)">
+            <summary>Creates a storage record from a protocol user, deriving the denormalised query columns.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.Entities.UserRecord.RefreshDenormalised">
+            <summary>Refreshes the denormalised columns from the envelope after an in-place update.</summary>
         </member>
         <member name="T:HumanGateway.Relay.Storage.Migrations.InitialCreate">
             <inheritdoc />
@@ -1129,6 +1247,18 @@
             <inheritdoc />
         </member>
         <member name="M:HumanGateway.Relay.Storage.Migrations.AddRelayOutbox.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.Migrations.AddUsersAndSessions">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.Migrations.AddUsersAndSessions.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.Migrations.AddUsersAndSessions.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.Migrations.AddUsersAndSessions.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
             <inheritdoc />
         </member>
         <member name="T:HumanGateway.Relay.Storage.PostgresArtifactStore">
@@ -1250,6 +1380,12 @@
         </member>
         <member name="P:HumanGateway.Relay.Storage.RelayDbContext.RelayOutboxSequences">
             <summary>Per-gateway sequence counter backing the pull queue (SYNC-FR-01/03).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.RelayDbContext.Users">
+            <summary>Remote user accounts (user.schema.json, AUTH-FR-02 — the external-web-access login gate).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.RelayDbContext.Sessions">
+            <summary>Remote user sessions (signed opaque session tokens, AUTH-FR-02, SP-03).</summary>
         </member>
         <member name="M:HumanGateway.Relay.Storage.RelayDbContext.OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder)">
             <inheritdoc />

@@ -150,3 +150,6 @@
 /home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Edge/obj/Debug/net10.0/HumanGateway.Edge.pdb
 /home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Edge/obj/Debug/net10.0/HumanGateway.Edge.genruntimeconfig.cache
 /home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Edge/obj/Debug/net10.0/ref/HumanGateway.Edge.dll
+/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Edge/bin/Debug/net10.0/HumanGateway.Security.dll
+/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Edge/bin/Debug/net10.0/HumanGateway.Security.pdb
+/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Edge/bin/Debug/net10.0/HumanGateway.Security.xml

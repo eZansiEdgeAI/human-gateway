@@ -1,0 +1,391 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>HumanGateway.Security</name>
+    </assembly>
+    <members>
+        <member name="T:HumanGateway.Security.AuthenticatedUser">
+            <summary>
+            The authenticated user resolved from a valid session token (AUTH-FR-02, SP-03). Carries just enough
+            identity for the service layer to authorise requests: the user id (referenced from
+            participant.userId), the username, and a display name. HumanGateway performs no role-checking here
+            (SP-09) — per-conversation/task/artifact authorisation is enforced by the authorisation middleware
+            against conversation membership (AUTH-FR-03).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Security.AuthenticatedUser.UserId">
+            <summary>Durable local/remote user id (user.schema.json#/id).</summary>
+        </member>
+        <member name="P:HumanGateway.Security.AuthenticatedUser.Username">
+            <summary>Login username (lowercase).</summary>
+        </member>
+        <member name="P:HumanGateway.Security.AuthenticatedUser.DisplayName">
+            <summary>Human-readable display name.</summary>
+        </member>
+        <member name="P:HumanGateway.Security.AuthenticatedUser.ExpiresAt">
+            <summary>RFC 3339 UTC instant when the session token expires.</summary>
+        </member>
+        <member name="T:HumanGateway.Security.LoginRequest">
+            <summary>Request body for <c>POST /auth/login</c> (username + password, v1).</summary>
+        </member>
+        <member name="T:HumanGateway.Security.CreateUserRequest">
+            <summary>Request body for <c>POST /auth/users</c> (account provisioning).</summary>
+        </member>
+        <member name="T:HumanGateway.Security.LoginResponse">
+            <summary>Successful login response: the signed opaque session token (returned exactly once, SP-07), its RFC 3339 expiry, and the public user view.</summary>
+        </member>
+        <member name="T:HumanGateway.Security.AuthOptions">
+            <summary>
+            User-authentication settings bound from the <c>Auth</c> configuration section (AUTH-FR-02, SP-07).
+            The session token lifetime and the bootstrap user (created on first boot from env/secret-store supplied
+            credentials — never from the repo, SP-07) are shared by the Edge and Relay.
+            </summary>
+        </member>
+        <member name="F:HumanGateway.Security.AuthOptions.SectionName">
+            <summary>Configuration section key.</summary>
+        </member>
+        <member name="P:HumanGateway.Security.AuthOptions.SessionTtl">
+            <summary>Session token lifetime (default 12 hours).</summary>
+        </member>
+        <member name="P:HumanGateway.Security.AuthOptions.BootstrapUser">
+            <summary>
+            Bootstrap user seeded at startup so the first local/remote login is possible before any account has
+            been provisioned through the API. Credentials come from configuration (env/secret store in
+            deployment); a committed password here is a release-blocker (SP-07).
+            </summary>
+        </member>
+        <member name="T:HumanGateway.Security.BootstrapUserOptions">
+            <summary>Credentials for the first user account, supplied via env/secret store (SP-07).</summary>
+        </member>
+        <member name="T:HumanGateway.Security.BearerTokens">
+            <summary>
+            Extracts the session bearer token from an incoming request (AUTH-FR-02, SP-03). Both the Edge local API
+            and the Relay remote API authenticate users by the <c>Authorization: Bearer &lt;hgsu_…&gt;</c> header;
+            this shared helper keeps the extraction and shape-check in one place. It never logs the token (SP-07).
+            </summary>
+        </member>
+        <member name="F:HumanGateway.Security.BearerTokens.Scheme">
+            <summary>Scheme required by the Authorization header.</summary>
+        </member>
+        <member name="M:HumanGateway.Security.BearerTokens.FromRequest(Microsoft.AspNetCore.Http.HttpRequest)">
+            <summary>
+            Returns the presented bearer token when the header is present, uses the <see cref="F:HumanGateway.Security.BearerTokens.Scheme"/> scheme
+            (case-insensitive), and the value is non-empty. Otherwise null.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Security.BearerTokens.IsWellFormed(System.String)">
+            <summary>True when <paramref name="token"/> is a well-formed <c>hgsu_</c> session token.</summary>
+        </member>
+        <member name="T:HumanGateway.Security.CurrentUser">
+            <summary>
+            Helpers for endpoint handlers that require an authenticated user (AUTH-FR-02, SP-03). Use after
+            <c>UseSessionAuthentication</c> has run: <see cref="M:HumanGateway.Security.CurrentUser.TryGetCurrentUser(Microsoft.AspNetCore.Http.HttpContext)"/> returns the user resolved from
+            the bearer token, and <see cref="T:HumanGateway.Security.CurrentUser"/> throws when the request is unauthenticated (handlers
+            that only run behind <c>RequireSession</c> call it directly).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Security.CurrentUser.TryGetCurrentUser(Microsoft.AspNetCore.Http.HttpContext)">
+            <summary>Resolves the authenticated user for the request, or null when unauthenticated.</summary>
+        </member>
+        <member name="M:HumanGateway.Security.CurrentUser.Require(Microsoft.AspNetCore.Http.HttpContext)">
+            <summary>
+            Returns the authenticated user or throws <see cref="T:HumanGateway.Security.UnauthenticatedRequestException"/>. For endpoints
+            that must never be reached anonymously.
+            </summary>
+        </member>
+        <member name="T:HumanGateway.Security.UnauthenticatedRequestException">
+            <summary>Raised when an endpoint that requires a session is reached without one.</summary>
+        </member>
+        <member name="M:HumanGateway.Security.UnauthenticatedRequestException.#ctor">
+            <summary>Creates the exception.</summary>
+        </member>
+        <member name="T:HumanGateway.Security.IUserSessionService">
+            <summary>
+            Shared contract for user session services at the Edge and Relay (AUTH-FR-02, SP-03). Both services issue
+            the same signed opaque session tokens and validate them the same way; only the durable store behind the
+            interface differs (SQLite at the Edge, PostgreSQL at the Relay).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Security.IUserSessionService.IssueSessionAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Issues a fresh session token for <paramref name="userId"/>: generates the opaque token, persists a
+            session row holding only its fingerprint + expiry, and returns the token + expiry to the caller.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Security.IUserSessionService.AuthenticateAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Validates a presented session token: shape check, fingerprint lookup, expiry check, and an ACTIVE
+            user status check. Returns the authenticated user, or null when the token is unknown/expired/revoked
+            or the user is no longer active.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Security.IUserSessionService.RevokeSessionAsync(System.String,System.Threading.CancellationToken)">
+            <summary>Revokes a session token (logout). Idempotent: an unknown token is not an error.</summary>
+        </member>
+        <member name="T:HumanGateway.Security.IssuedSession">
+            <summary>A freshly issued session token and its RFC 3339 expiry.</summary>
+        </member>
+        <member name="P:HumanGateway.Security.IssuedSession.Token">
+            <summary>The opaque session token handed to the client (returned exactly once).</summary>
+        </member>
+        <member name="P:HumanGateway.Security.IssuedSession.ExpiresAt">
+            <summary>RFC 3339 UTC instant when the token expires.</summary>
+        </member>
+        <member name="T:HumanGateway.Security.LoginResult">
+            <summary>Outcome of a successful username + password login: the issued session plus the public user view.</summary>
+        </member>
+        <member name="P:HumanGateway.Security.LoginResult.Session">
+            <summary>The freshly issued session token (returned to the client exactly once, SP-07) and its expiry.</summary>
+        </member>
+        <member name="P:HumanGateway.Security.LoginResult.User">
+            <summary>The authenticated user's public view (no verifier, SP-07).</summary>
+        </member>
+        <member name="T:HumanGateway.Security.PasswordHasher">
+            <summary>
+            PHC-string password hashing for local/remote user credentials (user.schema.json#/passwordVerifier,
+            AUTH-FR-02, SP-07). v1 uses PBKDF2-HMAC-SHA256 with a per-hash random salt, encoded as a PHC string:
+            <c>$pbkdf2-sha256$i=&lt;iterations&gt;,l=&lt;bytes&gt;$&lt;base64 salt&gt;$&lt;base64 hash&gt;</c>.
+            </summary>
+            <remarks>
+            The PHC format keeps the verifier self-describing (algorithm, cost, salt, digest) so future rounds can
+            raise the cost and re-verify old hashes — no per-site migration needed. Salt and digest are standard
+            base64 (schema pattern <c>^\$[A-Za-z0-9+./=,$-]{19,511}$</c>). The verifier is a local-store-only field:
+            it is hashed with a cost parameter (default <see cref="F:HumanGateway.Security.PasswordHasher.DefaultIterations"/>, OWASP-recommended for
+            PBKDF2-SHA256) and is never transmitted in any protocol payload and never logged (SP-07).
+            </remarks>
+        </member>
+        <member name="F:HumanGateway.Security.PasswordHasher.DefaultIterations">
+            <summary>Default PBKDF2-SHA256 cost (OWASP recommendation).</summary>
+        </member>
+        <member name="F:HumanGateway.Security.PasswordHasher.SaltBytes">
+            <summary>Salt length in bytes (128 bits).</summary>
+        </member>
+        <member name="F:HumanGateway.Security.PasswordHasher.HashBytes">
+            <summary>Digest length in bytes (256 bits, matching SHA-256).</summary>
+        </member>
+        <member name="F:HumanGateway.Security.PasswordHasher.Algorithm">
+            <summary>Algorithm token used in the PHC string.</summary>
+        </member>
+        <member name="M:HumanGateway.Security.PasswordHasher.PhcRegex">
+            <remarks>
+            Pattern:<br/>
+            <code>^\\$pbkdf2-sha256\\$i=([0-9]+),l=([0-9]+)\\$([A-Za-z0-9+/=]+)\\$([A-Za-z0-9+/=]+)$</code><br/>
+            Explanation:<br/>
+            <code>
+            ○ Match if at the beginning of the string.<br/>
+            ○ Match the string "$pbkdf2-sha256$i=".<br/>
+            ○ 1st capture group.<br/>
+                ○ Match a character in the set [0-9] atomically at least once.<br/>
+            ○ Match the string ",l=".<br/>
+            ○ 2nd capture group.<br/>
+                ○ Match a character in the set [0-9] atomically at least once.<br/>
+            ○ Match '$'.<br/>
+            ○ 3rd capture group.<br/>
+                ○ Match a character in the set [+/-9=A-Za-z] atomically at least once.<br/>
+            ○ Match '$'.<br/>
+            ○ 4th capture group.<br/>
+                ○ Match a character in the set [+/-9=A-Za-z] atomically at least once.<br/>
+            ○ Match if at the end of the string or if before an ending newline.<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Security.PasswordHasher.Hash(System.String,System.Int32)">
+            <summary>
+            Hashes <paramref name="password"/> into a PHC string. The salt is drawn from a cryptographic RNG;
+            identical passwords never produce the same verifier.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Security.PasswordHasher.Verify(System.String,System.String)">
+            <summary>
+            Verifies <paramref name="password"/> against a PHC verifier. The stored algorithm/cost/salt drive the
+            recomputation, so any previously-issued verifier stays valid; the digest comparison is constant-time.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Security.PasswordHasher.IsPhcVerifier(System.String)">
+            <summary>True when <paramref name="value"/> is a syntactically-valid PHC verifier (schema pattern).</summary>
+        </member>
+        <member name="T:HumanGateway.Security.SessionAuthenticationMiddleware">
+            <summary>
+            ASP.NET middleware that authenticates requests carrying an <c>Authorization: Bearer &lt;token&gt;</c>
+            session token (AUTH-FR-02, SP-03). When a well-formed bearer token is present and valid, the resolved
+            <see cref="T:HumanGateway.Security.AuthenticatedUser"/> is exposed via <see cref="P:Microsoft.AspNetCore.Http.HttpContext.Items"/> under
+            <see cref="F:HumanGateway.Security.SessionAuthenticationMiddleware.CurrentUserKey"/>. Requests without a token pass through unauthenticated — enforcing a
+            required session is the caller's choice (the authorisation middleware, AUTH-FR-03). An invalid or
+            expired token is rejected with 401 <see cref="F:HumanGateway.Protocol.Models.ErrorCodes.SessionTokenInvalid"/> so a broken client
+            cannot silently fall back to anonymous.
+            </summary>
+        </member>
+        <member name="F:HumanGateway.Security.SessionAuthenticationMiddleware.CurrentUserKey">
+            <summary><see cref="P:Microsoft.AspNetCore.Http.HttpContext.Items"/> key holding the resolved <see cref="T:HumanGateway.Security.AuthenticatedUser"/>.</summary>
+        </member>
+        <member name="M:HumanGateway.Security.SessionAuthenticationMiddleware.#ctor(Microsoft.AspNetCore.Http.RequestDelegate,HumanGateway.Security.IUserSessionService)">
+            <summary>Creates the middleware over the next delegate and the shared session service.</summary>
+        </member>
+        <member name="M:HumanGateway.Security.SessionAuthenticationMiddleware.InvokeAsync(Microsoft.AspNetCore.Http.HttpContext)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Security.SessionAuthenticationExtensions">
+            <summary>Convenience extension for wiring <see cref="T:HumanGateway.Security.SessionAuthenticationMiddleware"/>.</summary>
+        </member>
+        <member name="M:HumanGateway.Security.SessionAuthenticationExtensions.UseSessionAuthentication(Microsoft.AspNetCore.Builder.IApplicationBuilder)">
+            <summary>Adds bearer-session authentication to the pipeline (AUTH-FR-02, SP-03).</summary>
+        </member>
+        <member name="T:HumanGateway.Security.SessionTokens">
+            <summary>
+            Session-token primitives for authenticated users (AUTH-FR-02, SP-03). A session token is an opaque,
+            high-entropy bearer credential (<c>hgsu_</c> + 256 bits of base64url randomness) issued to a user after
+            a successful login. Following the gateway registration-token pattern (identity-security Open Q #1:
+            signed opaque/session tokens v1; JWT only if a consumer needs it), the service stores only the SHA-256
+            fingerprint of the token in its sessions table — never the plaintext token (SP-07). Verification is a
+            constant-time fingerprint comparison so a timing side-channel cannot leak token bytes.
+            </summary>
+        </member>
+        <member name="F:HumanGateway.Security.SessionTokens.TokenPrefix">
+            <summary>Session-token prefix (mirrors the gateway registration token's <c>hgrt_</c> prefix).</summary>
+        </member>
+        <member name="F:HumanGateway.Security.SessionTokens.TokenRandomBytes">
+            <summary>Random bytes per token — 256 bits of entropy.</summary>
+        </member>
+        <member name="F:HumanGateway.Security.SessionTokens.TokenBodyPattern">
+            <summary>
+            The token body after the prefix: 43..251 chars of base64url. Combined with the 5-char prefix this
+            yields a 48..256-char token, matching the gateway schema's requestToken bounds.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Security.SessionTokens.TokenShapeRegex">
+            <remarks>
+            Pattern:<br/>
+            <code>^hgsu_[A-Za-z0-9_-]{43,251}$</code><br/>
+            Explanation:<br/>
+            <code>
+            ○ Match if at the beginning of the string.<br/>
+            ○ Match the string "hgsu_".<br/>
+            ○ Match a character in the set [\-0-9A-Z_a-z] atomically at least 43 and at most 251 times.<br/>
+            ○ Match if at the end of the string or if before an ending newline.<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Security.SessionTokens.Generate">
+            <summary>Generates a fresh session token: <c>hgsu_</c> + 32 bytes of cryptographic randomness.</summary>
+        </member>
+        <member name="M:HumanGateway.Security.SessionTokens.Fingerprint(System.String)">
+            <summary>Computes the storage fingerprint: <c>sha256:&lt;64 lowercase hex&gt;</c> — what a session row stores.</summary>
+        </member>
+        <member name="M:HumanGateway.Security.SessionTokens.IsWellFormed(System.String)">
+            <summary>True when <paramref name="token"/> matches the <c>hgsu_</c> wire shape.</summary>
+        </member>
+        <member name="M:HumanGateway.Security.SessionTokens.Verify(System.String,System.String)">
+            <summary>
+            Verifies a presented token against a stored fingerprint using a constant-time comparison of the two
+            fingerprint strings (SP-07 — mitigates timing side-channels).
+            </summary>
+        </member>
+        <member name="T:HumanGateway.Security.UserView">
+            <summary>
+            Public representation of a user account for API responses (AUTH-FR-02, SP-07). Deliberately excludes
+            <c>passwordVerifier</c> — the verifier is a local-store-only field that must never be transmitted in any
+            protocol payload (user.schema.json, SP-07).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Security.UserView.Id">
+            <summary>Durable user id (user.schema.json#/id).</summary>
+        </member>
+        <member name="P:HumanGateway.Security.UserView.Username">
+            <summary>Login username (lowercase).</summary>
+        </member>
+        <member name="P:HumanGateway.Security.UserView.DisplayName">
+            <summary>Human-readable display name.</summary>
+        </member>
+        <member name="P:HumanGateway.Security.UserView.Status">
+            <summary>Wire-token user status (<c>ACTIVE</c> | <c>DISABLED</c>).</summary>
+        </member>
+        <member name="P:HumanGateway.Security.UserView.LastLoginAt">
+            <summary>RFC 3339 UTC instant of the last successful login.</summary>
+        </member>
+        <member name="P:HumanGateway.Security.UserView.DisabledAt">
+            <summary>RFC 3339 UTC instant when the account was disabled (DISABLED only).</summary>
+        </member>
+        <member name="P:HumanGateway.Security.UserView.CreatedAt">
+            <summary>RFC 3339 UTC instant when the account was created.</summary>
+        </member>
+        <member name="P:HumanGateway.Security.UserView.UpdatedAt">
+            <summary>RFC 3339 UTC instant of the last update.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.PhcRegex_0">
+            <summary>Custom <see cref="T:System.Text.RegularExpressions.Regex"/>-derived type for the PhcRegex method.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.PhcRegex_0.Instance">
+            <summary>Cached, thread-safe singleton instance.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.PhcRegex_0.#ctor">
+            <summary>Initializes the instance.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.PhcRegex_0.RunnerFactory">
+            <summary>Provides a factory for creating <see cref="T:System.Text.RegularExpressions.RegexRunner"/> instances to be used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.PhcRegex_0.RunnerFactory.CreateInstance">
+            <summary>Creates an instance of a <see cref="T:System.Text.RegularExpressions.RegexRunner"/> used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.PhcRegex_0.RunnerFactory.Runner">
+            <summary>Provides the runner that contains the custom logic implementing the specified regular expression.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.PhcRegex_0.RunnerFactory.Runner.Scan(System.ReadOnlySpan{System.Char})">
+            <summary>Scan the <paramref name="inputSpan"/> starting from base.runtextstart for the next match.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.PhcRegex_0.RunnerFactory.Runner.TryFindNextPossibleStartingPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Search <paramref name="inputSpan"/> starting from base.runtextpos for the next location a match could possibly start.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if a possible match was found; false if no more matches are possible.</returns>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.PhcRegex_0.RunnerFactory.Runner.TryMatchAtCurrentPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Determine whether <paramref name="inputSpan"/> at base.runtextpos is a match for the regular expression.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if the regular expression matches at the current position; otherwise, false.</returns>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.TokenShapeRegex_1">
+            <summary>Custom <see cref="T:System.Text.RegularExpressions.Regex"/>-derived type for the TokenShapeRegex method.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.TokenShapeRegex_1.Instance">
+            <summary>Cached, thread-safe singleton instance.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.TokenShapeRegex_1.#ctor">
+            <summary>Initializes the instance.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.TokenShapeRegex_1.RunnerFactory">
+            <summary>Provides a factory for creating <see cref="T:System.Text.RegularExpressions.RegexRunner"/> instances to be used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.TokenShapeRegex_1.RunnerFactory.CreateInstance">
+            <summary>Creates an instance of a <see cref="T:System.Text.RegularExpressions.RegexRunner"/> used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.TokenShapeRegex_1.RunnerFactory.Runner">
+            <summary>Provides the runner that contains the custom logic implementing the specified regular expression.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.TokenShapeRegex_1.RunnerFactory.Runner.Scan(System.ReadOnlySpan{System.Char})">
+            <summary>Scan the <paramref name="inputSpan"/> starting from base.runtextstart for the next match.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.TokenShapeRegex_1.RunnerFactory.Runner.TryFindNextPossibleStartingPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Search <paramref name="inputSpan"/> starting from base.runtextpos for the next location a match could possibly start.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if a possible match was found; false if no more matches are possible.</returns>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.TokenShapeRegex_1.RunnerFactory.Runner.TryMatchAtCurrentPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Determine whether <paramref name="inputSpan"/> at base.runtextpos is a match for the regular expression.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if the regular expression matches at the current position; otherwise, false.</returns>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.Utilities">
+            <summary>Helper methods used by generated <see cref="T:System.Text.RegularExpressions.Regex"/>-derived implementations.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.Utilities.s_defaultTimeout">
+            <summary>Default timeout value set in <see cref="T:System.AppContext"/>, or <see cref="F:System.Text.RegularExpressions.Regex.InfiniteMatchTimeout"/> if none was set.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.Utilities.s_hasTimeout">
+            <summary>Whether <see cref="F:System.Text.RegularExpressions.Generated.Utilities.s_defaultTimeout"/> is non-infinite.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.Utilities.s_ascii_88FF23FEFFFF07FEFFFF07">
+            <summary>Supports searching for characters in or not in "+/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".</summary>
+        </member>
+    </members>
+</doc>

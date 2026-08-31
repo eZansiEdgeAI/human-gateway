@@ -262,3 +262,10 @@
 {"timestamp":"2026-08-31T22:32:25.211Z","action":"task.retrying","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"IDENTITY-SECURITY-5.1","attempt":2}
 {"timestamp":"2026-08-31T22:44:14.373Z","action":"artifact.created","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"IDENTITY-SECURITY-5.1","artifactId":"work-identity-security-5-1-001","artifactType":"work.identity-security-5.1","inputArtifacts":[]}
 {"timestamp":"2026-08-31T22:44:14.374Z","action":"task.complete","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"IDENTITY-SECURITY-5.1","phaseId":"IDENTITY-SECURITY-5","outputFiles":[],"durationMs":704130}
+{"timestamp":"2026-08-31T22:44:14.688Z","action":"task.committed","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"IDENTITY-SECURITY-5.1","commitSha":"9acd98149e01213fb951aa6a3b06390bceeae40b"}
+{"timestamp":"2026-08-31T22:44:14.689Z","action":"context.projected","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"IDENTITY-SECURITY-5.2","sourceTokenEstimate":235,"projectedTokenEstimate":89,"reductionPercent":62.1,"note":"1 artifact(s) projected for task IDENTITY-SECURITY-5.2"}
+{"timestamp":"2026-08-31T22:44:14.689Z","action":"task.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"IDENTITY-SECURITY-5.2","phaseId":"IDENTITY-SECURITY-5","attempt":1}
+{"timestamp":"2026-08-31T22:59:14.740Z","action":"task.retrying","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"IDENTITY-SECURITY-5.2","attempt":2}
+{"timestamp":"2026-08-31T23:14:19.749Z","action":"task.retrying","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"IDENTITY-SECURITY-5.2","attempt":3}
+{"timestamp":"2026-08-31T23:20:34.652Z","action":"artifact.created","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"IDENTITY-SECURITY-5.2","artifactId":"work-identity-security-5-2-001","artifactType":"work.identity-security-5.2","inputArtifacts":["work-identity-security-5-1-001"]}
+{"timestamp":"2026-08-31T23:20:34.652Z","action":"task.complete","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"IDENTITY-SECURITY-5.2","phaseId":"IDENTITY-SECURITY-5","outputFiles":[],"durationMs":369819}

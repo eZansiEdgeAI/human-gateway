@@ -962,6 +962,7 @@
         "dependencies": {
           "HumanGateway.Core": "1.0.0",
           "HumanGateway.Protocol": "1.0.0",
+          "HumanGateway.Security": "1.0.0",
           "Microsoft.Data.Sqlite": "10.0.11",
           "Microsoft.EntityFrameworkCore.Sqlite": "10.0.11"
         },
@@ -991,6 +992,7 @@
         "dependencies": {
           "HumanGateway.Core": "1.0.0",
           "HumanGateway.Protocol": "1.0.0",
+          "HumanGateway.Security": "1.0.0",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.3"
         },
         "compile": {
@@ -998,6 +1000,22 @@
         },
         "runtime": {
           "bin/placeholder/HumanGateway.Relay.dll": {}
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
+      },
+      "HumanGateway.Security/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "dependencies": {
+          "HumanGateway.Protocol": "1.0.0"
+        },
+        "compile": {
+          "bin/placeholder/HumanGateway.Security.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/HumanGateway.Security.dll": {}
         },
         "frameworkReferences": [
           "Microsoft.AspNetCore.App"
@@ -2088,6 +2106,11 @@
       "type": "project",
       "path": "../../src/HumanGateway.Relay/HumanGateway.Relay.csproj",
       "msbuildProject": "../../src/HumanGateway.Relay/HumanGateway.Relay.csproj"
+    },
+    "HumanGateway.Security/1.0.0": {
+      "type": "project",
+      "path": "../../src/HumanGateway.Security/HumanGateway.Security.csproj",
+      "msbuildProject": "../../src/HumanGateway.Security/HumanGateway.Security.csproj"
     }
   },
   "projectFileDependencyGroups": {

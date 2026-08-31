@@ -291,6 +291,19 @@
         <member name="M:HumanGateway.Edge.Artifacts.FilesystemArtifactStore.PathFor(System.String)">
             <summary>Maps a lowercase hex digest to its sharded path (<c>&lt;root&gt;/&lt;aa&gt;/&lt;bb&gt;/&lt;hex&gt;</c>).</summary>
         </member>
+        <member name="T:HumanGateway.Edge.Endpoints.AuthEndpoints">
+            <summary>
+            Maps the Edge local user-authentication endpoints (AUTH-FR-02, SP-03): username + password login issuing
+            signed opaque session tokens, logout, the authenticated identity, and local account provisioning. Login
+            failures surface the stable <c>AUTH_REJECTED</c>/<c>FORBIDDEN</c> codes via <see cref="T:HumanGateway.Edge.Api.LocalApiException"/>
+            (the global exception handler in Program.cs maps them to <see cref="T:HumanGateway.Protocol.Models.ProtocolError"/> responses); the token
+            itself is never logged (SP-07). Authorisation middleware (per-conversation/task/artifact, AUTH-FR-03) builds
+            on <see cref="T:HumanGateway.Security.BearerTokens"/> in a later task.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Endpoints.AuthEndpoints.MapAuthEndpoints(Microsoft.AspNetCore.Builder.WebApplication)">
+            <summary>Maps the local auth endpoint group onto the app.</summary>
+        </member>
         <member name="T:HumanGateway.Edge.Endpoints.LocalApiEndpoints">
             <summary>
             Maps the Edge local REST API (EDGE-FR-03, product vision §6.3): conversations, messages, tasks, artifacts,
@@ -703,6 +716,53 @@
             half-written secret). The token is written with owner-only file permissions (SP-07).
             </summary>
         </member>
+        <member name="T:HumanGateway.Edge.Security.LocalAuthService">
+            <summary>
+            Local user identity + authentication at the Edge (AUTH-FR-02, SP-03): account provisioning, username +
+            password login issuing signed opaque session tokens, session validation for authenticated requests, and
+            logout. Passwords are stored only as PHC verifiers (SP-07); session rows hold only the token fingerprint
+            (SP-07). HumanGateway performs no role-checking here (SP-09); the returned identity feeds the
+            authorisation middleware (AUTH-FR-03).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.LocalAuthService.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{HumanGateway.Edge.Storage.EdgeDbContext},Microsoft.Extensions.Options.IOptions{HumanGateway.Security.AuthOptions})">
+            <summary>Creates the service over the durable store factory and auth options.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.LocalAuthService.CreateUserAsync(System.String,System.String,System.String,System.Threading.CancellationToken)">
+            <summary>
+            Provisions a local user account (AUTH-FR-02). The username is normalised to lowercase; the password
+            is stored as a PHC verifier only (SP-07). DISABLED users may not log in.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.LocalAuthService.LoginAsync(System.String,System.String,System.Threading.CancellationToken)">
+            <summary>Authenticates a username + password and, on success, issues a signed session token (AUTH-FR-02).</summary>
+            <exception cref="T:HumanGateway.Edge.Api.LocalApiException">401 AUTH_REJECTED on unknown user / wrong password (never reveals which);
+            403 FORBIDDEN on a DISABLED account.</exception>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.LocalAuthService.AuthenticateAsync(System.String,System.Threading.CancellationToken)">
+            <summary>Validates a presented session token; returns the authenticated user or null (AUTH-FR-02, SP-03).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.LocalAuthService.RevokeSessionAsync(System.String,System.Threading.CancellationToken)">
+            <summary>Revokes a session token (logout). Idempotent.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.LocalAuthService.SeedBootstrapUserAsync(System.Threading.CancellationToken)">
+            <summary>Seeds the configured bootstrap user on first boot (AUTH-FR-02, SP-07: credentials from env).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.LocalAuthService.IssueSessionAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Security.LocalAuthService.GetUserByIdAsync(System.String,System.Threading.CancellationToken)">
+            <summary>Returns the public view of a user by id, or null when the account does not exist.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.LocalAuthService.GetUserByUsernameAsync(System.String,System.Threading.CancellationToken)">
+            <summary>Returns the public view of a user by (case-insensitive) username, or null when absent.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.LocalAuthService.ListUsersAsync(System.Threading.CancellationToken)">
+            <summary>Lists all local user accounts (public views, no verifier — SP-07), ordered by username.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.LocalAuthService.ToView(HumanGateway.Protocol.Models.User)">
+            <summary>Builds the public user view (no verifier — SP-07).</summary>
+        </member>
         <member name="T:HumanGateway.Edge.Storage.EdgeDbContext">
             <summary>
             The Edge Gateway's durable SQLite store (EDGE-FR-02): conversations, messages, deliveries, artifacts, and
@@ -734,6 +794,12 @@
         </member>
         <member name="P:HumanGateway.Edge.Storage.EdgeDbContext.Participants">
             <summary>Local participant directory.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.EdgeDbContext.Users">
+            <summary>Local user accounts (user.schema.json, AUTH-FR-02).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.EdgeDbContext.Sessions">
+            <summary>Local user sessions (signed opaque session tokens, AUTH-FR-02, SP-03).</summary>
         </member>
         <member name="P:HumanGateway.Edge.Storage.EdgeDbContext.Outbox">
             <summary>Durable outbox entries (EDGE-FR-04).</summary>
@@ -1039,6 +1105,28 @@
         <member name="M:HumanGateway.Edge.Storage.Entities.ParticipantRecord.FromParticipant(HumanGateway.Protocol.Models.Participant)">
             <summary>Creates a storage record from a protocol participant, deriving the query columns.</summary>
         </member>
+        <member name="T:HumanGateway.Edge.Storage.Entities.SessionRecord">
+            <summary>
+            Durable local Edge user-session row (AUTH-FR-02, SP-03). Stores only the SHA-256 fingerprint of the
+            issued session token (SP-07 — the plaintext token is returned to the client exactly once and never
+            persisted), together with its expiry and revocation state. One row per issued token.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.SessionRecord.TokenFingerprint">
+            <summary><c>sha256:&lt;hex&gt;</c> fingerprint of the session token — the primary key (SP-07).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.SessionRecord.UserId">
+            <summary>The user this session authenticates.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.SessionRecord.IssuedAt">
+            <summary>RFC 3339 UTC instant when the session was issued.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.SessionRecord.ExpiresAt">
+            <summary>RFC 3339 UTC instant when the session expires; expired sessions are rejected.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.SessionRecord.RevokedAt">
+            <summary>RFC 3339 UTC instant when the session was revoked (logout); null while active.</summary>
+        </member>
         <member name="T:HumanGateway.Edge.Storage.Entities.SyncCursorRecord">
             <summary>
             Durable per-gateway sync-cursor state (SYNC-FR-03): the Relay-issued push cursor, the gateway's own pull
@@ -1063,6 +1151,35 @@
         </member>
         <member name="P:HumanGateway.Edge.Storage.Entities.SyncCursorRecord.InFlightAfterSequence">
             <summary>The sequence watermark the in-flight push batch advanced to (null when nothing is in flight).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.Entities.UserRecord">
+            <summary>
+            Durable local Edge user account (user.schema.json, AUTH-FR-02). The full protocol <see cref="T:HumanGateway.Protocol.Models.User"/>
+            envelope — including the PHC <c>passwordVerifier</c> — is stored as canonical wire JSON (local store
+            ONLY; the verifier is never transmitted in any protocol payload, SP-07). Denormalised columns
+            (username, status) exist for indexed login lookups.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.UserRecord.Id">
+            <summary>Durable local user id (user.schema.json#/id). Referenced from participant.userId.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.UserRecord.Username">
+            <summary>Login username, normalised to lowercase (unique).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.UserRecord.Status">
+            <summary>Wire-token status (<c>ACTIVE</c> | <c>DISABLED</c>) for indexed filtering.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.UserRecord.LastLoginAt">
+            <summary>RFC 3339 UTC instant of the last successful login.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Storage.Entities.UserRecord.Envelope">
+            <summary>The full protocol user record (canonical wire JSON, verifier included — local store only).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Entities.UserRecord.FromEnvelope(HumanGateway.Protocol.Models.User)">
+            <summary>Creates a storage record from a protocol user, deriving the denormalised query columns.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Entities.UserRecord.RefreshDenormalised">
+            <summary>Refreshes the denormalised columns from the envelope after an in-place update.</summary>
         </member>
         <member name="T:HumanGateway.Edge.Storage.Migrations.InitialCreate">
             <inheritdoc />
@@ -1110,6 +1227,18 @@
             <inheritdoc />
         </member>
         <member name="M:HumanGateway.Edge.Storage.Migrations.AddSyncCursors.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Edge.Storage.Migrations.AddUsersAndSessions">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Migrations.AddUsersAndSessions.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Migrations.AddUsersAndSessions.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.Migrations.AddUsersAndSessions.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
             <inheritdoc />
         </member>
         <member name="T:HumanGateway.Edge.Storage.OutboxWriter">

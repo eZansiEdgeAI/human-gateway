@@ -126,3 +126,6 @@
 /home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Relay/obj/Debug/net10.0/HumanGateway.Relay.pdb
 /home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Relay/obj/Debug/net10.0/HumanGateway.Relay.genruntimeconfig.cache
 /home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Relay/obj/Debug/net10.0/ref/HumanGateway.Relay.dll
+/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Relay/bin/Debug/net10.0/HumanGateway.Security.dll
+/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Relay/bin/Debug/net10.0/HumanGateway.Security.pdb
+/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Relay/bin/Debug/net10.0/HumanGateway.Security.xml

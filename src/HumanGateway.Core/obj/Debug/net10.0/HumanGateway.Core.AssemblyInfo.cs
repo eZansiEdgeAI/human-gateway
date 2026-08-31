@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute(@"Durable synchronisation engine for HumanGateway: the SyncEngine contract, outbox/inbox ports, idempotency, content hashing, delivery-state transitions, retry/backoff, deterministic ordering, cursor math, and conflict resolution (product vision §6.2/§6.3/§10, SYNC-FR-01..07). Core algorithms are pure and deterministic; durable state is read/written through the ports in this assembly.")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6d3b15c9f0b94a259a05a9d51ae7cdef6de6ada7")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+77dbd7395892d212c79e9267510f9c5019b77199")]
 [assembly: System.Reflection.AssemblyProductAttribute("HumanGateway.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HumanGateway.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

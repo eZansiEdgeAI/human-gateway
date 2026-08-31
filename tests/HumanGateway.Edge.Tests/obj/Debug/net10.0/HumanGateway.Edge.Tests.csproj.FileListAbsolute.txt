@@ -459,3 +459,6 @@
 /home/mcfuzzysquirrel/Projects/human-gateway/tests/HumanGateway.Edge.Tests/bin/Debug/net10.0/Microsoft.AspNetCore.Mvc.Testing.dll
 /home/mcfuzzysquirrel/Projects/human-gateway/tests/HumanGateway.Edge.Tests/bin/Debug/net10.0/Microsoft.AspNetCore.TestHost.dll
 /home/mcfuzzysquirrel/Projects/human-gateway/tests/HumanGateway.Edge.Tests/bin/Debug/net10.0/runtimes/win/lib/net10.0/System.Diagnostics.EventLog.Messages.dll
+/home/mcfuzzysquirrel/Projects/human-gateway/tests/HumanGateway.Edge.Tests/bin/Debug/net10.0/HumanGateway.Security.dll
+/home/mcfuzzysquirrel/Projects/human-gateway/tests/HumanGateway.Edge.Tests/bin/Debug/net10.0/HumanGateway.Security.pdb
+/home/mcfuzzysquirrel/Projects/human-gateway/tests/HumanGateway.Edge.Tests/bin/Debug/net10.0/HumanGateway.Security.xml

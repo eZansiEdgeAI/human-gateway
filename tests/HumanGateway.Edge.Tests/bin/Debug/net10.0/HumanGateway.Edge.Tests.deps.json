@@ -1020,6 +1020,7 @@
         "dependencies": {
           "HumanGateway.Core": "1.0.0",
           "HumanGateway.Protocol": "1.0.0",
+          "HumanGateway.Security": "1.0.0",
           "Microsoft.Data.Sqlite": "10.0.11",
           "Microsoft.EntityFrameworkCore.Sqlite": "10.0.11"
         },
@@ -1056,6 +1057,20 @@
         },
         "compile": {
           "HumanGateway.Protocol.dll": {}
+        }
+      },
+      "HumanGateway.Security/1.0.0": {
+        "dependencies": {
+          "HumanGateway.Protocol": "1.0.0"
+        },
+        "runtime": {
+          "HumanGateway.Security.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        },
+        "compile": {
+          "HumanGateway.Security.dll": {}
         }
       },
       "Microsoft.AspNetCore.Antiforgery/10.0.0.0": {
@@ -3366,6 +3381,11 @@
       "sha512": ""
     },
     "HumanGateway.Protocol/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "HumanGateway.Security/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

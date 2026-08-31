@@ -825,6 +825,22 @@
         "runtime": {
           "bin/placeholder/HumanGateway.Protocol.dll": {}
         }
+      },
+      "HumanGateway.Security/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "dependencies": {
+          "HumanGateway.Protocol": "1.0.0"
+        },
+        "compile": {
+          "bin/placeholder/HumanGateway.Security.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/HumanGateway.Security.dll": {}
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
       }
     }
   },
@@ -2440,12 +2456,18 @@
       "type": "project",
       "path": "../HumanGateway.Protocol/HumanGateway.Protocol.csproj",
       "msbuildProject": "../HumanGateway.Protocol/HumanGateway.Protocol.csproj"
+    },
+    "HumanGateway.Security/1.0.0": {
+      "type": "project",
+      "path": "../HumanGateway.Security/HumanGateway.Security.csproj",
+      "msbuildProject": "../HumanGateway.Security/HumanGateway.Security.csproj"
     }
   },
   "projectFileDependencyGroups": {
     "net10.0": [
       "HumanGateway.Core >= 1.0.0",
       "HumanGateway.Protocol >= 1.0.0",
+      "HumanGateway.Security >= 1.0.0",
       "Microsoft.Data.Sqlite >= 10.0.11",
       "Microsoft.EntityFrameworkCore.Design >= 10.0.11",
       "Microsoft.EntityFrameworkCore.Sqlite >= 10.0.11"
@@ -2482,6 +2504,9 @@
             },
             "/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Protocol/HumanGateway.Protocol.csproj": {
               "projectPath": "/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Protocol/HumanGateway.Protocol.csproj"
+            },
+            "/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Security/HumanGateway.Security.csproj": {
+              "projectPath": "/home/mcfuzzysquirrel/Projects/human-gateway/src/HumanGateway.Security/HumanGateway.Security.csproj"
             }
           }
         }

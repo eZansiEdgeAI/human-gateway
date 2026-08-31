@@ -1,0 +1,39 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "HumanGateway.Security/1.0.0": {
+        "dependencies": {
+          "HumanGateway.Protocol": "1.0.0"
+        },
+        "runtime": {
+          "HumanGateway.Security.dll": {}
+        }
+      },
+      "HumanGateway.Protocol/1.0.0": {
+        "runtime": {
+          "HumanGateway.Protocol.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "HumanGateway.Security/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "HumanGateway.Protocol/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

@@ -2,5 +2,6 @@
   "HumanGateway.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "\/home\/mcfuzzysquirrel\/Projects\/human-gateway\/src\/HumanGateway.Core",
   "HumanGateway.Edge, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "\/home\/mcfuzzysquirrel\/Projects\/human-gateway\/src\/HumanGateway.Edge",
   "HumanGateway.Protocol, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "\/home\/mcfuzzysquirrel\/Projects\/human-gateway\/src\/HumanGateway.Protocol",
-  "HumanGateway.Relay, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "\/home\/mcfuzzysquirrel\/Projects\/human-gateway\/src\/HumanGateway.Relay"
+  "HumanGateway.Relay, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "\/home\/mcfuzzysquirrel\/Projects\/human-gateway\/src\/HumanGateway.Relay",
+  "HumanGateway.Security, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "\/home\/mcfuzzysquirrel\/Projects\/human-gateway\/src\/HumanGateway.Security"
 }
