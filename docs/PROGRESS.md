@@ -3,7 +3,7 @@
 ## Current State
 **Phase**: CLOUD-RELAY-4
 **Status**: In Progress
-**Last Updated**: 2026-08-31T21:13:42.584Z
+**Last Updated**: 2026-08-31T21:20:12.390Z
 **Run ID**: cc1dad89-27a5-4765-8655-91bea28ec9c3
 **Harness**: opencode
 
@@ -43,6 +43,7 @@
 - [x] Phase CLOUD-RELAY-4, Task CLOUD-RELAY-4.2: [ ] PostgreSQL schema (@relay-engineer)
 - [x] Phase CLOUD-RELAY-4, Task CLOUD-RELAY-4.3: [ ] Gateway registration + rendezvous endpoints (@relay-engineer)
 - [x] Phase CLOUD-RELAY-4, Task CLOUD-RELAY-4.4: [ ] Sync endpoint (@relay-engineer)
+- [x] Phase CLOUD-RELAY-4, Task CLOUD-RELAY-4.5: [ ] `ArtifactStore` interface with a PostgreSQL BYTEA implementation (streaming reads; S3-compatible adapter as an optional later step) (@relay-engineer)
 
 ## Current Task
 - None currently running

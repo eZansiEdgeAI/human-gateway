@@ -1,7 +1,7 @@
 {
   "runId": "cc1dad89-27a5-4765-8655-91bea28ec9c3",
   "startedAt": "2026-08-28T21:20:12.360Z",
-  "lastUpdatedAt": "2026-08-31T21:13:42.582Z",
+  "lastUpdatedAt": "2026-08-31T21:20:12.387Z",
   "manifestPath": "/home/mcfuzzysquirrel/Projects/human-gateway/docs/EXECUTION-MANIFEST.json",
   "manifestVersion": "1.0",
   "harness": "opencode",
@@ -426,10 +426,17 @@
     },
     "CLOUD-RELAY-4.5": {
       "taskId": "CLOUD-RELAY-4.5",
-      "status": "pending",
+      "status": "complete",
       "ownerAgent": "relay-engineer",
-      "attempt": 0,
-      "outputFiles": []
+      "attempt": 1,
+      "outputFiles": [],
+      "startedAt": "2026-08-31T21:13:42.698Z",
+      "completedAt": "2026-08-31T21:20:12.387Z",
+      "agentOutput": "Let me check the workflow tracking files and existing test patterns to match conventions.\nI have the full picture now. The `IArtifactStore` port exists in Core, the `artifact_blobs` BYTEA table and entity exist, and the Edge has its filesystem implementation — but the Relay's PostgreSQL BYTEA implementation is missing (task CLOUD-RELAY-4.5). Let me create a todo list and implement.\nNow wire it into DI in `Program.cs`:\nClean build, 0 warnings. Now the tests — let me check how existing Relay tests exercise the DB via the fixture:\nNow the test file:\nNow let me verify podman/Testcontainers availability and run the new tests:\n9/11 pass — the two failures are my row-count assertions counting the whole shared table (other tests' rows) instead of per-hash. Fixing the helper to count per content hash:\nAll 11 store tests pass. Now run the full Relay suite to confirm no regressions:\n63/63 Relay tests pass (52 existing + 11 new). Let me verify the full solution still builds and the Core/Edge suites are unaffected:\nFull solution builds with 0 warnings/errors; Core (109) and Relay (63) suites green. Now tick the feature checkbox:\nTask complete. **CLOUD-RELAY-4.5** — `ArtifactStore` PostgreSQL BYTEA implementation (streaming reads) — is implemented, validated, and committed.\n\n## Files created\n\n1. **`src/HumanGateway.Relay/Storage/PostgresArtifactStore.cs`** — the Relay's `IArtifactStore` port over the `artifact_blobs` BYTEA table (the schema and `ArtifactBlobRecord` entity already existed from 4.1/4.2):\n   - **`SaveAsync`** — validates/normalises the content hash (`ArtifactHash.RequireHex` → `FormatException` on malformed), fast-path dedup check, then streams the content once through an incremental SHA-256 while buffering, verifies against the declared hash *before* storing (`ArtifactHashMismatchException` on tamper, SP-06), and inserts under the canonical `sha256:<hex>` key. The primary-key constraint is the hard backstop under concurrent identical uploads (SQLSTATE 23505 → dedup).\n   - **`OpenReadAsync`** — true **streaming read**: serves the BYTEA value from the PostgreSQL wire via `NpgsqlDataReader.GetStream()` under `CommandBehavior.SequentialAccess`, wrapped in a reader-bound stream that owns the reader/command/context and releases them on disposal (sync or async). A large artifact is never materialised as a `byte[]` in Relay memory.\n   - **`ExistsAsync`** / **`DeleteAsync`** — EF queries; delete runs in SQL (`ExecuteDeleteAsync`) so it's a no-op when absent with no row loaded.\n\n2. **`tests/HumanGateway.Relay.Tests/PostgresArtifactStoreTests.cs`** — **11 tests** against the real Testcontainers PostgreSQL fixture (cloud-relay §6): BYTEA round-trip, case-insensitive hex normalisation, empty content, dedup + 32-writer concurrent-collapse to one row, hash-mismatch leaves no artifact, malformed-hash rejection, absent exists/read, delete no-op, non-seekable streaming-read assertion, and a 2 MiB chunked round-trip.\n\n## Files changed\n\n- **`src/HumanGateway.Relay/Program.cs`** — registered `AddSingleton<IArtifactStore, PostgresArtifactStore>()` (DI), with the S3-compatible adapter explicitly noted as a later step, not v1.\n- **`docs/features/cloud-relay.md`** — ticked the §5 Phase 4 `ArtifactStore` checkbox.\n\n## Validation\n\n- `dotnet build HumanGateway.slnx` → **0 warnings, 0 errors**\n- `dotnet test tests/HumanGateway.Relay.Tests` → **63/63 passed** (52 existing + 11 new) against Testcontainers PostgreSQL\n- `dotnet test tests/HumanGateway.Core.Tests` → **109/109 passed**\n- Committed as `cfa59db` (`feat(relay): PostgreSQL BYTEA artifact store with streaming reads (CLOUD-RELAY-4.5)`); the engine-owned tracking files (`WORKFLOW-STATE.json` / `EXECUTION-AUDIT.jsonl`) were left unstaged for the orchestrator's completion record.\n",
+      "artifactId": "work-cloud-relay-4-5-001",
+      "inputArtifactIds": [
+        "work-cloud-relay-4-4-001"
+      ]
     },
     "CLOUD-RELAY-4.6": {
       "taskId": "CLOUD-RELAY-4.6",
