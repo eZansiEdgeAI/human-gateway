@@ -52,6 +52,12 @@ public sealed class RelayDbContext : DbContext
     /// <summary>Durable applied-batch records (SYNC-FR-02, NF-05).</summary>
     public DbSet<IdempotencyRecord> Idempotency => Set<IdempotencyRecord>();
 
+    /// <summary>Durable per-gateway pull queue — items awaiting a gateway's next pull (RELAY-FR-04, SYNC-FR-03).</summary>
+    public DbSet<RelayOutboxEntryRecord> RelayOutbox => Set<RelayOutboxEntryRecord>();
+
+    /// <summary>Per-gateway sequence counter backing the pull queue (SYNC-FR-01/03).</summary>
+    public DbSet<RelayOutboxSequenceRecord> RelayOutboxSequences => Set<RelayOutboxSequenceRecord>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -242,6 +248,40 @@ public sealed class RelayDbContext : DbContext
             idempotency.Property(e => e.BatchId).HasColumnName("batch_id").IsRequired();
             idempotency.Property(e => e.IdempotencyKey).HasColumnName("idempotency_key").IsRequired();
             idempotency.Property(e => e.AppliedAtUtc).HasColumnName("applied_at_utc").IsRequired();
+        });
+
+        modelBuilder.Entity<RelayOutboxEntryRecord>(outbox =>
+        {
+            outbox.ToTable("relay_outbox");
+            outbox.HasKey(e => e.Id);
+            outbox.Property(e => e.Id).HasColumnName("id").IsRequired();
+            outbox.Property(e => e.GatewayId).HasColumnName("gateway_id").IsRequired();
+            outbox.Property(e => e.Sequence).HasColumnName("sequence").IsRequired();
+            outbox.Property(e => e.MessageId).HasColumnName("message_id");
+            outbox.Property(e => e.Item)
+                .HasColumnName("json")
+                .HasColumnType("jsonb")
+                .IsRequired()
+                .HasConversion(RelayJsonConversions.CanonicalJson<SyncItem>());
+            outbox.Property(e => e.CreatedAtUtc).HasColumnName("created_at_utc").IsRequired();
+            outbox.Property(e => e.DeliveredAtUtc).HasColumnName("delivered_at_utc");
+
+            outbox.HasIndex(e => new { e.GatewayId, e.Sequence }).HasDatabaseName("ix_relay_outbox_gateway_sequence");
+
+            // One routed message per gateway (a message with several recipients at the same gateway is
+            // delivered once). PostgreSQL allows multiple NULLs in a unique index, so non-message entries
+            // (delivery/artifact/ack) are unaffected.
+            outbox.HasIndex(e => new { e.GatewayId, e.MessageId })
+                .IsUnique()
+                .HasDatabaseName("ux_relay_outbox_gateway_message");
+        });
+
+        modelBuilder.Entity<RelayOutboxSequenceRecord>(sequence =>
+        {
+            sequence.ToTable("relay_outbox_sequences");
+            sequence.HasKey(e => e.GatewayId);
+            sequence.Property(e => e.GatewayId).HasColumnName("gateway_id").IsRequired();
+            sequence.Property(e => e.LastSequence).HasColumnName("last_sequence").IsRequired();
         });
     }
 }

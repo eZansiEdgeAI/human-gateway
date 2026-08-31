@@ -146,6 +146,22 @@
         <member name="M:HumanGateway.Relay.Api.RelayJson.Configure(System.Text.Json.JsonSerializerOptions)">
             <summary>Applies the Relay API JSON contract to a serializer options instance.</summary>
         </member>
+        <member name="T:HumanGateway.Relay.Api.SyncPullRequest">
+            <summary>
+            Body of <c>POST /sync/pull</c> — a gateway requests its inbound (Relay → gateway) batch after its echoed
+            pull cursor (SYNC-FR-03). <see cref="P:HumanGateway.Relay.Api.SyncPullRequest.SinceCursor"/> is the opaque cursor the Relay issued in the previous
+            PULL response; <see langword="null"/> on the first exchange.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Api.SyncPullRequest.GatewayId">
+            <summary>The registered gateway requesting its inbound stream.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Api.SyncPullRequest.SinceCursor">
+            <summary>Opaque pull cursor from the Relay's last PULL response; null on the first exchange.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Api.SyncPullRequest.Validate">
+            <summary>Validates the request shape; throws a 400 on failure.</summary>
+        </member>
         <member name="T:HumanGateway.Relay.Endpoints.GatewayEndpoints">
             <summary>
             Gateway registration endpoints (RELAY-FR-03, AUTH-FR-01, SP-02, SP-07). Handlers stay thin — all state
@@ -171,9 +187,9 @@
         </member>
         <member name="T:HumanGateway.Relay.Endpoints.RelayEndpoints">
             <summary>
-            Maps the Cloud Relay HTTP API (RELAY-FR-02..04). Carries the service-info probe, the gateway
-            registration + rendezvous endpoints (RELAY-FR-03, WEBX-FR-02), and — in a later task — the sync endpoint
-            (push/pull cursors + delivery ack, SYNC-FR-03/05, task CLOUD-RELAY-4.4) as its own group.
+            Maps the Cloud Relay HTTP API (RELAY-FR-02..04): the service-info probe, the gateway registration +
+            rendezvous endpoints (RELAY-FR-03, WEBX-FR-02), and the sync endpoint group (push/pull cursors + delivery
+            ack, SYNC-FR-03/05).
             </summary>
         </member>
         <member name="M:HumanGateway.Relay.Endpoints.RelayEndpoints.MapRelayEndpoints(Microsoft.AspNetCore.Builder.WebApplication)">
@@ -198,6 +214,32 @@
         <member name="M:HumanGateway.Relay.Endpoints.RendezvousEndpoints.LookupParticipantAsync(System.String,HumanGateway.Relay.Services.RendezvousService,System.Threading.CancellationToken)">
             <summary>Resolves a participant address to its serving gateway (400 on a malformed address).</summary>
         </member>
+        <member name="T:HumanGateway.Relay.Endpoints.SyncEndpoints">
+            <summary>
+            The Relay's sync endpoints (RELAY-FR-02, SYNC-FR-01..07): <c>POST /sync/push</c> applies a gateway's PUSH
+            batch and returns its new push cursor; <c>POST /sync/pull</c> returns the gateway's inbound PULL batch
+            after its echoed cursor. Handlers stay thin — all cursor/idempotency/routing logic lives in
+            <see cref="T:HumanGateway.Relay.Services.RelaySyncService"/>, and exceptions translate to <see cref="T:HumanGateway.Protocol.Models.ProtocolError"/> responses by the
+            global exception handler (SP-07). The Edge always dials out to these endpoints; the Relay never dials in
+            (SP-01).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Endpoints.SyncEndpoints.MapSyncEndpoints(Microsoft.AspNetCore.Builder.WebApplication)">
+            <summary>Maps the sync endpoint group onto the app.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Endpoints.SyncEndpoints.PushAsync(HumanGateway.Relay.Services.RelaySyncService,HumanGateway.Protocol.Models.SyncBatch,System.Threading.CancellationToken)">
+            <summary>
+            Applies a gateway's PUSH batch (syncbatch.schema.json) and responds with the result batch carrying the
+            new push cursor. The request body is the canonical wire SyncBatch; the response is a keepalive result
+            batch (empty items) whose <c>cursor</c> is the durable acknowledgement the Edge flushes its outbox on.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Endpoints.SyncEndpoints.PullAsync(HumanGateway.Relay.Api.SyncPullRequest,HumanGateway.Relay.Services.RelaySyncService,System.Threading.CancellationToken)">
+            <summary>
+            Returns the gateway's inbound PULL batch (items addressed to it plus the new pull cursor). An empty
+            items array is a valid keepalive — there is nothing new after the echoed cursor (SYNC-FR-03).
+            </summary>
+        </member>
         <member name="T:HumanGateway.Relay.Options.RelayOptions">
             <summary>
             Relay behaviour options, read from the <c>Relay</c> configuration section. Sensible defaults keep the
@@ -213,6 +255,15 @@
         </member>
         <member name="P:HumanGateway.Relay.Options.RelayOptions.Rendezvous">
             <summary>Rendezvous routing behaviour (WEBX-FR-02).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Options.RelayOptions.Sync">
+            <summary>Sync endpoint behaviour (RELAY-FR-02, SYNC-FR-03).</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Options.SyncOptions">
+            <summary>Sync endpoint behaviour options, bound from <c>Relay:Sync</c>.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Options.SyncOptions.PullBatchSize">
+            <summary>Maximum items the Relay includes in one PULL response batch (schema cap is 1000).</summary>
         </member>
         <member name="T:HumanGateway.Relay.Options.RendezvousOptions">
             <summary>Rendezvous behaviour options, bound from <c>Relay:Rendezvous</c>.</summary>
@@ -313,6 +364,20 @@
             endpoint: unregistered, pending, suspended, and revoked identities are rejected.
             </summary>
         </member>
+        <member name="M:HumanGateway.Relay.Services.GatewayService.IsRegisteredAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Non-throwing registered check (SP-02): true only for identities currently in the REGISTERED state.
+            Used by cross-school routing to decide whether a message recipient's serving gateway is a valid
+            delivery target — PENDING/SUSPENDED/REVOKED gateways are never routed to.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.GatewayService.TouchLastSeenAsync(System.String,System.DateTimeOffset,System.Threading.CancellationToken)">
+            <summary>
+            Records gateway sync activity: refreshes <c>lastSeenAt</c> (the rendezvous "online" watermark) and
+            <c>updatedAt</c> on every successful sync exchange. No-op for unknown identities — the sync endpoints
+            have already rejected them via <see cref="M:HumanGateway.Relay.Services.GatewayService.RequireRegisteredAsync(System.String,System.Threading.CancellationToken)"/>.
+            </summary>
+        </member>
         <member name="M:HumanGateway.Relay.Services.GatewayService.EnsureStatus(HumanGateway.Relay.Storage.Entities.GatewayRecord,HumanGateway.Protocol.Models.GatewayStatus,System.String)">
             <summary>
             Ensures the identity is in <paramref name="required"/> state for the given operation, mapping every
@@ -359,6 +424,120 @@
         </member>
         <member name="M:HumanGateway.Relay.Services.GatewayServiceException.Conflict(System.String)">
             <summary>409 — the request conflicts with an existing durable record.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Services.RelaySyncService">
+             <summary>
+             The Relay's sync engine driver (RELAY-FR-02, SYNC-FR-01..07): applies inbound PUSH batches from registered
+             gateways and serves their PULL requests, consuming the shared <see cref="T:HumanGateway.Core.Sync.ISyncEngine"/> contract for cursor
+             math, idempotency, deterministic ordering, and delivery acknowledgements. The service owns the
+             cross-school routing side effect (product vision §6.3, RELAY-FR-04): applied messages are routed to the
+             recipient gateways' pull queues (the <c>relay_outbox</c>), and delivery acknowledgements (SYNC-FR-05) flow
+             back to the sender through the same queue — both schools only ever talk to the Relay (SP-01).
+            
+             <para>Delivery is at-least-once end to end; exactly-once effect comes from idempotency on both sides
+             (NF-05): batch idempotency at the Relay (the engine's <see cref="T:HumanGateway.Core.Idempotency.IIdempotencyStore"/>), per-message
+             dedup, and the durable pull cursor the Edge echoes back. Routing and ack application are re-run on a
+             replayed batch — every side effect here is idempotent — so a retry after a partial failure converges
+             without duplication.</para>
+             </summary>
+        </member>
+        <member name="F:HumanGateway.Relay.Services.RelaySyncService.DefaultMaxAttempts">
+            <summary>Max delivery attempts recorded at the Relay for a routed cross-site message (delivery.schema.json ≥ 1).</summary>
+        </member>
+        <member name="F:HumanGateway.Relay.Services.RelaySyncService.RelayReceiver">
+            <summary>The Relay's system participant — the receiving side that acknowledges a gateway's pushed messages.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelaySyncService.PushAsync(HumanGateway.Protocol.Models.SyncBatch,System.Threading.CancellationToken)">
+            <summary>
+            Applies a gateway's PUSH batch (SYNC-FR-01..03): validates the shape, rejects unregistered identities
+            (SP-02), applies the items idempotently through the sync engine, routes applied messages to the
+            recipient gateways' pull queues (RELAY-FR-04), applies inbound delivery acknowledgements (SYNC-FR-05),
+            and returns the result batch carrying the new push cursor. The response is a keepalive result batch
+            (empty items, cursor only) — the cursor is the durable acknowledgement the Edge flushes its outbox on.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelaySyncService.PullAsync(System.String,System.String,System.Threading.CancellationToken)">
+            <summary>
+            Serves a gateway's PULL request (SYNC-FR-03): returns a PULL batch of the items the Relay has queued
+            for the gateway after its echoed <paramref name="sinceCursor"/>, plus the new pull cursor. The cursor
+            is issued as the high-watermark of the delivered batch, so a retry from a stale cursor re-sends the
+            same items (at-least-once; the Edge's idempotent apply collapses them, NF-05) and nothing past the
+            delivered span is ever skipped. The echoed cursor doubles as the acknowledgement that retires
+            previously delivered entries.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelaySyncService.RouteMessagesAsync(System.String,System.Collections.Generic.IEnumerable{HumanGateway.Protocol.Models.SyncItem},System.DateTimeOffset,System.Threading.CancellationToken)">
+            <summary>
+            Routes applied message items to the recipient gateways' pull queues and records the durable
+            cross-site delivery ledger. Idempotent: re-running on a replayed batch is a no-op for everything
+            already routed (message/participant/delivery upserts are check-then-insert; the pull queue deduplicates
+            a routed message per gateway via its unique index).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelaySyncService.ApplyReceivedAcksAsync(System.Collections.Generic.IEnumerable{HumanGateway.Protocol.Models.SyncItem},System.DateTimeOffset,System.Threading.CancellationToken)">
+            <summary>
+            Applies the delivery acknowledgements carried by a pushed batch (SYNC-FR-05): transitions the Relay's
+            cross-site delivery records and routes the acknowledgement back to the original sender's pull queue so
+            it learns delivery on its next pull. Idempotent — the delivery transitioner never regresses state and
+            the per-batch dedup set drops replayed acks.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelaySyncService.UpsertMessageAsync(HumanGateway.Protocol.Models.Message,System.Threading.CancellationToken)">
+            <summary>Upserts a message envelope into the durable <c>messages</c> store (RELAY-FR-01). Idempotent.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelaySyncService.UpsertParticipantsAsync(HumanGateway.Protocol.Models.Message,System.Threading.CancellationToken)">
+            <summary>Self-populates the participant directory with every participant seen on a routed message.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelaySyncService.EnsureDeliveryRecordAsync(HumanGateway.Protocol.Models.Message,HumanGateway.Protocol.Models.Participant,System.DateTimeOffset,System.Threading.CancellationToken)">
+            <summary>Creates the Relay's cross-site delivery ledger record for (message, recipient), QUEUED. Idempotent.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelaySyncService.TransitionDeliveryFromAckAsync(HumanGateway.Protocol.Models.DeliveryAck,System.DateTimeOffset,System.Threading.CancellationToken)">
+            <summary>
+            Transitions the Relay's cross-site delivery record for a received acknowledgement (SYNC-FR-05).
+            Idempotent via <see cref="M:HumanGateway.Core.Delivery.DeliveryTransitioner.ApplyAck(HumanGateway.Protocol.Models.Delivery,HumanGateway.Protocol.Models.DeliveryAck,System.DateTimeOffset)"/> (a replayed ack never regresses state).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelaySyncService.ApplyAckThroughStates(HumanGateway.Protocol.Models.Delivery,HumanGateway.Protocol.Models.DeliveryAck,System.DateTimeOffset)">
+            <summary>
+            Applies a delivery acknowledgement to the Relay's cross-site delivery record, walking the delivery
+            state machine forward when the record is still behind the ack's target. The record is created QUEUED
+            when the message is routed; the recipient's acknowledgement may arrive before the Relay ever recorded
+            the intermediate hops (product vision §10: QUEUED → SYNCING → DELIVERED → ACKNOWLEDGED), so a
+            DELIVERED/ACKNOWLEDGED ack on a QUEUED record is applied after stepping through the legal chain.
+            Idempotent: <see cref="T:HumanGateway.Core.Delivery.DeliveryTransitioner"/> never regresses an already-satisfied delivery.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelaySyncService.AcknowledgeDeliveredAsync(System.String,System.Int64,System.Threading.CancellationToken)">
+            <summary>
+            Retires pull-queue entries the gateway has acknowledged: everything at or below the echoed cursor.
+            Entries past it stay pending and are re-sent on the next pull (at-least-once, NF-05).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelaySyncService.EnqueuePullItemAsync(System.String,HumanGateway.Protocol.Models.SyncItem,System.String,System.Threading.CancellationToken)">
+            <summary>Enqueues an item into a gateway's pull queue, deduplicated by (gateway, messageId).</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelaySyncService.SaveCursorAsync(System.String,System.String,System.String,System.Threading.CancellationToken)">
+            <summary>Persists the per-gateway sync cursors (SYNC-FR-03) for observability.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelaySyncService.ResolveServingGatewayAsync(HumanGateway.Protocol.Models.Participant,System.Threading.CancellationToken)">
+            <summary>
+            Resolves a participant's serving gateway — a REGISTERED gateway only (SP-02). The participant's
+            <c>GatewayId</c> identity link wins (participant.schema.json: a system participant "must equal the
+            gatewayId of the sync batch carrying the message"); otherwise the typed address resolves via
+            <see cref="M:HumanGateway.Relay.Services.RelaySyncService.ResolveGatewayIdForAddressAsync(System.String,System.Threading.CancellationToken)"/>.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelaySyncService.ResolveMessageSenderGatewayAsync(System.String,System.Threading.CancellationToken)">
+            <summary>Resolves the sender gateway of a stored message (for routing its acks back).</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelaySyncService.ResolveGatewayIdForAddressAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Resolves a typed address to its gateway ID: <c>system:&lt;gatewayId&gt;</c> maps directly (PROTO-FR-02);
+            <c>human:</c>/<c>agent:</c> addresses resolve through the participant directory's <c>gatewayId</c>.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelaySyncService.IsUniqueViolation(Microsoft.EntityFrameworkCore.DbUpdateException)">
+            <summary>Detects a PostgreSQL unique/primary-key constraint violation from a save failure (SQLSTATE 23505).</summary>
         </member>
         <member name="T:HumanGateway.Relay.Services.RendezvousService">
             <summary>
@@ -645,6 +824,57 @@
         <member name="M:HumanGateway.Relay.Storage.Entities.ParticipantRecord.FromParticipant(HumanGateway.Protocol.Models.Participant)">
             <summary>Creates a storage record from a protocol participant, deriving the query columns.</summary>
         </member>
+        <member name="T:HumanGateway.Relay.Storage.Entities.RelayOutboxEntryRecord">
+            <summary>
+            Durable Relay outbox entry (RELAY-FR-04, SYNC-FR-03): a unit of sync work the Relay must deliver to a
+            registered gateway on its next pull. This is the per-gateway inbound (Relay → gateway) stream — the
+            "pull queue". Cross-school messages are routed here when a gateway pushes them, and delivery
+            acknowledgements (SYNC-FR-05) are routed back through here to the sender. Each entry carries a
+            per-gateway monotonic <see cref="P:HumanGateway.Relay.Storage.Entities.RelayOutboxEntryRecord.Sequence"/> number (allocated from
+            <see cref="T:HumanGateway.Relay.Storage.Entities.RelayOutboxSequenceRecord"/>) so the pull cursor is a contiguous high-watermark; a non-null
+            <see cref="P:HumanGateway.Relay.Storage.Entities.RelayOutboxEntryRecord.DeliveredAtUtc"/> marks the entry as acknowledged by the gateway's echoed cursor (safe to
+            garbage-collect — entries at or below an echoed cursor are never selected again). The full
+            <see cref="T:HumanGateway.Protocol.Models.SyncItem"/> envelope is stored as canonical wire JSON; <see cref="P:HumanGateway.Relay.Storage.Entities.RelayOutboxEntryRecord.MessageId"/> is denormalised
+            so the unique <c>(gateway_id, message_id)</c> index deduplicates a routed message per gateway (a message
+            with several recipients at one gateway is delivered once).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.RelayOutboxEntryRecord.Id">
+            <summary>Durable outbox entry ID — the primary key.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.RelayOutboxEntryRecord.GatewayId">
+            <summary>The gateway this item is addressed <em>to</em> (the pull stream owner).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.RelayOutboxEntryRecord.Sequence">
+            <summary>Per-gateway monotonic sequence number (≥ 1), allocated by <see cref="T:HumanGateway.Relay.Storage.Entities.RelayOutboxSequenceRecord"/>.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.RelayOutboxEntryRecord.MessageId">
+            <summary>The durable message ID when this entry carries a message (null for delivery/artifact/ack items).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.RelayOutboxEntryRecord.Item">
+            <summary>The sync operation to deliver, stored as canonical wire JSON.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.RelayOutboxEntryRecord.CreatedAtUtc">
+            <summary>When the entry was enqueued.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.RelayOutboxEntryRecord.DeliveredAtUtc">
+            <summary>When the gateway's echoed pull cursor passed this entry; null while still undelivered/pending.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.Entities.RelayOutboxSequenceRecord">
+            <summary>
+            Durable per-gateway sequence counter for the Relay outbox pull stream (RELAY-FR-04, SYNC-FR-01/03).
+            Allocating a sequence number is a single atomic <c>INSERT ... ON CONFLICT DO UPDATE ... RETURNING</c>
+            against this table, so concurrent pushes never observe duplicate or non-monotonic sequences for the same
+            gateway. The counter only ever increases; a delivered entry's sequence is never reused, so a gateway's
+            pull-cursor watermark stays valid across Relay restarts.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.RelayOutboxSequenceRecord.GatewayId">
+            <summary>The gateway whose inbound stream this counter tracks — the primary key.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.RelayOutboxSequenceRecord.LastSequence">
+            <summary>The most recently allocated sequence number (≥ 0).</summary>
+        </member>
         <member name="T:HumanGateway.Relay.Storage.Entities.SyncCursorRecord">
             <summary>
             Durable per-gateway sync-cursor state at the Relay (SYNC-FR-03). <see cref="P:HumanGateway.Relay.Storage.Entities.SyncCursorRecord.PushCursor"/> is the opaque
@@ -674,6 +904,18 @@
             <inheritdoc />
         </member>
         <member name="M:HumanGateway.Relay.Storage.Migrations.InitialCreate.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.Migrations.AddRelayOutbox">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.Migrations.AddRelayOutbox.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.Migrations.AddRelayOutbox.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.Migrations.AddRelayOutbox.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
             <inheritdoc />
         </member>
         <member name="T:HumanGateway.Relay.Storage.RelayDbContext">
@@ -721,6 +963,12 @@
         <member name="P:HumanGateway.Relay.Storage.RelayDbContext.Idempotency">
             <summary>Durable applied-batch records (SYNC-FR-02, NF-05).</summary>
         </member>
+        <member name="P:HumanGateway.Relay.Storage.RelayDbContext.RelayOutbox">
+            <summary>Durable per-gateway pull queue — items awaiting a gateway's next pull (RELAY-FR-04, SYNC-FR-03).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.RelayDbContext.RelayOutboxSequences">
+            <summary>Per-gateway sequence counter backing the pull queue (SYNC-FR-01/03).</summary>
+        </member>
         <member name="M:HumanGateway.Relay.Storage.RelayDbContext.OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder)">
             <inheritdoc />
         </member>
@@ -733,6 +981,54 @@
         </member>
         <member name="M:HumanGateway.Relay.Storage.RelayDbContextFactory.CreateDbContext(System.String[])">
             <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.RelayIdempotencyStore">
+            <summary>
+            Durable PostgreSQL <see cref="T:HumanGateway.Core.Idempotency.IIdempotencyStore"/> (SYNC-FR-02, NF-05): records applied sync batches under
+            the unique composite <c>(batchId, idempotencyKey)</c> primary key. Recording an already-applied batch is a
+            no-op — the unique-constraint violation is swallowed — so a replayed batch (at-least-once transport) is
+            detected before any item is re-applied, yielding exactly-once effect.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayIdempotencyStore.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{HumanGateway.Relay.Storage.RelayDbContext})">
+            <summary>Creates the durable idempotency store over the context factory.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayIdempotencyStore.WasAppliedAsync(System.String,System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayIdempotencyStore.RecordAsync(System.String,System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayIdempotencyStore.IsUniqueConstraintViolation(Microsoft.EntityFrameworkCore.DbUpdateException)">
+            <summary>Detects a PostgreSQL unique/primary-key constraint violation from a save failure.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.RelayInbox">
+            <summary>
+            Durable PostgreSQL <see cref="T:HumanGateway.Core.Inbox.IInbox"/> for the Relay (SYNC-FR-01): received PUSH items from registered
+            gateways are committed to the <c>inbox</c> table and deduplicated by message ID via the unique
+            <c>ux_inbox_message_id</c> index (SYNC-FR-02, NF-05). The per-gateway sequence history is kept intact so
+            the sync engine can compute the contiguous push cursor from the full applied history (SYNC-FR-03/07).
+            This is the source stream — the <em>cross-school routing</em> of applied messages to recipient gateways'
+            pull queues happens in <see cref="T:HumanGateway.Relay.Services.RelaySyncService"/>.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayInbox.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{HumanGateway.Relay.Storage.RelayDbContext})">
+            <summary>Creates the durable inbox over the context factory.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayInbox.AddAsync(HumanGateway.Core.Inbox.InboxEntry,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayInbox.GetByMessageAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayInbox.ContainsMessageAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayInbox.GetSequencesAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayInbox.MessageIdOf(HumanGateway.Protocol.Models.SyncItem)">
+            <summary>Derives the dedup key from a sync item: the message ID for message items, otherwise null.</summary>
         </member>
         <member name="T:HumanGateway.Relay.Storage.RelayJsonConversions">
             <summary>
@@ -759,6 +1055,55 @@
         </member>
         <member name="M:HumanGateway.Relay.Storage.RelayJsonConversions.WireToken``1(System.Nullable{``0})">
             <summary>Serialises a nullable enum to its wire token, or null when absent.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.RelayOutbox">
+            <summary>
+            Durable PostgreSQL <see cref="T:HumanGateway.Core.Outbox.IOutbox"/> for the Relay (RELAY-FR-04, SYNC-FR-03): the per-gateway
+            <em>pull queue</em> — items the Relay must deliver to a registered gateway on its next pull. This is the
+            inbound (Relay → gateway) stream, driven by the sync engine's <c>BuildPushBatchAsync</c> when the gateway
+            pulls. Sequence allocation is a single atomic <c>INSERT ... ON CONFLICT DO UPDATE ... RETURNING</c>
+            against <see cref="T:HumanGateway.Relay.Storage.Entities.RelayOutboxSequenceRecord"/>, so concurrent pushes never observe duplicate or
+            non-monotonic sequences for the same gateway. Delivery is at-least-once: entries stay pending until the
+            gateway's <em>echoed pull cursor</em> acknowledges them (<see cref="M:HumanGateway.Relay.Storage.RelayOutbox.MarkSentAsync(System.String,System.Threading.CancellationToken)"/>), so a lost or
+            malformed pull response is simply re-sent on the next pull and the receiving gateway's own idempotency
+            collapses it (NF-05).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayOutbox.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{HumanGateway.Relay.Storage.RelayDbContext})">
+            <summary>Creates the durable outbox over the context factory.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayOutbox.EnqueueAsync(System.String,HumanGateway.Protocol.Models.SyncItem,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayOutbox.GetPendingAsync(System.String,System.Int64,System.Int32,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayOutbox.MarkSentAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+            <remarks>
+            Marks the entry acknowledged. The Relay calls this for every pull-queue entry at or below the
+            gateway's <em>echoed</em> pull cursor — the gateway's durable cursor advance is its acknowledgement
+            that it received (and applied) everything up to that point, so the entry is safe to retire (SYNC-FR-03,
+            at-least-once → exactly-once via the gateway's idempotent apply).
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayOutbox.MarkAttemptAsync(System.String,System.Int32,System.DateTimeOffset,System.Threading.CancellationToken)">
+            <inheritdoc />
+            <remarks>
+            Not applicable to the Relay pull queue: delivery is retried by the gateway's next pull from its echoed
+            cursor (at-least-once), so no per-entry backoff metadata is kept. Implemented as a no-op to satisfy the
+            shared port contract.
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayOutbox.AllocateSequenceAsync(HumanGateway.Relay.Storage.RelayDbContext,System.String,System.Threading.CancellationToken)">
+            <summary>
+            Atomically allocates the next per-gateway sequence number. The
+            <c>INSERT ... ON CONFLICT DO UPDATE ... RETURNING</c> is a single statement, so PostgreSQL serialises
+            it and no two callers observe the same value — no read-modify-write race under concurrent pushes.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayOutbox.MessageIdOf(HumanGateway.Protocol.Models.SyncItem)">
+            <summary>Derives the dedup key from a sync item: the message ID for message items, otherwise null.</summary>
         </member>
         <member name="T:System.Text.RegularExpressions.Generated.GatewayIdRegex_0">
             <summary>Custom <see cref="T:System.Text.RegularExpressions.Regex"/>-derived type for the GatewayIdRegex method.</summary>

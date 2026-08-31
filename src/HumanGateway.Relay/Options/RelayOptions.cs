@@ -15,6 +15,16 @@ public sealed class RelayOptions
 
     /// <summary>Rendezvous routing behaviour (WEBX-FR-02).</summary>
     public RendezvousOptions Rendezvous { get; set; } = new();
+
+    /// <summary>Sync endpoint behaviour (RELAY-FR-02, SYNC-FR-03).</summary>
+    public SyncOptions Sync { get; set; } = new();
+}
+
+/// <summary>Sync endpoint behaviour options, bound from <c>Relay:Sync</c>.</summary>
+public sealed class SyncOptions
+{
+    /// <summary>Maximum items the Relay includes in one PULL response batch (schema cap is 1000).</summary>
+    public int PullBatchSize { get; set; } = 1000;
 }
 
 /// <summary>Rendezvous behaviour options, bound from <c>Relay:Rendezvous</c>.</summary>

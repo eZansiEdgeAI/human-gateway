@@ -153,6 +153,42 @@ public sealed class GatewayService
     }
 
     /// <summary>
+    /// Non-throwing registered check (SP-02): true only for identities currently in the REGISTERED state.
+    /// Used by cross-school routing to decide whether a message recipient's serving gateway is a valid
+    /// delivery target — PENDING/SUSPENDED/REVOKED gateways are never routed to.
+    /// </summary>
+    public async Task<bool> IsRegisteredAsync(string gatewayId, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(gatewayId))
+        {
+            return false;
+        }
+
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var record = await db.Gateways.AsNoTracking().FirstOrDefaultAsync(g => g.GatewayId == gatewayId, ct);
+        return record?.Status == "REGISTERED";
+    }
+
+    /// <summary>
+    /// Records gateway sync activity: refreshes <c>lastSeenAt</c> (the rendezvous "online" watermark) and
+    /// <c>updatedAt</c> on every successful sync exchange. No-op for unknown identities — the sync endpoints
+    /// have already rejected them via <see cref="RequireRegisteredAsync"/>.
+    /// </summary>
+    public async Task TouchLastSeenAsync(string gatewayId, DateTimeOffset atUtc, CancellationToken ct)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var record = await db.Gateways.FirstOrDefaultAsync(g => g.GatewayId == gatewayId, ct);
+        if (record is null)
+        {
+            return;
+        }
+
+        record.LastSeenAt = ProtocolTime.Format(atUtc);
+        record.UpdatedAt = ProtocolTime.Format(atUtc);
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
     /// Ensures the identity is in <paramref name="required"/> state for the given operation, mapping every
     /// other state to the SP-02 rejection codes (GATEWAY_SUSPENDED / GATEWAY_REVOKED / GATEWAY_UNREGISTERED).
     /// </summary>

@@ -1,9 +1,9 @@
 namespace HumanGateway.Relay.Endpoints;
 
 /// <summary>
-/// Maps the Cloud Relay HTTP API (RELAY-FR-02..04). Carries the service-info probe, the gateway
-/// registration + rendezvous endpoints (RELAY-FR-03, WEBX-FR-02), and — in a later task — the sync endpoint
-/// (push/pull cursors + delivery ack, SYNC-FR-03/05, task CLOUD-RELAY-4.4) as its own group.
+/// Maps the Cloud Relay HTTP API (RELAY-FR-02..04): the service-info probe, the gateway registration +
+/// rendezvous endpoints (RELAY-FR-03, WEBX-FR-02), and the sync endpoint group (push/pull cursors + delivery
+/// ack, SYNC-FR-03/05).
 /// </summary>
 public static class RelayEndpoints
 {
@@ -13,6 +13,7 @@ public static class RelayEndpoints
         app.MapRelayInfoEndpoint();
         app.MapGatewayEndpoints();
         app.MapRendezvousEndpoints();
+        app.MapSyncEndpoints();
     }
 
     private static void MapRelayInfoEndpoint(this WebApplication app)

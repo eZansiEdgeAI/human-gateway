@@ -3,6 +3,10 @@ using HumanGateway.Relay.Endpoints;
 using HumanGateway.Relay.Options;
 using HumanGateway.Relay.Services;
 using HumanGateway.Relay.Storage;
+using HumanGateway.Core.Idempotency;
+using HumanGateway.Core.Inbox;
+using HumanGateway.Core.Outbox;
+using HumanGateway.Core.Sync;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 
@@ -54,6 +58,21 @@ builder.Services.Configure<RelayOptions>(builder.Configuration.GetSection(RelayO
 // short-lived context via the pooled factory.
 builder.Services.AddScoped<GatewayService>();
 builder.Services.AddScoped<RendezvousService>();
+
+// ---------------------------------------------------------------------------
+// Sync engine + durable ports (RELAY-FR-02, SYNC-FR-01..07). The Relay consumes the shared SyncEngine
+// contract (product vision §6.3) over its own PostgreSQL ports: RelayInbox (applied PUSH items), RelayOutbox
+// (the per-gateway PULL queue), and RelayIdempotencyStore (batch dedup). The ports are stateless singletons
+// that open a short-lived context per operation; RelaySyncService drives the engine from the sync endpoints.
+// ---------------------------------------------------------------------------
+builder.Services.AddSingleton<RelayInbox>();
+builder.Services.AddSingleton<RelayOutbox>();
+builder.Services.AddSingleton<RelayIdempotencyStore>();
+builder.Services.AddSingleton<IOutbox>(sp => sp.GetRequiredService<RelayOutbox>());
+builder.Services.AddSingleton<IInbox>(sp => sp.GetRequiredService<RelayInbox>());
+builder.Services.AddSingleton<IIdempotencyStore>(sp => sp.GetRequiredService<RelayIdempotencyStore>());
+builder.Services.AddSingleton<ISyncEngine, SyncEngine>();
+builder.Services.AddScoped<RelaySyncService>();
 
 var app = builder.Build();
 
