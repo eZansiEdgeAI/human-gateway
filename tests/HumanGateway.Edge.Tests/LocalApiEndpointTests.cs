@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
@@ -34,6 +35,9 @@ public sealed class LocalApiEndpointTests : IClassFixture<LocalApiEndpointTests.
 
         public Factory() => Directory.CreateDirectory(_dir);
 
+        /// <summary>The seeded bootstrap credentials used by the tests.</summary>
+        public (string Username, string Password) Bootstrap { get; } = ("bootstrap", "bootstrap-pw");
+
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             var connectionString = new SqliteConnectionStringBuilder
@@ -54,6 +58,9 @@ public sealed class LocalApiEndpointTests : IClassFixture<LocalApiEndpointTests.
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["Artifacts:RootPath"] = Path.Combine(_dir, "artifacts"),
+                    ["Auth:BootstrapUser:Username"] = Bootstrap.Username,
+                    ["Auth:BootstrapUser:Password"] = Bootstrap.Password,
+                    ["Auth:BootstrapUser:DisplayName"] = "Bootstrap User",
                 });
             });
         }
@@ -103,7 +110,14 @@ public sealed class LocalApiEndpointTests : IClassFixture<LocalApiEndpointTests.
     [Fact]
     public async Task EndToEnd_ConversationMessageTaskArtifactSyncStatus_OverHttp()
     {
-        var client = _factory.CreateClient();
+        // The local API is session-gated (AUTH-FR-03, SP-04): log in first and attach the bearer token.
+        var client = await CreateAuthenticatedClientAsync();
+
+        // Resolve the authenticated user's id and link the teacher participant to it (the local participant
+        // directory maps participant.userId → user account, which is what membership authz resolves).
+        var me = await client.GetAsync("/auth/me");
+        var myUserId = JsonDocument.Parse(await me.Content.ReadAsStringAsync()).RootElement.GetProperty("userId").GetString();
+        var teacher = new { address = "human:teacher@school.example", kind = "human", displayName = "Teacher", userId = myUserId };
 
         // 1. Create a conversation (upserts its participants).
         var createConversation = await client.PostAsync("/conversations", JsonBody(new
@@ -111,7 +125,7 @@ public sealed class LocalApiEndpointTests : IClassFixture<LocalApiEndpointTests.
             title = "Assessment",
             participants = new[]
             {
-                new { address = "human:teacher@school.example", kind = "human", displayName = "Teacher", userId = (string?)"user:teacher" },
+                teacher,
                 new { address = "agent:assistant@school.example", kind = "agent", displayName = "Assistant", userId = (string?)null },
             },
         }));
@@ -133,7 +147,7 @@ public sealed class LocalApiEndpointTests : IClassFixture<LocalApiEndpointTests.
                 .ToArray();
             Assert.Equal(new[] { "agent", "human" }, kinds);
 
-            // 2. List conversations includes the new one.
+            // 2. List conversations includes the new one (filtered to the user's membership).
             var list = await client.GetAsync("/conversations");
             Assert.Equal(HttpStatusCode.OK, list.StatusCode);
             using var listDoc = JsonDocument.Parse(await list.Content.ReadAsStringAsync());
@@ -142,8 +156,8 @@ public sealed class LocalApiEndpointTests : IClassFixture<LocalApiEndpointTests.
             // 3. Send a message: durable store + per-recipient delivery + outbox enqueue.
             var send = await client.PostAsync("/messages", JsonBody(new
             {
-                sender = new { address = "agent:assistant@school.example", kind = "agent", displayName = "Assistant" },
-                recipients = new[] { new { address = "human:teacher@school.example", kind = "human", displayName = "Teacher" } },
+                sender = teacher,
+                recipients = new[] { new { address = "agent:assistant@school.example", kind = "agent", displayName = "Assistant" } },
                 conversationId,
                 payload = new { body = "hello", format = "plaintext" },
             }));
@@ -166,7 +180,7 @@ public sealed class LocalApiEndpointTests : IClassFixture<LocalApiEndpointTests.
                 nodeId = "node-input",
                 prompt = "What is 2 + 2?",
                 requester = new { address = "agent:assistant@school.example", kind = "agent", displayName = "Assistant" },
-                assignees = new[] { new { address = "human:teacher@school.example", kind = "human", displayName = "Teacher" } },
+                assignees = new[] { teacher },
             }));
 
             Assert.Equal(HttpStatusCode.Created, createTask.StatusCode);
@@ -182,7 +196,7 @@ public sealed class LocalApiEndpointTests : IClassFixture<LocalApiEndpointTests.
             // 7. Answer the task → RESPONSE_RECEIVED.
             var answer = await client.PostAsync($"/tasks/{taskId}/response", JsonBody(new
             {
-                respondedBy = new { address = "human:teacher@school.example", kind = "human", displayName = "Teacher" },
+                respondedBy = teacher,
                 text = "4",
             }));
 
@@ -191,7 +205,8 @@ public sealed class LocalApiEndpointTests : IClassFixture<LocalApiEndpointTests.
             Assert.Equal("RESPONSE_RECEIVED", answeredDoc.RootElement.GetProperty("status").GetString());
             Assert.Equal("4", answeredDoc.RootElement.GetProperty("response").GetProperty("text").GetString());
 
-            // 8. Register an artifact and read it back.
+            // 8. Register an artifact and read it back. Bytes land later; the artifact is only visible to
+            //    members of a conversation that references it (AUTH-FR-05), so attach it to a message.
             var registerArtifact = await client.PostAsync("/artifacts", JsonBody(new
             {
                 hash = "sha256:0000000000000000000000000000000000000000000000000000000000000000",
@@ -203,17 +218,31 @@ public sealed class LocalApiEndpointTests : IClassFixture<LocalApiEndpointTests.
             Assert.Equal(HttpStatusCode.Created, registerArtifact.StatusCode);
             using var artifactDoc = JsonDocument.Parse(await registerArtifact.Content.ReadAsStringAsync());
             var artifactId = artifactDoc.RootElement.GetProperty("id").GetString();
+
+            var attach = await client.PostAsync("/messages", JsonBody(new
+            {
+                sender = teacher,
+                recipients = new[] { new { address = "agent:assistant@school.example", kind = "agent", displayName = "Assistant" } },
+                conversationId,
+                payload = new { body = "evidence attached" },
+                artifactRefs = new[]
+                {
+                    new { id = artifactId, hash = "sha256:0000000000000000000000000000000000000000000000000000000000000000", filename = "evidence.pdf", mimeType = "application/pdf", sizeBytes = 12 },
+                },
+            }));
+            Assert.Equal(HttpStatusCode.Created, attach.StatusCode);
+
             Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/artifacts")).StatusCode);
             Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/artifacts/{artifactId}")).StatusCode);
 
-            // 9. Sync status reflects the durable side effects: three messages (send + task request + task
-            //    response) enqueued to the outbox with a QUEUED delivery each.
+            // 9. Sync status reflects the durable side effects: four messages (send + task request + task
+            //    response + artifact attach) enqueued to the outbox with a QUEUED delivery each.
             var syncStatus = await client.GetAsync("/sync/status");
             Assert.Equal(HttpStatusCode.OK, syncStatus.StatusCode);
             using var syncDoc = JsonDocument.Parse(await syncStatus.Content.ReadAsStringAsync());
             Assert.Equal("edge:scaffold", syncDoc.RootElement.GetProperty("gatewayId").GetString());
-            Assert.True(syncDoc.RootElement.GetProperty("queued").GetInt32() >= 3);
-            Assert.True(syncDoc.RootElement.GetProperty("deliveries").GetProperty("queued").GetInt32() >= 3);
+            Assert.True(syncDoc.RootElement.GetProperty("queued").GetInt32() >= 4);
+            Assert.True(syncDoc.RootElement.GetProperty("deliveries").GetProperty("queued").GetInt32() >= 4);
         }
     }
 
@@ -222,28 +251,45 @@ public sealed class LocalApiEndpointTests : IClassFixture<LocalApiEndpointTests.
     // -----------------------------------------------------------------------------------------------
 
     [Fact]
-    public async Task UnknownConversation_ReturnsNotFoundProtocolError()
+    public async Task UnknownConversation_IsRejectedAsForbidden_WithoutLeakingExistence()
+    {
+        var client = await CreateAuthenticatedClientAsync();
+
+        // A non-existent conversation is indistinguishable from an inaccessible one: 403, never 404
+        // (SP-07 — resource existence cannot be probed).
+        var response = await client.GetAsync("/conversations/conversation:does-not-exist");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("CONVERSATION_ACCESS_DENIED", doc.RootElement.GetProperty("code").GetString());
+        Assert.False(doc.RootElement.GetProperty("retryable").GetBoolean());
+    }
+
+    [Fact]
+    public async Task ProtectedRoute_WithoutSession_Returns401()
     {
         var client = _factory.CreateClient();
 
-        var response = await client.GetAsync("/conversations/conversation:does-not-exist");
+        var response = await client.GetAsync("/conversations");
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        Assert.Equal("NOT_FOUND", doc.RootElement.GetProperty("code").GetString());
+        Assert.Equal("UNAUTHORIZED", doc.RootElement.GetProperty("code").GetString());
         Assert.False(doc.RootElement.GetProperty("retryable").GetBoolean());
     }
 
     [Fact]
     public async Task SendMessage_NoRecipients_ReturnsValidationProtocolError()
     {
-        var client = _factory.CreateClient();
+        var client = await CreateAuthenticatedClientAsync();
+        var me = await client.GetAsync("/auth/me");
+        var myUserId = JsonDocument.Parse(await me.Content.ReadAsStringAsync()).RootElement.GetProperty("userId").GetString();
 
         var createConversation = await client.PostAsync("/conversations", JsonBody(new
         {
             participants = new[]
             {
-                new { address = "human:teacher@school.example", kind = "human", displayName = "Teacher" },
+                new { address = "human:teacher@school.example", kind = "human", displayName = "Teacher", userId = myUserId },
             },
         }));
         using var conversationDoc = JsonDocument.Parse(await createConversation.Content.ReadAsStringAsync());
@@ -251,7 +297,7 @@ public sealed class LocalApiEndpointTests : IClassFixture<LocalApiEndpointTests.
 
         var send = await client.PostAsync("/messages", JsonBody(new
         {
-            sender = new { address = "agent:assistant@school.example", kind = "agent", displayName = "Assistant" },
+            sender = new { address = "human:teacher@school.example", kind = "human", displayName = "Teacher", userId = myUserId },
             recipients = Array.Empty<object>(),
             conversationId,
             payload = new { body = "nobody home" },
@@ -268,6 +314,23 @@ public sealed class LocalApiEndpointTests : IClassFixture<LocalApiEndpointTests.
     // -----------------------------------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------------------------------
+
+    /// <summary>Creates a client logged in as the seeded bootstrap user with the bearer token attached.</summary>
+    private async Task<HttpClient> CreateAuthenticatedClientAsync()
+    {
+        var client = _factory.CreateClient();
+        var token = await LoginAsync(client, _factory.Bootstrap.Username, _factory.Bootstrap.Password);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return client;
+    }
+
+    private static async Task<string> LoginAsync(HttpClient client, string username, string password)
+    {
+        var response = await client.PostAsync("/auth/login", JsonBody(new { username, password }));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return doc.RootElement.GetProperty("token").GetString()!;
+    }
 
     private static StringContent JsonBody(object value)
     {

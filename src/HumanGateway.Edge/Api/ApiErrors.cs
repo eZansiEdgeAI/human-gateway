@@ -1,6 +1,7 @@
 using HumanGateway.Core.Artifacts;
 using HumanGateway.Protocol.Models;
 using HumanGateway.Protocol.Validation;
+using HumanGateway.Security;
 using Microsoft.EntityFrameworkCore;
 
 namespace HumanGateway.Edge.Api;
@@ -50,6 +51,12 @@ public static class ApiErrors
     {
         ProtocolValidationException ve => ValidationFailed(ve.Result.Errors),
         LocalApiException le => FromLocalApiException(le),
+        UnauthenticatedRequestException => Problem(
+            StatusCodes.Status401Unauthorized,
+            ErrorCodes.Unauthorized,
+            "A valid session is required to access this resource.",
+            null,
+            retryable: false),
         ArtifactHashMismatchException e => Problem(
             StatusCodes.Status422UnprocessableEntity,
             ErrorCodes.HashMismatch,

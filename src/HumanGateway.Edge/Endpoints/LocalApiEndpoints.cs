@@ -1,4 +1,5 @@
 using HumanGateway.Edge.Api;
+using HumanGateway.Security;
 
 namespace HumanGateway.Edge.Endpoints;
 
@@ -7,6 +8,12 @@ namespace HumanGateway.Edge.Endpoints;
 /// and sync status. Handlers stay thin — the domain logic lives in <see cref="LocalApiService"/>, and
 /// exceptions raised there are translated to <see cref="HumanGateway.Protocol.Models.ProtocolError"/> responses
 /// by the global exception handler wired in <c>Program.cs</c>.
+///
+/// Every route here is behind the authorisation middleware (AUTH-FR-03, SP-04): the middleware rejects
+/// unauthenticated requests to these routes with 401 and enforces per-conversation/task/artifact access for
+/// single-resource reads. Handlers therefore call <see cref="CurrentUser.Require"/> to resolve the
+/// authenticated user for the service layer's list filters and write-actor checks (never null on a protected
+/// route).
 /// </summary>
 public static class LocalApiEndpoints
 {
@@ -23,8 +30,8 @@ public static class LocalApiEndpoints
 
     private static void MapConversationEndpoints(this WebApplication app)
     {
-        app.MapGet("/conversations", static async (LocalApiService service, CancellationToken ct) =>
-            Results.Ok(await service.ListConversationsAsync(ct)));
+        app.MapGet("/conversations", static async (HttpContext http, LocalApiService service, CancellationToken ct) =>
+            Results.Ok(await service.ListConversationsAsync(CurrentUser.Require(http), ct)));
 
         app.MapPost("/conversations", static async (CreateConversationRequest request, LocalApiService service, CancellationToken ct) =>
         {
@@ -44,9 +51,9 @@ public static class LocalApiEndpoints
 
     private static void MapMessageEndpoints(this WebApplication app)
     {
-        app.MapPost("/messages", static async (SendMessageRequest request, LocalApiService service, CancellationToken ct) =>
+        app.MapPost("/messages", static async (SendMessageRequest request, HttpContext http, LocalApiService service, CancellationToken ct) =>
         {
-            var view = await service.SendMessageAsync(request, ct);
+            var view = await service.SendMessageAsync(request, CurrentUser.Require(http), ct);
             return Results.Created($"/messages/{view.Message.Id}", view);
         });
 
@@ -59,14 +66,14 @@ public static class LocalApiEndpoints
 
     private static void MapTaskEndpoints(this WebApplication app)
     {
-        app.MapPost("/tasks", static async (CreateTaskRequest request, LocalApiService service, CancellationToken ct) =>
+        app.MapPost("/tasks", static async (CreateTaskRequest request, HttpContext http, LocalApiService service, CancellationToken ct) =>
         {
-            var task = await service.CreateTaskAsync(request, ct);
+            var task = await service.CreateTaskAsync(request, CurrentUser.Require(http), ct);
             return Results.Created($"/tasks/{task.Id}", task);
         });
 
-        app.MapGet("/tasks", static async (string? status, LocalApiService service, CancellationToken ct) =>
-            Results.Ok(await service.ListTasksAsync(status, ct)));
+        app.MapGet("/tasks", static async (string? status, HttpContext http, LocalApiService service, CancellationToken ct) =>
+            Results.Ok(await service.ListTasksAsync(status, CurrentUser.Require(http), ct)));
 
         app.MapGet("/tasks/{id}", static async (string id, LocalApiService service, CancellationToken ct) =>
         {
@@ -74,9 +81,9 @@ public static class LocalApiEndpoints
             return task is null ? ApiErrors.NotFound($"Task {id} not found.") : Results.Ok(task);
         });
 
-        app.MapPost("/tasks/{id}/response", static async (string id, AnswerTaskRequest request, LocalApiService service, CancellationToken ct) =>
+        app.MapPost("/tasks/{id}/response", static async (string id, AnswerTaskRequest request, HttpContext http, LocalApiService service, CancellationToken ct) =>
         {
-            var task = await service.AnswerTaskAsync(id, request, ct);
+            var task = await service.AnswerTaskAsync(id, request, CurrentUser.Require(http), ct);
             return task is null ? ApiErrors.NotFound($"Task {id} not found.") : Results.Ok(task);
         });
     }
@@ -89,8 +96,8 @@ public static class LocalApiEndpoints
             return Results.Created($"/artifacts/{artifact.Id}", artifact);
         });
 
-        app.MapGet("/artifacts", static async (LocalApiService service, CancellationToken ct) =>
-            Results.Ok(await service.ListArtifactsAsync(ct)));
+        app.MapGet("/artifacts", static async (HttpContext http, LocalApiService service, CancellationToken ct) =>
+            Results.Ok(await service.ListArtifactsAsync(CurrentUser.Require(http), ct)));
 
         app.MapGet("/artifacts/{id}", static async (string id, LocalApiService service, CancellationToken ct) =>
         {

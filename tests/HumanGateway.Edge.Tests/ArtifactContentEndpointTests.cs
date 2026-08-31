@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
@@ -33,14 +34,18 @@ public sealed class ArtifactContentEndpointTests : IClassFixture<ArtifactContent
     [Fact]
     public async Task Upload_ThenDownload_ReturnsTheExactBytes_WithMimeType()
     {
-        using var client = _factory.CreateClient();
+        var client = await CreateAuthenticatedClientAsync();
         var content = Encoding.UTF8.GetBytes("teacher-photo-evidence");
-        var (id, _) = await RegisterAsync(client, content, "photo.jpg", "image/jpeg");
+        var (id, hash) = await RegisterAsync(client, content, "photo.jpg", "image/jpeg");
 
         var upload = await client.PutAsync($"/artifacts/{id}/content", new ByteArrayContent(content));
         Assert.Equal(HttpStatusCode.Created, upload.StatusCode);
         using var uploadDoc = JsonDocument.Parse(await upload.Content.ReadAsStringAsync());
         Assert.True(uploadDoc.RootElement.GetProperty("stored").GetBoolean());
+
+        // Downloads are conversation-gated (AUTH-FR-05): attach the artifact to a message in the caller's
+        // conversation so the download passes the authorisation gate.
+        await AttachToUserConversationAsync(client, id, hash, "photo.jpg", "image/jpeg", content.Length);
 
         var download = await client.GetAsync($"/artifacts/{id}/content");
         Assert.Equal(HttpStatusCode.OK, download.StatusCode);
@@ -62,7 +67,7 @@ public sealed class ArtifactContentEndpointTests : IClassFixture<ArtifactContent
     [Fact]
     public async Task Upload_SameContentTwice_IsDeduplicated_NoSecondWrite()
     {
-        using var client = _factory.CreateClient();
+        var client = await CreateAuthenticatedClientAsync();
         var content = Encoding.UTF8.GetBytes("duplicate-evidence");
         var (id1, _) = await RegisterAsync(client, content);
         var (id2, _) = await RegisterAsync(client, content); // different id, identical bytes
@@ -87,7 +92,7 @@ public sealed class ArtifactContentEndpointTests : IClassFixture<ArtifactContent
         // Small limit so the test upload trips it without transferring megabytes. Registration accepts a tiny
         // artifact; the upload itself declares a larger body than the gateway permits (ARTF-FR-03).
         using var limited = _factory.WithArtifactOptions(maxSizeBytes: 64, quotaBytes: 4096);
-        using var client = limited.CreateClient();
+        var client = await CreateAuthenticatedClientAsync(limited);
 
         var tiny = new byte[4];
         var (id, _) = await RegisterAsync(client, tiny);
@@ -106,7 +111,7 @@ public sealed class ArtifactContentEndpointTests : IClassFixture<ArtifactContent
     public async Task Register_OverSizeLimit_IsRejectedWithSizeExceeded()
     {
         using var limited = _factory.WithArtifactOptions(maxSizeBytes: 64, quotaBytes: 4096);
-        using var client = limited.CreateClient();
+        var client = await CreateAuthenticatedClientAsync(limited);
 
         var response = await client.PostAsJsonAsync("/artifacts", new
         {
@@ -127,7 +132,7 @@ public sealed class ArtifactContentEndpointTests : IClassFixture<ArtifactContent
         // Quota smaller than the content so the first upload trips it on a fresh store (self-contained:
         // the gateway enforces quota against the bytes it actually stores, ARTF-FR-03).
         using var limited = _factory.WithArtifactOptions(maxSizeBytes: 4096, quotaBytes: 10);
-        using var client = limited.CreateClient();
+        var client = await CreateAuthenticatedClientAsync(limited);
         var content = Encoding.UTF8.GetBytes("quota-consumer"); // 13 bytes > 10-byte quota
         var (id, _) = await RegisterAsync(client, content);
 
@@ -142,7 +147,7 @@ public sealed class ArtifactContentEndpointTests : IClassFixture<ArtifactContent
     public async Task Upload_QuotaNotDoubleCounted_ForDeduplicatedContent()
     {
         using var limited = _factory.WithArtifactOptions(maxSizeBytes: 4096, quotaBytes: 100);
-        using var client = limited.CreateClient();
+        var client = await CreateAuthenticatedClientAsync(limited);
         var content = Encoding.UTF8.GetBytes("dedup-against-quota");
         var (id1, _) = await RegisterAsync(client, content);
         var (id2, _) = await RegisterAsync(client, content);
@@ -167,9 +172,9 @@ public sealed class ArtifactContentEndpointTests : IClassFixture<ArtifactContent
     [Fact]
     public async Task Upload_HashMismatch_IsRejected_AndNoBytesAreServed()
     {
-        using var client = _factory.CreateClient();
+        var client = await CreateAuthenticatedClientAsync();
         var registered = Encoding.UTF8.GetBytes("declared-content");
-        var (id, _) = await RegisterAsync(client, registered);
+        var (id, hash) = await RegisterAsync(client, registered);
 
         // Upload different bytes than the registered hash declares.
         var tampered = Encoding.UTF8.GetBytes("tampered-content");
@@ -180,6 +185,7 @@ public sealed class ArtifactContentEndpointTests : IClassFixture<ArtifactContent
         Assert.Equal(ErrorCodes.HashMismatch, error?.Code);
 
         // Nothing was served at the content path (SP-06: a tampered upload never leaves a servable artifact).
+        await AttachToUserConversationAsync(client, id, hash, "evidence.bin", "application/octet-stream", registered.Length);
         var download = await client.GetAsync($"/artifacts/{id}/content");
         Assert.Equal(HttpStatusCode.NotFound, download.StatusCode);
     }
@@ -187,7 +193,7 @@ public sealed class ArtifactContentEndpointTests : IClassFixture<ArtifactContent
     [Fact]
     public async Task Upload_UnknownArtifactId_IsNotFound()
     {
-        using var client = _factory.CreateClient();
+        var client = await CreateAuthenticatedClientAsync();
         var response = await client.PutAsync("/artifacts/artifact:ghost/content",
             new ByteArrayContent(Encoding.UTF8.GetBytes("ghost")));
 
@@ -197,10 +203,13 @@ public sealed class ArtifactContentEndpointTests : IClassFixture<ArtifactContent
     [Fact]
     public async Task Download_BeforeBytesUploaded_IsNotFound()
     {
-        using var client = _factory.CreateClient();
+        var client = await CreateAuthenticatedClientAsync();
         var content = Encoding.UTF8.GetBytes("metadata-only");
-        var (id, _) = await RegisterAsync(client, content);
+        var (id, hash) = await RegisterAsync(client, content);
 
+        // The artifact is referenced in the caller's conversation (downloads are conversation-gated,
+        // AUTH-FR-05), but its bytes have not been uploaded yet → 404, not 403.
+        await AttachToUserConversationAsync(client, id, hash, "evidence.bin", "application/octet-stream", content.Length);
         var download = await client.GetAsync($"/artifacts/{id}/content");
         Assert.Equal(HttpStatusCode.NotFound, download.StatusCode);
     }
@@ -208,6 +217,58 @@ public sealed class ArtifactContentEndpointTests : IClassFixture<ArtifactContent
     // -----------------------------------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------------------------------
+
+    /// <summary>Creates a client logged in as the seeded bootstrap user with the bearer token attached.</summary>
+    private async Task<HttpClient> CreateAuthenticatedClientAsync(WebApplicationFactory<Program>? factory = null)
+    {
+        var client = (factory ?? _factory).CreateClient();
+        var response = await client.PostAsJsonAsync("/auth/login", new
+        {
+            username = _factory.Bootstrap.Username,
+            password = _factory.Bootstrap.Password,
+        }, Factory.ApiJson);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var token = doc.RootElement.GetProperty("token").GetString()!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return client;
+    }
+
+    /// <summary>
+    /// References the artifact from a message in a conversation the caller is a member of, so the download
+    /// authorisation gate (AUTH-FR-05) passes for the caller.
+    /// </summary>
+    private async Task AttachToUserConversationAsync(
+        HttpClient client, string artifactId, string hash, string filename, string mimeType, long sizeBytes)
+    {
+        var me = await client.GetAsync("/auth/me");
+        var userId = JsonDocument.Parse(await me.Content.ReadAsStringAsync()).RootElement.GetProperty("userId").GetString();
+
+        var conversation = await client.PostAsJsonAsync("/conversations", new
+        {
+            title = "Artifact access",
+            participants = new object[]
+            {
+                new { address = "human:teacher@school.example", kind = "human", displayName = "Teacher", userId },
+                new { address = "agent:assistant@school.example", kind = "agent", displayName = "Assistant", userId = (string?)null },
+            },
+        }, Factory.ApiJson);
+        Assert.Equal(HttpStatusCode.Created, conversation.StatusCode);
+        var conversationId = JsonDocument.Parse(await conversation.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetString();
+
+        var attach = await client.PostAsJsonAsync("/messages", new
+        {
+            sender = new { address = "human:teacher@school.example", kind = "human", displayName = "Teacher", userId },
+            recipients = new object[] { new { address = "agent:assistant@school.example", kind = "agent", displayName = "Assistant" } },
+            conversationId,
+            payload = new { body = "evidence attached" },
+            artifactRefs = new object[]
+            {
+                new { id = artifactId, hash, filename, mimeType, sizeBytes },
+            },
+        }, Factory.ApiJson);
+        Assert.Equal(HttpStatusCode.Created, attach.StatusCode);
+    }
 
     private static async Task<(string Id, string Hash)> RegisterAsync(
         HttpClient client, byte[] content, string filename = "evidence.bin", string mimeType = "application/octet-stream")
@@ -240,6 +301,9 @@ public sealed class ArtifactContentEndpointTests : IClassFixture<ArtifactContent
         private readonly string _dir = Path.Combine(Path.GetTempPath(), "hgedge-art-" + Guid.NewGuid().ToString("N"));
 
         public Factory() => Directory.CreateDirectory(_dir);
+
+        /// <summary>The seeded bootstrap credentials used by the tests.</summary>
+        public (string Username, string Password) Bootstrap { get; } = ("bootstrap", "bootstrap-pw");
 
         /// <summary>A factory clone with custom artifact limits (size limit, quota).</summary>
         public Factory WithArtifactOptions(long? maxSizeBytes = null, long? quotaBytes = null)
@@ -279,6 +343,9 @@ public sealed class ArtifactContentEndpointTests : IClassFixture<ArtifactContent
                 var settings = new Dictionary<string, string?>
                 {
                     ["Artifacts:RootPath"] = Path.Combine(_dir, "artifacts"),
+                    ["Auth:BootstrapUser:Username"] = Bootstrap.Username,
+                    ["Auth:BootstrapUser:Password"] = Bootstrap.Password,
+                    ["Auth:BootstrapUser:DisplayName"] = "Bootstrap User",
                 };
                 if (_maxSizeBytes is { } max)
                 {

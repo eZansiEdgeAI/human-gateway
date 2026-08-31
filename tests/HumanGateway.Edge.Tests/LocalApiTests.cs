@@ -3,6 +3,7 @@ using HumanGateway.Edge.Artifacts;
 using HumanGateway.Edge.Storage;
 using HumanGateway.Protocol.Models;
 using HumanGateway.Protocol.Validation;
+using HumanGateway.Security;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -21,6 +22,24 @@ public sealed class LocalApiTests : IDisposable
 {
     private const string GatewayId = "edge:00000000-0000-0000-0000-00000000test";
     private static readonly CancellationToken Ct = CancellationToken.None;
+
+    /// <summary>The teacher's authenticated identity (matches TestData.Teacher's UserId).</summary>
+    private static readonly AuthenticatedUser TeacherUser = new()
+    {
+        UserId = TestData.Teacher.UserId!,
+        Username = "teacher",
+        DisplayName = "Teacher",
+        ExpiresAt = "2099-01-01T00:00:00.000Z",
+    };
+
+    /// <summary>The student's authenticated identity (matches TestData.Student's UserId).</summary>
+    private static readonly AuthenticatedUser StudentUser = new()
+    {
+        UserId = TestData.Student.UserId!,
+        Username = "student",
+        DisplayName = "Student",
+        ExpiresAt = "2099-01-01T00:00:00.000Z",
+    };
 
     private readonly string _dir;
     private readonly string _dbPath;
@@ -97,7 +116,7 @@ public sealed class LocalApiTests : IDisposable
         Assert.Equal(2, created.Participants.Count);
         Assert.Equal(0, created.MessageCount);
 
-        var listed = await service.ListConversationsAsync(Ct);
+        var listed = await service.ListConversationsAsync(TeacherUser, Ct);
         Assert.Contains(listed, c => c.Id == created.Id);
 
         var fetched = await service.GetConversationAsync(created.Id, Ct);
@@ -134,11 +153,11 @@ public sealed class LocalApiTests : IDisposable
 
         var sent = await service.SendMessageAsync(new SendMessageRequest
         {
-            Sender = TestData.Assistant,
-            Recipients = new List<Participant> { TestData.Teacher },
+            Sender = TestData.Teacher,
+            Recipients = new List<Participant> { TestData.Assistant },
             ConversationId = conversation.Id,
             Payload = new MessagePayload { Body = "hello", Format = MessageFormat.Plaintext },
-        }, Ct);
+        }, TeacherUser, Ct);
 
         // Message envelope round-trips with a computed content hash.
         Assert.False(string.IsNullOrEmpty(sent.Message.Id));
@@ -148,7 +167,7 @@ public sealed class LocalApiTests : IDisposable
         // One delivery per recipient, starting at QUEUED (the PWA status indicator's initial state).
         var delivery = Assert.Single(sent.Deliveries);
         Assert.Equal(DeliveryState.Queued, delivery.State);
-        Assert.Equal(TestData.Teacher.Address, delivery.Recipient.Address);
+        Assert.Equal(TestData.Assistant.Address, delivery.Recipient.Address);
         Assert.Equal(sent.Message.Id, delivery.MessageId);
 
         // The message is durable and shows up in the conversation's message list.
@@ -176,11 +195,11 @@ public sealed class LocalApiTests : IDisposable
         // No recipients → message.schema.json requires at least one recipient.
         await Assert.ThrowsAsync<ProtocolValidationException>(() => service.SendMessageAsync(new SendMessageRequest
         {
-            Sender = TestData.Assistant,
+            Sender = TestData.Teacher,
             Recipients = new List<Participant>(),
             ConversationId = conversation.Id,
             Payload = new MessagePayload { Body = "nobody home" },
-        }, Ct));
+        }, TeacherUser, Ct));
     }
 
     [Fact]
@@ -209,7 +228,7 @@ public sealed class LocalApiTests : IDisposable
             Prompt = "What is 2 + 2?",
             Requester = TestData.Assistant,
             Assignees = new List<Participant> { TestData.Teacher },
-        }, Ct);
+        }, TeacherUser, Ct);
 
         Assert.Equal(HumanTaskStatus.Requested, task.Status);
         Assert.Equal("workflow:assessment-1", task.WorkflowRef);
@@ -223,7 +242,7 @@ public sealed class LocalApiTests : IDisposable
         {
             RespondedBy = TestData.Teacher,
             Text = "4",
-        }, Ct);
+        }, TeacherUser, Ct);
 
         Assert.NotNull(answered);
         Assert.Equal(HumanTaskStatus.ResponseReceived, answered!.Status);
@@ -248,13 +267,13 @@ public sealed class LocalApiTests : IDisposable
             Prompt = "Approve the budget?",
             Requester = TestData.Assistant,
             Assignees = new List<Participant> { TestData.Teacher },
-        }, Ct);
+        }, TeacherUser, Ct);
 
         await Assert.ThrowsAsync<ProtocolValidationException>(() => service.AnswerTaskAsync(task.Id, new AnswerTaskRequest
         {
             RespondedBy = TestData.Teacher,
             Text = "looks fine but no decision",
-        }, Ct));
+        }, TeacherUser, Ct));
     }
 
     [Fact]
@@ -270,12 +289,12 @@ public sealed class LocalApiTests : IDisposable
             Prompt = "Only answer once.",
             Requester = TestData.Assistant,
             Assignees = new List<Participant> { TestData.Teacher },
-        }, Ct);
+        }, TeacherUser, Ct);
 
-        await service.AnswerTaskAsync(task.Id, new AnswerTaskRequest { RespondedBy = TestData.Teacher, Text = "first" }, Ct);
+        await service.AnswerTaskAsync(task.Id, new AnswerTaskRequest { RespondedBy = TestData.Teacher, Text = "first" }, TeacherUser, Ct);
 
         var ex = await Assert.ThrowsAsync<LocalApiException>(() =>
-            service.AnswerTaskAsync(task.Id, new AnswerTaskRequest { RespondedBy = TestData.Teacher, Text = "second" }, Ct));
+            service.AnswerTaskAsync(task.Id, new AnswerTaskRequest { RespondedBy = TestData.Teacher, Text = "second" }, TeacherUser, Ct));
 
         Assert.Equal(409, ex.StatusCode);
     }
@@ -293,12 +312,12 @@ public sealed class LocalApiTests : IDisposable
             Prompt = "List me.",
             Requester = TestData.Assistant,
             Assignees = new List<Participant> { TestData.Teacher },
-        }, Ct);
+        }, TeacherUser, Ct);
 
-        var requested = await service.ListTasksAsync("REQUESTED", Ct);
+        var requested = await service.ListTasksAsync("REQUESTED", TeacherUser, Ct);
         Assert.Contains(requested, t => t.Id == created.Id);
 
-        var completed = await service.ListTasksAsync("COMPLETED", Ct);
+        var completed = await service.ListTasksAsync("COMPLETED", TeacherUser, Ct);
         Assert.DoesNotContain(completed, t => t.Id == created.Id);
     }
 
@@ -370,11 +389,11 @@ public sealed class LocalApiTests : IDisposable
 
         await service.SendMessageAsync(new SendMessageRequest
         {
-            Sender = TestData.Assistant,
-            Recipients = new List<Participant> { TestData.Teacher },
+            Sender = TestData.Teacher,
+            Recipients = new List<Participant> { TestData.Assistant },
             ConversationId = conversation.Id,
             Payload = new MessagePayload { Body = "status check" },
-        }, Ct);
+        }, TeacherUser, Ct);
 
         var status = await service.GetSyncStatusAsync(Ct);
         Assert.Equal(GatewayId, status.GatewayId);
@@ -383,5 +402,241 @@ public sealed class LocalApiTests : IDisposable
         Assert.Equal(1, status.Deliveries.Queued);
         Assert.Equal(0, status.Deliveries.Delivered);
         Assert.Equal(0, status.Deliveries.Failed);
+    }
+
+    // -----------------------------------------------------------------------------------------------
+    // Authorisation (AUTH-FR-03, SP-04): no cross-participant access
+    // -----------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task SendMessage_AsAnotherParticipant_ThrowsForbidden()
+    {
+        var service = CreateService();
+        var conversation = await service.CreateConversationAsync(new CreateConversationRequest
+        {
+            Participants = new List<Participant> { TestData.Teacher, TestData.Assistant },
+        }, Ct);
+
+        // The teacher user tries to send a message whose sender is the student — cross-participant write.
+        var ex = await Assert.ThrowsAsync<LocalApiException>(() => service.SendMessageAsync(new SendMessageRequest
+        {
+            Sender = TestData.Student,
+            Recipients = new List<Participant> { TestData.Assistant },
+            ConversationId = conversation.Id,
+            Payload = new MessagePayload { Body = "impersonation" },
+        }, TeacherUser, Ct));
+
+        Assert.Equal(403, ex.StatusCode);
+        Assert.Equal(ErrorCodes.Forbidden, ex.Code);
+    }
+
+    [Fact]
+    public async Task SendMessage_ToConversationNotAMemberOf_ThrowsForbidden()
+    {
+        var service = CreateService();
+        var conversation = await service.CreateConversationAsync(new CreateConversationRequest
+        {
+            Participants = new List<Participant> { TestData.Teacher, TestData.Assistant },
+        }, Ct);
+
+        // The student is not a member of the teacher's conversation, so they cannot write into it.
+        var ex = await Assert.ThrowsAsync<LocalApiException>(() => service.SendMessageAsync(new SendMessageRequest
+        {
+            Sender = TestData.Student,
+            Recipients = new List<Participant> { TestData.Assistant },
+            ConversationId = conversation.Id,
+            Payload = new MessagePayload { Body = "intrusion" },
+        }, StudentUser, Ct));
+
+        Assert.Equal(403, ex.StatusCode);
+        Assert.Equal(ErrorCodes.ConversationAccessDenied, ex.Code);
+    }
+
+    [Fact]
+    public async Task SendMessage_ToNonMemberRecipient_ThrowsForbidden()
+    {
+        var service = CreateService();
+        var conversation = await service.CreateConversationAsync(new CreateConversationRequest
+        {
+            Participants = new List<Participant> { TestData.Teacher, TestData.Assistant },
+        }, Ct);
+
+        // The teacher is a member, but the student recipient is not — the message must not be delivered
+        // into a participant's inbox for a conversation they cannot access.
+        var ex = await Assert.ThrowsAsync<LocalApiException>(() => service.SendMessageAsync(new SendMessageRequest
+        {
+            Sender = TestData.Teacher,
+            Recipients = new List<Participant> { TestData.Student },
+            ConversationId = conversation.Id,
+            Payload = new MessagePayload { Body = "hello student" },
+        }, TeacherUser, Ct));
+
+        Assert.Equal(403, ex.StatusCode);
+        Assert.Equal(ErrorCodes.ConversationAccessDenied, ex.Code);
+    }
+
+    [Fact]
+    public async Task AnswerTask_ByNonAssigneeMember_ThrowsForbidden()
+    {
+        var service = CreateService();
+
+        // Conversation with teacher + student; the task is assigned to the student only.
+        var task = await service.CreateTaskAsync(new CreateTaskRequest
+        {
+            Kind = HumanTaskKind.Input,
+            WorkflowRef = "workflow:assigned",
+            NodeId = "node-assigned",
+            Prompt = "Answer only if assigned.",
+            Requester = TestData.Assistant,
+            Assignees = new List<Participant> { TestData.Student },
+        }, TeacherUser, Ct);
+
+        // The teacher is a member of the task's conversation but was not assigned — answering is denied.
+        var ex = await Assert.ThrowsAsync<LocalApiException>(() => service.AnswerTaskAsync(task.Id, new AnswerTaskRequest
+        {
+            RespondedBy = TestData.Teacher,
+            Text = "not my task",
+        }, TeacherUser, Ct));
+
+        Assert.Equal(403, ex.StatusCode);
+        Assert.Equal(ErrorCodes.TaskAccessDenied, ex.Code);
+    }
+
+    [Fact]
+    public async Task AnswerTask_AsAnotherParticipant_ThrowsForbidden()
+    {
+        var service = CreateService();
+
+        var task = await service.CreateTaskAsync(new CreateTaskRequest
+        {
+            Kind = HumanTaskKind.Input,
+            WorkflowRef = "workflow:impersonate",
+            NodeId = "node-impersonate",
+            Prompt = "Answer me.",
+            Requester = TestData.Assistant,
+            Assignees = new List<Participant> { TestData.Teacher },
+        }, TeacherUser, Ct);
+
+        // The student user tries to answer as the teacher — cross-participant write.
+        var ex = await Assert.ThrowsAsync<LocalApiException>(() => service.AnswerTaskAsync(task.Id, new AnswerTaskRequest
+        {
+            RespondedBy = TestData.Teacher,
+            Text = "stolen answer",
+        }, StudentUser, Ct));
+
+        Assert.Equal(403, ex.StatusCode);
+        Assert.Equal(ErrorCodes.Forbidden, ex.Code);
+    }
+
+    [Fact]
+    public async Task ListConversations_FiltersToUserMembership()
+    {
+        var service = CreateService();
+
+        var teacherConversation = await service.CreateConversationAsync(new CreateConversationRequest
+        {
+            Title = "Teacher only",
+            Participants = new List<Participant> { TestData.Teacher, TestData.Assistant },
+        }, Ct);
+        await service.CreateConversationAsync(new CreateConversationRequest
+        {
+            Title = "Student only",
+            Participants = new List<Participant> { TestData.Student, TestData.Assistant },
+        }, Ct);
+
+        var listed = await service.ListConversationsAsync(TeacherUser, Ct);
+
+        Assert.Contains(listed, c => c.Id == teacherConversation.Id);
+        Assert.DoesNotContain(listed, c => c.Title == "Student only");
+    }
+
+    [Fact]
+    public async Task ListTasks_FiltersToMembershipOrAssignment()
+    {
+        var service = CreateService();
+
+        var teacherTask = await service.CreateTaskAsync(new CreateTaskRequest
+        {
+            Kind = HumanTaskKind.Input,
+            WorkflowRef = "workflow:teacher-task",
+            NodeId = "node-1",
+            Prompt = "For the teacher.",
+            Requester = TestData.Assistant,
+            Assignees = new List<Participant> { TestData.Teacher },
+        }, TeacherUser, Ct);
+        var studentTask = await service.CreateTaskAsync(new CreateTaskRequest
+        {
+            Kind = HumanTaskKind.Input,
+            WorkflowRef = "workflow:student-task",
+            NodeId = "node-2",
+            Prompt = "For the student.",
+            Requester = TestData.Assistant,
+            Assignees = new List<Participant> { TestData.Student },
+        }, TeacherUser, Ct);
+
+        var listed = await service.ListTasksAsync(null, TeacherUser, Ct);
+
+        Assert.Contains(listed, t => t.Id == teacherTask.Id);
+        Assert.DoesNotContain(listed, t => t.Id == studentTask.Id);
+    }
+
+    [Fact]
+    public async Task ListArtifacts_FiltersToReferencedInAccessibleConversations()
+    {
+        var service = CreateService();
+
+        var teacherConversation = await service.CreateConversationAsync(new CreateConversationRequest
+        {
+            Participants = new List<Participant> { TestData.Teacher, TestData.Assistant },
+        }, Ct);
+        var studentConversation = await service.CreateConversationAsync(new CreateConversationRequest
+        {
+            Participants = new List<Participant> { TestData.Student, TestData.Assistant },
+        }, Ct);
+
+        var accessibleArtifact = await service.RegisterArtifactAsync(new RegisterArtifactRequest
+        {
+            Hash = "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            SizeBytes = 5,
+            MimeType = "text/plain",
+            Filename = "visible.txt",
+        }, Ct);
+        var hiddenArtifact = await service.RegisterArtifactAsync(new RegisterArtifactRequest
+        {
+            Hash = "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+            SizeBytes = 5,
+            MimeType = "text/plain",
+            Filename = "hidden.txt",
+        }, Ct);
+
+        // Reference the accessible artifact from the teacher's conversation and the hidden one only from
+        // the student's conversation.
+        await service.SendMessageAsync(new SendMessageRequest
+        {
+            Sender = TestData.Teacher,
+            Recipients = new List<Participant> { TestData.Assistant },
+            ConversationId = teacherConversation.Id,
+            Payload = new MessagePayload { Body = "with attachment" },
+            ArtifactRefs = new List<ArtifactReference>
+            {
+                new() { Id = accessibleArtifact.Id, Hash = accessibleArtifact.Hash, Filename = "visible.txt", MimeType = "text/plain", SizeBytes = 5 },
+            },
+        }, TeacherUser, Ct);
+        await service.SendMessageAsync(new SendMessageRequest
+        {
+            Sender = TestData.Student,
+            Recipients = new List<Participant> { TestData.Assistant },
+            ConversationId = studentConversation.Id,
+            Payload = new MessagePayload { Body = "with attachment" },
+            ArtifactRefs = new List<ArtifactReference>
+            {
+                new() { Id = hiddenArtifact.Id, Hash = hiddenArtifact.Hash, Filename = "hidden.txt", MimeType = "text/plain", SizeBytes = 5 },
+            },
+        }, StudentUser, Ct);
+
+        var listed = await service.ListArtifactsAsync(TeacherUser, Ct);
+
+        Assert.Contains(listed, a => a.Id == accessibleArtifact.Id);
+        Assert.DoesNotContain(listed, a => a.Id == hiddenArtifact.Id);
     }
 }

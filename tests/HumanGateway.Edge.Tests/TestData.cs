@@ -19,6 +19,14 @@ internal static class TestData
         UserId = "user:teacher",
     };
 
+    public static readonly Participant Student = new()
+    {
+        Address = "human:student@school.example",
+        Kind = ParticipantKind.Human,
+        DisplayName = "Student",
+        UserId = "user:student",
+    };
+
     public static readonly Participant Assistant = new()
     {
         Address = "agent:assistant@school.example",

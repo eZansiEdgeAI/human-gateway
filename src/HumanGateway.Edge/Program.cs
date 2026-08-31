@@ -197,6 +197,14 @@ builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOpt
 builder.Services.AddSingleton<LocalAuthService>();
 builder.Services.AddSingleton<IUserSessionService>(sp => sp.GetRequiredService<LocalAuthService>());
 
+// ---------------------------------------------------------------------------
+// Authorisation middleware (IDENTITY-SECURITY-5.3, AUTH-FR-03, SP-04): per-conversation/task/artifact
+// access control. The shared AuthorizationMiddleware gates the protected local-API routes; the store-backed
+// EdgeAuthorizer resolves the authenticated user's participant addresses and checks conversation membership /
+// task assignment over the SQLite store. Scoped so each request opens its own short-lived context.
+// ---------------------------------------------------------------------------
+builder.Services.AddScoped<IResourceAuthorizer, EdgeAuthorizer>();
+
 var app = builder.Build();
 
 // Translate domain/validation exceptions into ProtocolError-shaped responses so
@@ -225,6 +233,11 @@ using (var scope = app.Services.CreateScope())
 // Bearer-session authentication (AUTH-FR-02, SP-03): resolves the current user from
 // `Authorization: Bearer <token>` for /auth/me and future authorised endpoints.
 app.UseSessionAuthentication();
+
+// Authorisation (AUTH-FR-03, SP-04): requires a session on the protected local-API routes and enforces
+// per-conversation/task/artifact access for single-resource reads. Runs after session authentication so the
+// resolved AuthenticatedUser is available.
+app.UseResourceAuthorization();
 
 // Local health probe (EDGE-FR-01): reachable with no Internet. Includes a cheap
 // store round-trip so the probe reflects durable-store availability, not just

@@ -1,6 +1,7 @@
 using HumanGateway.Core.Artifacts;
 using HumanGateway.Protocol.Models;
 using HumanGateway.Relay.Services;
+using HumanGateway.Security;
 using Microsoft.EntityFrameworkCore;
 
 namespace HumanGateway.Relay.Api;
@@ -35,6 +36,12 @@ public static class ApiErrors
     public static IResult FromException(Exception ex) => ex switch
     {
         GatewayServiceException e => Problem(e.StatusCode, e.Code, e.Message, null, e.Retryable),
+        UnauthenticatedRequestException => Problem(
+            StatusCodes.Status401Unauthorized,
+            ErrorCodes.Unauthorized,
+            "A valid session is required to access this resource.",
+            null,
+            retryable: false),
         ArtifactHashMismatchException e => Problem(
             StatusCodes.Status422UnprocessableEntity,
             ErrorCodes.HashMismatch,
