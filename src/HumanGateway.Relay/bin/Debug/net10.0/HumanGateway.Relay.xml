@@ -240,6 +240,54 @@
             items array is a valid keepalive — there is nothing new after the echoed cursor (SYNC-FR-03).
             </summary>
         </member>
+        <member name="T:HumanGateway.Relay.Health.HealthReportJson">
+            <summary>
+            Writes the ASP.NET Core <see cref="T:Microsoft.Extensions.Diagnostics.HealthChecks.HealthReport"/> as a compact, machine-readable JSON document for the
+            admin-facing <c>/health</c> endpoint (NF-09). Shape:
+            <code>
+            {
+              "status": "Healthy",
+              "generatedAt": "2026-08-31T21:40:00Z",
+              "checks": [
+                { "name": "store", "status": "Healthy", "durationMs": 3, "data": { "roundTripMs": 3 } },
+                { "name": "sync",  "status": "Healthy", "durationMs": 5, "data": { ... } }
+              ]
+            }
+            </code>
+            <c>data</c> is omitted when a check reports none. No secrets are ever included.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Health.HealthReportJson.WriteAsync(Microsoft.AspNetCore.Http.HttpContext,Microsoft.Extensions.Diagnostics.HealthChecks.HealthReport)">
+            <summary>The response writer invoked by <c>MapHealthChecks</c> for the <c>/health</c> report.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Health.RelayStoreHealthCheck">
+            <summary>
+            Durable-store health check (NF-09): a real PostgreSQL round-trip (<c>CanConnect</c>), so the probe
+            reflects store availability, not just process liveness. Exposed to admins on <c>/health</c> and as the
+            liveness decision behind <c>/healthz</c> (RELAY-FR-05).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Health.RelayStoreHealthCheck.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{HumanGateway.Relay.Storage.RelayDbContext})">
+            <summary>Creates the check over the Relay's pooled-context factory.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Health.RelayStoreHealthCheck.CheckHealthAsync(Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckContext,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Relay.Health.RelaySyncHealthCheck">
+            <summary>
+            Sync-health check (NF-09: "sync health surfaced to admins"): reports the relay-side sync surface — how
+            many gateways are registered, how many are currently online (recent <c>lastSeenAt</c> within the
+            rendezvous online window, WEBX-FR-02), and how many undelivered cross-site items sit in the pull queues.
+            These numbers are the health signal; an empty system is healthy. The check degrades only when the store
+            becomes unreadable.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Health.RelaySyncHealthCheck.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{HumanGateway.Relay.Storage.RelayDbContext},Microsoft.Extensions.Options.IOptions{HumanGateway.Relay.Options.RelayOptions})">
+            <summary>Creates the check over the context factory and relay behaviour options.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Health.RelaySyncHealthCheck.CheckHealthAsync(Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckContext,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
         <member name="T:HumanGateway.Relay.Options.RelayOptions">
             <summary>
             Relay behaviour options, read from the <c>Relay</c> configuration section. Sensible defaults keep the

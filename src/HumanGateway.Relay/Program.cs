@@ -1,5 +1,8 @@
+using System.Diagnostics;
+using System.Text.Json;
 using HumanGateway.Relay.Api;
 using HumanGateway.Relay.Endpoints;
+using HumanGateway.Relay.Health;
 using HumanGateway.Relay.Options;
 using HumanGateway.Relay.Services;
 using HumanGateway.Relay.Storage;
@@ -9,7 +12,11 @@ using HumanGateway.Core.Inbox;
 using HumanGateway.Core.Outbox;
 using HumanGateway.Core.Sync;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Logging.Console;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,6 +59,21 @@ builder.Services.AddDbContextFactory<RelayDbContext>((sp, options) =>
 // ---------------------------------------------------------------------------
 builder.Services.ConfigureHttpJsonOptions(options => RelayJson.Configure(options.SerializerOptions));
 
+// ---------------------------------------------------------------------------
+// Structured logging (NF-09): every Relay log is a structured message template with named fields (the
+// services log gateway ids, batch ids, cursors, and durations as fields — never secrets, SP-07). The JSON
+// console formatter is registered so deployments select machine-parseable logs via
+// `Logging__Console__FormatterName=json` (the appsettings default) — or the human-readable formatter with
+// `=simple` — with stable UTC timestamps either way.
+// ---------------------------------------------------------------------------
+builder.Logging.AddJsonConsole(options =>
+{
+    options.TimestampFormat = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
+    options.UseUtcTimestamp = true;
+    options.IncludeScopes = true;
+    options.JsonWriterOptions = new JsonWriterOptions { Indented = false };
+});
+
 // Relay behaviour options (token TTL, rendezvous online window) — bound from the "Relay" section.
 builder.Services.Configure<RelayOptions>(builder.Configuration.GetSection(RelayOptions.SectionName));
 
@@ -83,17 +105,81 @@ builder.Services.AddScoped<RelaySyncService>();
 // ---------------------------------------------------------------------------
 builder.Services.AddSingleton<IArtifactStore, PostgresArtifactStore>();
 
+// ---------------------------------------------------------------------------
+// Health checks (NF-09, RELAY-FR-05): the durable-store round-trip (RelayStoreHealthCheck) plus the relay
+// sync-health snapshot (RelaySyncHealthCheck — registered/online gateways, queued cross-site items).
+// Surfaced to admins as a detailed report on /health; /healthz reduces them to a liveness 200/503 for the
+// compose/orchestrator probe.
+// ---------------------------------------------------------------------------
+builder.Services.AddHealthChecks()
+    .AddCheck<RelayStoreHealthCheck>("store")
+    .AddCheck<RelaySyncHealthCheck>("sync");
+
 var app = builder.Build();
+
+// Request observability (NF-09): one structured log per request — method, path (never query strings, so
+// nothing sensitive), final status, and duration. Health probes are polled continuously (compose,
+// orchestrators), so they are skipped to keep the operational log readable. Placed outermost so the final
+// status — including 500s produced by the exception handler — is the one observed.
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value;
+    if (path is "/healthz" or "/health")
+    {
+        await next();
+        return;
+    }
+
+    var stopwatch = Stopwatch.StartNew();
+    try
+    {
+        await next();
+    }
+    finally
+    {
+        stopwatch.Stop();
+        app.Logger.LogInformation("HTTP {Method} {Path} -> {StatusCode} in {ElapsedMs}ms",
+            context.Request.Method, path, context.Response.StatusCode, stopwatch.ElapsedMilliseconds);
+    }
+});
 
 // Translate unexpected exceptions into ProtocolError-shaped responses so Edge
 // Gateways always receive the stable, machine-readable error contract (SP-07).
+// Unhandled exceptions are logged at Error with the request path for diagnosis.
 app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
 {
     var feature = context.Features.Get<IExceptionHandlerFeature>();
     var exception = feature?.Error;
+    if (exception is not null)
+    {
+        app.Logger.LogError(exception, "Unhandled exception while processing {Path}", context.Request.Path.Value);
+    }
+
     var result = exception is null ? ApiErrors.InternalError() : ApiErrors.FromException(exception);
     await result.ExecuteAsync(context);
 }));
+
+// Startup lifecycle (NF-09): the version, environment, and durable-store target are logged once on boot.
+// Only the database name and host are logged — never the connection string, which carries the password
+// (SP-07).
+app.Logger.LogInformation("Relay starting: version {Version}, environment {Environment}",
+    typeof(Program).Assembly.GetName().Version?.ToString() ?? "unknown",
+    app.Environment.EnvironmentName);
+if (app.Configuration.GetConnectionString("Relay") is { } relayConnectionString)
+{
+    try
+    {
+        var connection = new NpgsqlConnectionStringBuilder(relayConnectionString);
+        app.Logger.LogInformation("Relay store: database {Database} at {Host}", connection.Database, connection.Host);
+    }
+    catch (Exception ex) when (ex is FormatException or ArgumentException)
+    {
+        // A malformed connection string must never crash the Relay — and must never be logged wholesale
+        // (or echoed via the exception message, which some providers populate from keyword values): it
+        // carries the password (SP-07).
+        app.Logger.LogWarning("Relay store: connection string present but malformed (password never logged)");
+    }
+}
 
 // Apply pending EF Core migrations so the schema exists before the Relay begins
 // accepting sync traffic (RELAY-FR-01).
@@ -104,28 +190,46 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
-// Health probe (RELAY-FR-05 structured logging + health endpoint): includes a
-// cheap store round-trip so the probe reflects durable-store availability, not
-// just process liveness.
-app.MapGet("/healthz", async (IDbContextFactory<RelayDbContext> factory, CancellationToken ct) =>
+// Health probe endpoints (NF-09, RELAY-FR-05).
+// /healthz — liveness for compose/orchestrator probes: 200 when the store round-trip succeeds, 503 when
+// degraded (includes a cheap store round-trip via the health checks, so the probe reflects durable-store
+// availability, not just process liveness).
+app.MapGet("/healthz", async (HealthCheckService health, CancellationToken ct) =>
 {
-    try
+    var report = await health.CheckHealthAsync(ct);
+    if (report.Status == HealthStatus.Healthy)
     {
-        await using var db = await factory.CreateDbContextAsync(ct);
-        await db.Database.CanConnectAsync(ct);
         return Results.Ok(new { status = "ok", store = "postgres" });
     }
-    catch (Exception ex)
+
+    var failed = string.Join(", ",
+        report.Entries.Where(e => e.Value.Status != HealthStatus.Healthy).Select(e => e.Key));
+    app.Logger.LogWarning("Health probe degraded: {Status} (failed checks: {FailedChecks})", report.Status, failed);
+    return Results.Json(new { status = "degraded", store = "postgres" },
+        statusCode: StatusCodes.Status503ServiceUnavailable);
+});
+
+// /health — detailed, admin-facing report (NF-09: "sync health surfaced to admins"): per-check status,
+// latency, and health data (store round-trip, registered/online gateways, queued cross-site items).
+// Degraded/Unhealthy returns 503 so monitors and load balancers alarm.
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = HealthReportJson.WriteAsync,
+    AllowCachingResponses = false,
+    ResultStatusCodes = new Dictionary<HealthStatus, int>
     {
-        app.Logger.LogError(ex, "Health probe store check failed");
-        return Results.Json(new { status = "degraded", store = "postgres" }, statusCode: 503);
-    }
+        [HealthStatus.Healthy] = StatusCodes.Status200OK,
+        [HealthStatus.Degraded] = StatusCodes.Status503ServiceUnavailable,
+        [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable,
+    },
 });
 
 // The Relay API: gateway registration + rendezvous, sync, service info.
 app.MapRelayEndpoints();
 
 app.Run();
+
+app.Logger.LogInformation("Relay stopped");
 
 // Exposes the entry point to the test project (WebApplicationFactory<Program>).
 public partial class Program
