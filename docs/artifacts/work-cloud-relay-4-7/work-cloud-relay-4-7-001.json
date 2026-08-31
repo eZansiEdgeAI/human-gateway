@@ -1,0 +1,18 @@
+{
+  "type": "work.cloud-relay-4.7",
+  "category": "work",
+  "taskId": "CLOUD-RELAY-4.7",
+  "producedBy": "relay-engineer",
+  "status": "complete",
+  "summary": "Now I have a clear picture. The task is **CLOUD-RELAY-4.7: Structured logging and health endpoint (NF-09)**. There's already a basic `/healthz` and some structured logs, but the deliverable needs a pr",
+  "inputs": [
+    "work-cloud-relay-4-6-001"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "Now I have a clear picture. The task is **CLOUD-RELAY-4.7: Structured logging and health endpoint (NF-09)**. There's already a basic `/healthz` and some structured logs, but the deliverable needs a proper implementation: configurable structured JSON console logging, lifecycle + request logging, a health-check framework with store + sync health surfaced to admins, and tests.\nNow the Program.cs changes. First the usings and logging/health-check registration:\nNow update `appsettings.json` to make J"
+  },
+  "nextActions": [],
+  "artifactId": "work-cloud-relay-4-7-001",
+  "createdAt": "2026-08-31T21:43:39.632Z"
+}

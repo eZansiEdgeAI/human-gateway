@@ -3,7 +3,7 @@
 ## Current State
 **Phase**: CLOUD-RELAY-4
 **Status**: In Progress
-**Last Updated**: 2026-08-31T21:31:30.788Z
+**Last Updated**: 2026-08-31T21:43:39.635Z
 **Run ID**: cc1dad89-27a5-4765-8655-91bea28ec9c3
 **Harness**: opencode
 
@@ -45,12 +45,12 @@
 - [x] Phase CLOUD-RELAY-4, Task CLOUD-RELAY-4.4: [ ] Sync endpoint (@relay-engineer)
 - [x] Phase CLOUD-RELAY-4, Task CLOUD-RELAY-4.5: [ ] `ArtifactStore` interface with a PostgreSQL BYTEA implementation (streaming reads; S3-compatible adapter as an optional later step) (@relay-engineer)
 - [x] Phase CLOUD-RELAY-4, Task CLOUD-RELAY-4.6: [ ] Docker Compose environment (@infrastructure-engineer)
+- [x] Phase CLOUD-RELAY-4, Task CLOUD-RELAY-4.7: [ ] Structured logging and health endpoint (@relay-engineer)
 
 ## Current Task
 - None currently running
 
 ## Remaining
-- [ ] Phase CLOUD-RELAY-4: Phase 4: Cloud Relay
 - [ ] Phase ARTIFACTS-1: Phase 1: artifacts
 - [ ] Phase IDENTITY-SECURITY-5: Phase 5: Identity and Security
 - [ ] Phase EXTERNAL-WEB-ACCESS-6: Phase 6: External Web Access

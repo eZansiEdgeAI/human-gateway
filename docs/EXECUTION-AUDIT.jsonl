@@ -244,3 +244,8 @@
 {"timestamp":"2026-08-31T21:20:12.433Z","action":"task.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.6","phaseId":"CLOUD-RELAY-4","attempt":1}
 {"timestamp":"2026-08-31T21:31:30.785Z","action":"artifact.created","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.6","artifactId":"work-cloud-relay-4-6-001","artifactType":"work.cloud-relay-4.6","inputArtifacts":["work-cloud-relay-4-5-001"]}
 {"timestamp":"2026-08-31T21:31:30.786Z","action":"task.complete","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.6","phaseId":"CLOUD-RELAY-4","outputFiles":[],"durationMs":678290}
+{"timestamp":"2026-08-31T21:31:30.963Z","action":"task.committed","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.6","commitSha":"f01bd31e5b6f433b105b3cd415c1f250685e7e2e"}
+{"timestamp":"2026-08-31T21:31:30.963Z","action":"context.projected","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.7","sourceTokenEstimate":248,"projectedTokenEstimate":105,"reductionPercent":57.7,"note":"1 artifact(s) projected for task CLOUD-RELAY-4.7"}
+{"timestamp":"2026-08-31T21:31:30.963Z","action":"task.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.7","phaseId":"CLOUD-RELAY-4","attempt":1}
+{"timestamp":"2026-08-31T21:43:39.632Z","action":"artifact.created","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.7","artifactId":"work-cloud-relay-4-7-001","artifactType":"work.cloud-relay-4.7","inputArtifacts":["work-cloud-relay-4-6-001"]}
+{"timestamp":"2026-08-31T21:43:39.632Z","action":"task.complete","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.7","phaseId":"CLOUD-RELAY-4","outputFiles":[],"durationMs":728634}
