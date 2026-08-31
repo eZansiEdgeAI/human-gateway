@@ -18,7 +18,8 @@
 #     durable outbox retains entries (offline-first, NF-01).
 #
 # Environment overrides are all optional (defaults in .env.example):
-#   HG_DB_PORT, HG_RELAY_PORT, HG_EDGE_PORT, HG_GATEWAY_ID
+#   HG_DB_PORT, HG_RELAY_PORT, HG_EDGE_PORT, HG_GATEWAY_ID,
+#   HG_EDGE_AUTH_BOOTSTRAP_USERNAME/PASSWORD, HG_RELAY_AUTH_BOOTSTRAP_USERNAME/PASSWORD
 # ---------------------------------------------------------------------------
 
 services:
@@ -48,6 +49,10 @@ services:
       dockerfile: deployment/docker/Dockerfile.relay
     environment:
       ConnectionStrings__Relay: Host=postgres;Port=5432;Database=humangateway_relay;Username=humangateway;Password=humangateway
+      # Remote login gate bootstrap user (AUTH-FR-02, SP-07): credentials via env/secret store.
+      Auth__BootstrapUser__Username: ${HG_RELAY_AUTH_BOOTSTRAP_USERNAME:-}
+      Auth__BootstrapUser__Password: ${HG_RELAY_AUTH_BOOTSTRAP_PASSWORD:-}
+      Auth__BootstrapUser__DisplayName: Relay Bootstrap User
     depends_on:
       postgres:
         condition: service_healthy
@@ -74,6 +79,10 @@ services:
       Edge__RelayBaseUrl: http://relay:8080
       # Artifact-byte channel (ARTF-FR-01/02): same Relay, outbound-only (SP-01).
       Relay__BaseUrl: http://relay:8080
+      # Local login bootstrap user (AUTH-FR-02, SP-07): credentials via env/secret store.
+      Auth__BootstrapUser__Username: ${HG_EDGE_AUTH_BOOTSTRAP_USERNAME:-}
+      Auth__BootstrapUser__Password: ${HG_EDGE_AUTH_BOOTSTRAP_PASSWORD:-}
+      Auth__BootstrapUser__DisplayName: Edge Bootstrap User
     volumes:
       - edge-data:/data
     depends_on:
