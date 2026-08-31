@@ -164,3 +164,45 @@
 {"timestamp":"2026-08-30T13:25:43.791Z","action":"artifact.created","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"SYNCHRONISATION-3.5","artifactId":"work-synchronisation-3-5-002","artifactType":"work.synchronisation-3.5","inputArtifacts":["work-synchronisation-3-4-001"]}
 {"timestamp":"2026-08-30T13:25:43.791Z","action":"task.complete","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"SYNCHRONISATION-3.5","phaseId":"SYNCHRONISATION-3","outputFiles":[],"durationMs":509453}
 {"timestamp":"2026-08-30T13:25:43.793Z","action":"run.paused","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","note":"Stop/pause requested (control file or signal)"}
+{"timestamp":"2026-08-31T19:34:40.134Z","action":"run.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","note":"harness=opencode"}
+{"timestamp":"2026-08-31T19:34:40.184Z","action":"phase.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","phaseId":"SYNCHRONISATION-3"}
+{"timestamp":"2026-08-31T19:34:40.185Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"SYNCHRONISATION-3.6","note":"No agent matched owner 'sync-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.189Z","action":"phase.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","phaseId":"CLOUD-RELAY-4"}
+{"timestamp":"2026-08-31T19:34:40.189Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.1","note":"No agent matched owner 'infrastructure-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.191Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.2","note":"No agent matched owner 'relay-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.193Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.3","note":"No agent matched owner 'relay-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.195Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.4","note":"No agent matched owner 'relay-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.197Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.5","note":"No agent matched owner 'relay-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.200Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.6","note":"No agent matched owner 'infrastructure-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.202Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.7","note":"No agent matched owner 'relay-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.206Z","action":"phase.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","phaseId":"ARTIFACTS-1"}
+{"timestamp":"2026-08-31T19:34:40.206Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"ARTIFACTS-1.1","note":"No agent matched owner 'artifact-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.208Z","action":"phase.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","phaseId":"IDENTITY-SECURITY-5"}
+{"timestamp":"2026-08-31T19:34:40.208Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"IDENTITY-SECURITY-5.1","note":"No agent matched owner 'security-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.210Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"IDENTITY-SECURITY-5.2","note":"No agent matched owner 'security-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.212Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"IDENTITY-SECURITY-5.3","note":"No agent matched owner 'security-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.214Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"IDENTITY-SECURITY-5.4","note":"No agent matched owner 'security-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.216Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"IDENTITY-SECURITY-5.5","note":"No agent matched owner 'security-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.218Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"IDENTITY-SECURITY-5.6","note":"No agent matched owner 'security-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.220Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"IDENTITY-SECURITY-5.7","note":"No agent matched owner 'security-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.222Z","action":"phase.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","phaseId":"EXTERNAL-WEB-ACCESS-6"}
+{"timestamp":"2026-08-31T19:34:40.223Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"EXTERNAL-WEB-ACCESS-6.1","note":"No agent matched owner 'pwa-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.225Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"EXTERNAL-WEB-ACCESS-6.2","note":"No agent matched owner 'relay-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.226Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"EXTERNAL-WEB-ACCESS-6.3","note":"No agent matched owner 'pwa-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.228Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"EXTERNAL-WEB-ACCESS-6.4","note":"No agent matched owner 'workflow-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.230Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"EXTERNAL-WEB-ACCESS-6.5","note":"No agent matched owner 'qa-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.232Z","action":"phase.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","phaseId":"FLOWFORGE-INTEGRATION-7"}
+{"timestamp":"2026-08-31T19:34:40.232Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"FLOWFORGE-INTEGRATION-7.1","note":"No agent matched owner 'workflow-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.234Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"FLOWFORGE-INTEGRATION-7.2","note":"No agent matched owner 'workflow-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.236Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"FLOWFORGE-INTEGRATION-7.3","note":"No agent matched owner 'workflow-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.239Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"FLOWFORGE-INTEGRATION-7.4","note":"No agent matched owner 'workflow-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.241Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"FLOWFORGE-INTEGRATION-7.5","note":"No agent matched owner 'workflow-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.243Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"FLOWFORGE-INTEGRATION-7.6","note":"No agent matched owner 'workflow-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.245Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"FLOWFORGE-INTEGRATION-7.7","note":"No agent matched owner 'workflow-engineer'"}
+{"timestamp":"2026-08-31T19:34:40.247Z","action":"run.complete","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3"}
+{"timestamp":"2026-08-31T19:43:35.669Z","action":"run.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","note":"harness=opencode"}
+{"timestamp":"2026-08-31T19:43:35.745Z","action":"phase.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","phaseId":"SYNCHRONISATION-3"}
+{"timestamp":"2026-08-31T19:43:35.757Z","action":"context.projected","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"SYNCHRONISATION-3.6","sourceTokenEstimate":245,"projectedTokenEstimate":97,"reductionPercent":60.4,"note":"1 artifact(s) projected for task SYNCHRONISATION-3.6"}
+{"timestamp":"2026-08-31T19:43:35.757Z","action":"task.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"SYNCHRONISATION-3.6","phaseId":"SYNCHRONISATION-3","attempt":1}
+{"timestamp":"2026-08-31T19:48:49.212Z","action":"artifact.created","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"SYNCHRONISATION-3.6","artifactId":"work-synchronisation-3-6-001","artifactType":"work.synchronisation-3.6","inputArtifacts":["work-synchronisation-3-5-002"]}
+{"timestamp":"2026-08-31T19:48:49.212Z","action":"task.complete","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"SYNCHRONISATION-3.6","phaseId":"SYNCHRONISATION-3","outputFiles":[],"durationMs":313400}

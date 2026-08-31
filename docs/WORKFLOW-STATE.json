@@ -1,11 +1,11 @@
 {
   "runId": "cc1dad89-27a5-4765-8655-91bea28ec9c3",
   "startedAt": "2026-08-28T21:20:12.360Z",
-  "lastUpdatedAt": "2026-08-30T13:25:43.791Z",
+  "lastUpdatedAt": "2026-08-31T19:48:49.212Z",
   "manifestPath": "/home/mcfuzzysquirrel/Projects/human-gateway/docs/EXECUTION-MANIFEST.json",
   "manifestVersion": "1.0",
   "harness": "opencode",
-  "status": "paused",
+  "status": "running",
   "currentPhase": "SYNCHRONISATION-3",
   "tasks": {
     "PROTOCOL-0.1": {
@@ -357,10 +357,17 @@
     },
     "SYNCHRONISATION-3.6": {
       "taskId": "SYNCHRONISATION-3.6",
-      "status": "pending",
+      "status": "complete",
       "ownerAgent": "sync-engineer",
-      "attempt": 0,
-      "outputFiles": []
+      "attempt": 1,
+      "outputFiles": [],
+      "startedAt": "2026-08-31T19:43:35.757Z",
+      "completedAt": "2026-08-31T19:48:49.212Z",
+      "agentOutput": "I have a complete picture now. The convergence/ordering/idempotency engine logic is in place (previous commits), and the remaining task is the cohesive **property/chaos suite** covering the three scenarios end-to-end against the `SyncEngine` — duplication → dedup, out-of-order → deterministic reorder, and multi-day disconnection → one-cycle convergence — asserting the product-vision §11 success metrics (0 lost / 0 duplicate).\nTask complete. The final property/chaos suite for the synchronisation feature is delivered and green.\n\n## Files changed\n\n1. **`tests/HumanGateway.Core.Tests/SyncChaosTests.cs`** (new) — the sync/chaos suite driving the `SyncEngine` end-to-end over in-memory ports through the three required scenarios, each seeded/repeatable and asserting the product-vision §11 success metrics (0 lost / 0 duplicate; convergence within one sync cycle):\n\n   - **Duplication in transit** (SYNC-FR-02, NF-05): replayed batches collapse via the idempotency key, and messages re-sent under *fresh* batch identities collapse via per-message dedup → exactly-once effect.\n   - **Out-of-order arrival** (SYNC-FR-07): a 60-message stream shredded into random-length batches and applied in random order (4 seeds via `[Theory]`) always reorders deterministically and converges with no loss/duplication; plus a focused test proving the converged end-state is identical regardless of arrival order.\n   - **Multi-day disconnection** (SYNC-FR-04/06): a 3-day stream with a lost mid-stream batch detects the gap (cursor stalls at the hole, tail retained, never dropped) and converges in one reconnect batch; a 4-day full outage flushes and converges in a single push/apply cycle (two-engine sender→receiver loop).\n\n2. **`docs/features/synchronisation.md`** — marked the `Property/chaos tests: duplication, out-of-order, multi-day disconnection` task `[x]`.\n\n## Validation\n\n- `dotnet build src/HumanGateway.Core` → **0 errors, 0 warnings**.\n- `dotnet test` → **109 passed, 0 failed** (9 new chaos cases included; full suite green).\n",
+      "artifactId": "work-synchronisation-3-6-001",
+      "inputArtifactIds": [
+        "work-synchronisation-3-5-002"
+      ]
     },
     "CLOUD-RELAY-4.1": {
       "taskId": "CLOUD-RELAY-4.1",

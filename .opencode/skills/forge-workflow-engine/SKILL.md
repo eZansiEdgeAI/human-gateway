@@ -1,11 +1,11 @@
 ---
 name: forge-workflow-engine
-description: Dynamic workflow orchestration engine that reads docs/EXECUTION-MANIFEST.json and drives every task to completion through a pluggable harness adapter (OpenCode CLI, OpenAI API, or stub). Maintains docs/WORKFLOW-STATE.json for machine-readable run state and syncs docs/PROGRESS.md after every task. Use this skill after forge-execution-adapter has compiled the manifest.
+description: "Dynamic workflow orchestration engine that reads docs/EXECUTION-MANIFEST.json and drives every task to completion through a pluggable harness adapter (OpenCode CLI, OpenAI API, or stub). Maintains docs/WORKFLOW-STATE.json for machine-readable run state and syncs docs/PROGRESS.md after every task. Use this skill after forge-execution-adapter has compiled the manifest."
 ---
 
 # Skill: Forge Workflow Engine
 
-You are the **runtime execution layer** for an Agent Forge repository. Where `project-orchestrator` operates as a prompt-driven orchestrator inside a chat harness, this skill runs **outside** the chat session - it reads the structured execution contract produced by `forge-execution-adapter` and drives every agent task through a real execution backend until the workflow is complete.
+You are the **runtime execution layer** for an MyForge repository. Where `project-orchestrator` operates as a prompt-driven orchestrator inside a chat harness, this skill runs **outside** the chat session - it reads the structured execution contract produced by `forge-execution-adapter` and drives every agent task through a real execution backend until the workflow is complete.
 
 This skill is the autonomous execution alternative to the prompt-driven flows. Teams use it when they want **dark orchestration**: a background process that fires agent invocations autonomously, persists state across interruptions, and requires no human intervention between tasks. Start it from the terminal with `forge-launcher engine-run`, or drive it from inside a chat with `@workflow-orchestrator`.
 
@@ -20,13 +20,13 @@ Before running this skill, the following must exist in the repository:
   - `.github/agents/` (GitHub Copilot harness)
   - `.claude/agents/` (Claude Code harness)
   - `.opencode/agents/` (OpenCode harness)
-  - `.opencode/agents/` (generic / default fallback)
+  - `.agents/agents/` (generic / default fallback)
 - A configured execution harness (OpenCode CLI in `$PATH`, or `OPENAI_API_KEY` set)
 
 If the manifest does not exist yet, run the adapter first:
 
 ```bash
-cd .opencode/skills/forge-execution-adapter
+cd .agents/skills/forge-execution-adapter
 npm install
 npm run forge-execution-adapter -- compile
 ```
@@ -43,7 +43,7 @@ npm run forge-execution-adapter -- compile
 > gitignored in target repos and must never be committed.
 
 ```bash
-cd .opencode/skills/forge-workflow-engine
+cd .agents/skills/forge-workflow-engine
 npm install
 ```
 
@@ -74,7 +74,7 @@ engine prints a `…still working on task <id> (@<agent>, Ns elapsed)` line at a
 fixed interval so a quiet terminal doesn't look hung:
 
 ```bash
-npm run workflow-engine -- run --heartbeat-ms 15000        # default: 15s
+npm run workflow-engine -- run --heartbeat-ms 60000        # default: 60s
 npm run workflow-engine -- run --heartbeat-ms 0            # disable
 ```
 
@@ -404,8 +404,8 @@ This gives the same project two mutually exclusive execution modes for a given r
 For FlowForge-kernel execution, compile a workforce package first:
 
 ```bash
-cd .opencode/skills/forge-workforce-compiler && npm install && npm run forge-workforce-compiler -- compile
-cd .opencode/skills/forge-workflow-engine   && npm install && npm run workflow-engine -- run --harness flowforge-kernel
+cd .agents/skills/forge-workforce-compiler && npm install && npm run forge-workforce-compiler -- compile
+cd .agents/skills/forge-workflow-engine   && npm install && npm run workflow-engine -- run --harness flowforge-kernel
 ```
 
 ---
@@ -424,7 +424,7 @@ cd .opencode/skills/forge-workflow-engine   && npm install && npm run workflow-e
 
 ## Artifact Pattern
 
-The engine implements the **Task → Agent → Artifact → Task** pattern described in the Agent Forge research. Instead of passing the full workflow state or previous agent output to each agent, the engine:
+The engine implements the **Task → Agent → Artifact → Task** pattern described in the MyForge research. Instead of passing the full workflow state or previous agent output to each agent, the engine:
 
 1. Resolves which artifact types the next task declares as `inputs`
 2. Loads only those artifacts from `docs/artifacts/`

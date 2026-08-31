@@ -62,7 +62,7 @@ No direct UI. Surfaces through the PWA delivery-status indicators (SYNC feature)
 - [x] Implement delivery-state transitions and acknowledgements
 - [x] Deterministic ordering/reordering by sequence number
 - [x] Convergence logic after long disconnects and partial failures
-- [ ] Property/chaos tests: duplication, out-of-order, multi-day disconnection
+- [x] Property/chaos tests: duplication, out-of-order, multi-day disconnection
 
 ---
 

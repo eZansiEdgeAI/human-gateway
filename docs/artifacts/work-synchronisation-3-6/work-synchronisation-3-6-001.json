@@ -1,0 +1,18 @@
+{
+  "type": "work.synchronisation-3.6",
+  "category": "work",
+  "taskId": "SYNCHRONISATION-3.6",
+  "producedBy": "sync-engineer",
+  "status": "complete",
+  "summary": "I have a complete picture now. The convergence/ordering/idempotency engine logic is in place (previous commits), and the remaining task is the cohesive **property/chaos suite** covering the three scen",
+  "inputs": [
+    "work-synchronisation-3-5-002"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "I have a complete picture now. The convergence/ordering/idempotency engine logic is in place (previous commits), and the remaining task is the cohesive **property/chaos suite** covering the three scenarios end-to-end against the `SyncEngine` — duplication → dedup, out-of-order → deterministic reorder, and multi-day disconnection → one-cycle convergence — asserting the product-vision §11 success metrics (0 lost / 0 duplicate).\nTask complete. The final property/chaos suite for the synchronisation "
+  },
+  "nextActions": [],
+  "artifactId": "work-synchronisation-3-6-001",
+  "createdAt": "2026-08-31T19:48:49.211Z"
+}
