@@ -3,6 +3,7 @@ using HumanGateway.Relay.Endpoints;
 using HumanGateway.Relay.Options;
 using HumanGateway.Relay.Services;
 using HumanGateway.Relay.Storage;
+using HumanGateway.Core.Artifacts;
 using HumanGateway.Core.Idempotency;
 using HumanGateway.Core.Inbox;
 using HumanGateway.Core.Outbox;
@@ -73,6 +74,14 @@ builder.Services.AddSingleton<IInbox>(sp => sp.GetRequiredService<RelayInbox>())
 builder.Services.AddSingleton<IIdempotencyStore>(sp => sp.GetRequiredService<RelayIdempotencyStore>());
 builder.Services.AddSingleton<ISyncEngine, SyncEngine>();
 builder.Services.AddScoped<RelaySyncService>();
+
+// ---------------------------------------------------------------------------
+// Content-addressed artifact bytes (RELAY-FR-01, ARTF-FR-01): the Relay's IArtifactStore port over the
+// artifact_blobs BYTEA table with streaming reads (PostgresArtifactStore). Singleton, like the other
+// durable ports — each operation opens a short-lived context from the pooled factory. An S3-compatible
+// adapter is an optional later step, not v1 (cloud-relay Open Q #2, NF-10).
+// ---------------------------------------------------------------------------
+builder.Services.AddSingleton<IArtifactStore, PostgresArtifactStore>();
 
 var app = builder.Build();
 

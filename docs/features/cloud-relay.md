@@ -57,7 +57,7 @@ No user-facing UI (service-side).
 - [x] PostgreSQL schema: gateways, conversations, messages, deliveries, artifacts, cursors
 - [x] Gateway registration + rendezvous endpoints
 - [x] Sync endpoint: push/pull cursors, delivery ack (consumes the synchronisation protocol)
-- [ ] `ArtifactStore` interface with a PostgreSQL BYTEA implementation (streaming reads; S3-compatible adapter as an optional later step)
+- [x] `ArtifactStore` interface with a PostgreSQL BYTEA implementation (streaming reads; S3-compatible adapter as an optional later step)
 - [ ] Docker Compose environment: Relay + PostgreSQL + Edge
 - [ ] Structured logging and health endpoint
 

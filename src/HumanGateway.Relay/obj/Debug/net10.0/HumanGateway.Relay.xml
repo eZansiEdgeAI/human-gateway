@@ -918,6 +918,66 @@
         <member name="M:HumanGateway.Relay.Storage.Migrations.AddRelayOutbox.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
             <inheritdoc />
         </member>
+        <member name="T:HumanGateway.Relay.Storage.PostgresArtifactStore">
+            <summary>
+            The Relay's PostgreSQL <see cref="T:HumanGateway.Core.Artifacts.IArtifactStore"/> (RELAY-FR-01, ARTF-FR-01, PROTO-FR-04): content
+            addressed artifact bytes in the <c>artifact_blobs</c> BYTEA table, keyed by the canonical content hash
+            (<c>sha256:&lt;hex&gt;</c>). Equal content yields an equal hash, so one row serves every artifact ID
+            referencing those bytes (dedup — duplicate uploads are not re-written, ARTF-FR-01). This is the Relay
+            counterpart to the Edge's filesystem artifact store; an S3-compatible adapter is an optional later step
+            (cloud-relay Open Q #2), NOT v1.
+            </summary>
+            <remarks>
+            <para><b>Streaming reads.</b> <see cref="M:HumanGateway.Relay.Storage.PostgresArtifactStore.OpenReadAsync(System.String,System.Threading.CancellationToken)"/> reads the BYTEA value as a stream directly from
+            the PostgreSQL wire (<see cref="M:Npgsql.NpgsqlDataReader.GetStream(System.Int32)"/> under
+            <see cref="F:System.Data.CommandBehavior.SequentialAccess"/>), so a large artifact is never buffered whole into memory.
+            The returned stream owns the reader/command/context that produced it and releases them on disposal.</para>
+            <para><b>Writes verify before storing.</b> The incoming content is streamed through an incremental SHA-256
+            while buffering, verified against the declared hash, and only then inserted (tamper/corruption detection,
+            SP-06). A mismatch throws <see cref="T:HumanGateway.Core.Artifacts.ArtifactHashMismatchException"/> and leaves no row. The dedup fast-path
+            (<c>SELECT ... WHERE hash = @hash</c>) avoids touching content already stored; the primary-key constraint is
+            the hard backstop under concurrent identical uploads (SQLSTATE 23505 → dedup).</para>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.PostgresArtifactStore.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{HumanGateway.Relay.Storage.RelayDbContext})">
+            <summary>Creates the durable BYTEA store over the context factory (short-lived context per operation).</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.PostgresArtifactStore.SaveAsync(System.IO.Stream,System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.PostgresArtifactStore.OpenReadAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+            <remarks>
+            Streaming read: the BYTEA value is served from the PostgreSQL wire in chunks
+            (<see cref="M:Npgsql.NpgsqlDataReader.GetStream(System.Int32)"/>), never materialised as a <see cref="T:System.Byte"/>[] in Relay
+            memory. The returned stream keeps the reader/command/context alive until the caller is done and
+            releases them on disposal.
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.PostgresArtifactStore.ExistsAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.PostgresArtifactStore.DeleteAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+            <remarks>Deletes in SQL (EF <c>ExecuteDeleteAsync</c>) — a true no-op when the hash is absent, with no
+            row ever loaded into memory.</remarks>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.PostgresArtifactStore.ArtifactKey(System.String)">
+            <summary>Normalises a content hash to its canonical <c>sha256:&lt;lowercase hex&gt;</c> storage key.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.PostgresArtifactStore.BufferAndHashAsync(System.IO.Stream,System.Threading.CancellationToken)">
+            <summary>Streams content once, hashing incrementally and buffering for the insert.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.PostgresArtifactStore.IsUniqueViolation(Microsoft.EntityFrameworkCore.DbUpdateException)">
+            <summary>Detects a PostgreSQL primary-key violation from a save failure (SQLSTATE 23505).</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.PostgresArtifactStore.NpgsqlByteaStream">
+            <summary>
+            A non-seekable, read-only stream over a BYTEA column that owns the database resources which produced
+            it: reads flow through the Npgsql reader's sequential stream, and the reader/command/context are
+            released when the stream is disposed (sync or async) — never before.
+            </summary>
+        </member>
         <member name="T:HumanGateway.Relay.Storage.RelayDbContext">
             <summary>
             The Cloud Relay's durable PostgreSQL store (RELAY-FR-01): gateways, conversations, messages, deliveries,
