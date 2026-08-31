@@ -1,0 +1,47 @@
+{
+  "type": "work.identity-security-5.1",
+  "category": "work",
+  "taskId": "IDENTITY-SECURITY-5.1",
+  "producedBy": "security-engineer",
+  "status": "complete",
+  "summary": "IDENTITY-SECURITY-5.1 - Gateway identity: unique ID + registration token; Relay rejects unregistered gateways. The Relay side (registration endpoints, token fingerprinting, RequireRegisteredAsync on sync/artifact/rendezvous) already existed from CLOUD-RELAY-4.3/4.4/4.5; this task delivered the missing Edge side: a durable gateway identity (gateway ID + registration token) persisted in an owner-only secret store (SP-07), a real outbound registration client that performs the two-step handshake (request token -> confirm) plus rotation against the Relay, an identity manager that resumes the handshake from durable state across crashes/restarts, and a hosted registration worker that ensures registration before sync and rotates the token before expiry. Integration tests drive the real Edge client against the real Relay (Testcontainers PostgreSQL) proving unregistered gateways are rejected (SP-02).",
+  "inputs": [
+    "work-artifacts-1-1-001"
+  ],
+  "filesChanged": [
+    "src/HumanGateway.Edge/Security/GatewayIdentityState.cs",
+    "src/HumanGateway.Edge/Security/GatewayIdentity.cs",
+    "src/HumanGateway.Edge/Security/GatewaySecretDocument.cs",
+    "src/HumanGateway.Edge/Security/IGatewaySecretStore.cs",
+    "src/HumanGateway.Edge/Security/FileGatewaySecretStore.cs",
+    "src/HumanGateway.Edge/Security/GatewayRegistrationOptions.cs",
+    "src/HumanGateway.Edge/Security/IGatewayRegistrationClient.cs",
+    "src/HumanGateway.Edge/Security/HttpGatewayRegistrationClient.cs",
+    "src/HumanGateway.Edge/Security/GatewayRegistrationException.cs",
+    "src/HumanGateway.Edge/Security/DisabledGatewayRegistrationClient.cs",
+    "src/HumanGateway.Edge/Security/GatewayIdentityManager.cs",
+    "src/HumanGateway.Edge/Security/GatewayRegistrationWorkerOptions.cs",
+    "src/HumanGateway.Edge/Security/GatewayRegistrationWorker.cs",
+    "src/HumanGateway.Edge/Security/GatewayRegistrationClientGate.cs",
+    "src/HumanGateway.Edge/Api/ApiOptions.cs",
+    "src/HumanGateway.Edge/Storage/SqliteConnectionFactory.cs",
+    "src/HumanGateway.Edge/Program.cs",
+    "src/HumanGateway.Protocol/Validation/CommonRules.cs",
+    "tests/HumanGateway.Edge.Tests/FileGatewaySecretStoreTests.cs",
+    "tests/HumanGateway.Edge.Tests/HttpGatewayRegistrationClientTests.cs",
+    "tests/HumanGateway.Edge.Tests/GatewayIdentityManagerTests.cs",
+    "tests/HumanGateway.Edge.Tests/GatewayRegistrationWorkerTests.cs",
+    "tests/HumanGateway.Relay.Tests/EdgeRegistrationIntegrationTests.cs",
+    "tests/HumanGateway.Relay.Tests/HumanGateway.Relay.Tests.csproj",
+    "docs/features/identity-security.md"
+  ],
+  "payload": {
+    "agentOutputExcerpt": "Task IDENTITY-SECURITY-5.1 - Gateway identity: unique ID + registration token; Relay rejects unregistered gateways. The Relay already carried registration endpoints (POST /gateways, /register, /rotate), token generation/fingerprinting (RegistrationTokens, constant-time verify), and the RequireRegisteredAsync gate on sync push/pull + artifact + rendezvous endpoints (from CLOUD-RELAY-4.3/4.4/4.5). This task added the Edge side.\n\n## Edge-side gateway identity (new src/HumanGateway.Edge/Security/)\n- GatewayIdentityState (Unregistered/Pending/Registered) + GatewayIdentity record (GatewayId, State, RegistrationToken, TokenExpiresAt, RegisteredAtUtc; IsRegistered)\n- IGatewaySecretStore + FileGatewaySecretStore: persists gateway-identity.json in the Edge data dir with POSIX 0600 owner-only permissions, atomic temp+rename writes, refuses to load a corrupt document (never silently re-registers under a new identity - SP-07); the data dir is gitignored\n- IGatewayRegistrationClient + HttpGatewayRegistrationClient: two-step handshake (POST /gateways then POST /gateways/{id}/register) + rotation (POST /rotate) over TLS (SP-01), camelCase wire contract, maps Relay ProtocolError responses to GatewayRegistrationException with the reserved code + retryability hint; token is never logged nor included in exception messages (SP-07)\n- DisabledGatewayRegistrationClient: offline-first no-op when no Relay is configured (SP-01)\n- GatewayIdentityManager: orchestrates the handshake - loads the persisted identity, resumes a PENDING token by confirming (crash between steps), runs the full handshake on first boot, persists every transition before the next step, caches the identity, supports rotation; never touches the network when no Relay is configured\n- GatewayRegistrationWorker (hosted service, registered before the sync worker): ensures registration at startup with capped exponential backoff, then watches the token expiry and rotates within the configured horizon (default 48 h, Relay TTL 30 d)\n- GatewayRegistrationClientGate: SemaphoreSlim serialisation so request/confirm/rotate never race\n- CommonRules gained the public IsRegistrationTokenWellFormed predicate (gateway.schema.json hgrt_ shape) shared by both sides (single source of truth)\n- Program.cs wiring: secret store rooted next to the SQLite DB (Edge:DataDirectory or the connection-string data source dir), registration client selected by Relay:BaseUrl presence, worker hosted before SyncWorker\n\n## Relay already rejects unregistered gateways (verified, pre-existing)\n- Sync push/pull: RequireRegisteredAsync in RelaySyncService (SP-02) - unregistered -> 404 NOT_FOUND, PENDING -> 403 GATEWAY_UNREGISTERED\n- Artifact endpoints: RequireRegisteredAsync in RelayArtifactService on every operation\n- Rendezvous: only REGISTERED gateways are listed/lookup targets\n\n## Verification\n- dotnet build HumanGateway.slnx - 0 warnings, 0 errors\n- dotnet test HumanGateway.Core.Tests - 123 passed (incl. new RegistrationTokenPattern predicates)\n- dotnet test HumanGateway.Edge.Tests - 102 passed (30 new: FileGatewaySecretStore, HttpGatewayRegistrationClient wire format + SP-07 no-leak, GatewayIdentityManager handshake/resume/rejection/offline-first/rotation, GatewayRegistrationWorker start/retry/no-op)\n- dotnet test HumanGateway.Relay.Tests - 79 passed (4 new EdgeRegistrationIntegrationTests driving the real Edge registration client against the real Relay over Testcontainers PostgreSQL: full handshake then sync accepted; unregistered gateway rejected on sync + artifacts; tampered token -> REGISTRATION_TOKEN_INVALID without token leaking; suspended gateway re-request -> GATEWAY_SUSPENDED)\n- tests/schemas npm test - 74 fixture checks pass\n- Secrets scan: git grep (password|secret|token|apikey) returns only field names, spec text, dev-compose credentials, and fake test fixtures - no real secrets (SP-07)\n\nTotal: 304 tests green across Core/Edge/Relay plus 74 schema fixtures."
+  },
+  "nextActions": [
+    "IDENTITY-SECURITY-5.2: user identity + authentication at the Edge (local) and Relay (remote) with signed tokens/sessions",
+    "qa-engineer: run the security negative-test tier (unregistered gateway rejected) against the compose stack"
+  ],
+  "artifactId": "work-identity-security-5.1-001",
+  "createdAt": "2026-09-01T00:00:00.000Z"
+}

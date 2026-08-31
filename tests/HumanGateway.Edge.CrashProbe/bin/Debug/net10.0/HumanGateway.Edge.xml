@@ -124,6 +124,15 @@
         <member name="P:HumanGateway.Edge.Api.GatewayOptions.GatewayId">
             <summary>The durable gateway ID used as the outbox stream key (AUTH-FR-01).</summary>
         </member>
+        <member name="P:HumanGateway.Edge.Api.GatewayOptions.DisplayName">
+            <summary>Human-readable gateway name (e.g. the school name), presented during registration (AUTH-FR-01).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Api.GatewayOptions.DataDirectory">
+            <summary>
+            Directory for durable runtime state (SQLite DB, artifact store, secret store). When null the Edge uses
+            <c>&lt;ContentRoot&gt;/data</c> (SP-07: that path is gitignored).
+            </summary>
+        </member>
         <member name="T:HumanGateway.Edge.Api.LocalApiService">
             <summary>
             Domain logic behind the Edge local REST API (EDGE-FR-03). Every write is committed to SQLite and, where a
@@ -292,6 +301,407 @@
         </member>
         <member name="M:HumanGateway.Edge.Endpoints.LocalApiEndpoints.MapLocalApiEndpoints(Microsoft.AspNetCore.Builder.WebApplication)">
             <summary>Maps every local API endpoint onto the app.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Security.DisabledGatewayRegistrationClient">
+            <summary>
+            No-op <see cref="T:HumanGateway.Edge.Security.IGatewayRegistrationClient"/> used when no Relay is configured (SP-01, NF-01). The Edge
+            stays LAN-only: it never attempts the registration handshake, and the identity manager reports the gateway
+            as unregistered. Mirrors the <c>DisabledRelaySyncClient</c> pattern from the synchronisation feature.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.DisabledGatewayRegistrationClient.IsConfigured">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Security.DisabledGatewayRegistrationClient.RequestRegistrationAsync(System.String,System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+            <remarks>Never called — the identity manager guards on <see cref="P:HumanGateway.Edge.Security.DisabledGatewayRegistrationClient.IsConfigured"/> first.</remarks>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.DisabledGatewayRegistrationClient.ConfirmRegistrationAsync(System.String,System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+            <remarks>Never called — the identity manager guards on <see cref="P:HumanGateway.Edge.Security.DisabledGatewayRegistrationClient.IsConfigured"/> first.</remarks>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.DisabledGatewayRegistrationClient.RotateTokenAsync(System.String,System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+            <remarks>Never called — the identity manager guards on <see cref="P:HumanGateway.Edge.Security.DisabledGatewayRegistrationClient.IsConfigured"/> first.</remarks>
+        </member>
+        <member name="T:HumanGateway.Edge.Security.FileGatewaySecretStore">
+            <summary>
+            File-backed <see cref="T:HumanGateway.Edge.Security.IGatewaySecretStore"/> (SP-07): the gateway identity — including the plaintext
+            registration token — lives at <c>&lt;dataDirectory&gt;/gateway-identity.json</c> with owner-only
+            permissions (POSIX 0600). The default data directory is the same one the SQLite store uses
+            (<c>&lt;ContentRoot&gt;/data</c>, configurable via <c>Edge:DataDirectory</c>); that directory is already
+            gitignored, so the secret can never be committed (SP-07).
+            </summary>
+            <remarks>
+            Writes are atomic (temp file + rename) so a power loss mid-write cannot leave a half-written token; the
+            store refuses to load a corrupt document rather than silently re-registering under a new identity.
+            </remarks>
+        </member>
+        <member name="F:HumanGateway.Edge.Security.FileGatewaySecretStore.FileName">
+            <summary>File name of the secret store document inside the data directory.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.FileGatewaySecretStore.#ctor(System.String)">
+            <summary>Creates the store rooted at <paramref name="dataDirectory"/> (created if absent).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.FileGatewaySecretStore.LoadAsync(System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Security.FileGatewaySecretStore.SaveAsync(HumanGateway.Edge.Security.GatewayIdentity,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Security.FileGatewaySecretStore.RestrictToOwner(System.String)">
+            <summary>Applies owner-only (0600) permissions where the platform supports it (POSIX).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Security.GatewayIdentity">
+            <summary>
+            The Edge Gateway's durable identity record (AUTH-FR-01, gateway.schema.json). This is what the Edge
+            persists locally so it can re-authenticate to the Relay across restarts and long disconnects without
+            re-running the registration handshake.
+            </summary>
+            <remarks>
+            <para>
+            The <see cref="P:HumanGateway.Edge.Security.GatewayIdentity.RegistrationToken"/> is the gateway's secret: it is the only credential that proves this
+            Edge owns the gateway identity to the Relay. Per SP-07 it must be stored only in the Edge secret store
+            (file with owner-only permissions via <see cref="T:HumanGateway.Edge.Security.IGatewaySecretStore"/>), never in code, config committed
+            to a repo, logs, or error payloads.
+            </para>
+            <para>
+            The registration token is intentionally returned as plaintext only during the registration handshake
+            (request/confirm/rotate). Once the Relay has confirmed registration, the Relay keeps only a fingerprint
+            of the token; the Edge keeps the plaintext in its secret store so it can rotate or re-confirm later.
+            </para>
+            </remarks>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayIdentity.GatewayId">
+            <summary>Unique durable gateway ID (AUTH-FR-01, common.schema.json#/$defs/id).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayIdentity.State">
+            <summary>Current registration lifecycle state from the Edge's perspective.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayIdentity.RegistrationToken">
+            <summary>The plaintext registration token — the gateway's secret (SP-07). Null when unregistered.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayIdentity.TokenExpiresAt">
+            <summary>RFC 3339 UTC expiry of the current registration token, or null when unregistered.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayIdentity.RegisteredAtUtc">
+            <summary>UTC instant the Relay confirmed registration, or null when not registered.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayIdentity.IsRegistered">
+            <summary>True when the identity is fully registered and may exchange sync batches (SP-02).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Security.GatewayIdentityManager">
+            <summary>
+            Owns the Edge Gateway's registration lifecycle (AUTH-FR-01, SP-02): loads the persisted identity from the
+            secret store, drives the two-step registration handshake against the Relay when needed, and caches the
+            current identity in memory. Every transition is persisted atomically before the next step, so a crash
+            between steps resumes from the durable state (PENDING → confirm) instead of re-registering.
+            </summary>
+            <remarks>
+            <para>
+            Single-threaded by design: the registration worker (hosted service) is the only caller. The manager is
+            registered as a singleton; the worker serialises handshake attempts with its own gate so no concurrent
+            request/confirm/rotate races can occur.
+            </para>
+            <para>
+            The registration token is handled as a secret end-to-end (SP-07): it is read from the secret store,
+            sent to the Relay over TLS, and persisted back to the secret store. It is never logged, never written to
+            configuration, and never included in exceptions.
+            </para>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.GatewayIdentityManager.#ctor(HumanGateway.Edge.Security.IGatewaySecretStore,HumanGateway.Edge.Security.IGatewayRegistrationClient,Microsoft.Extensions.Options.IOptions{HumanGateway.Edge.Api.GatewayOptions},Microsoft.Extensions.Logging.ILogger{HumanGateway.Edge.Security.GatewayIdentityManager},System.TimeProvider)">
+            <summary>Creates the manager over the secret store, registration client, and gateway options.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayIdentityManager.GatewayId">
+            <summary>The gateway's configured durable identity.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayIdentityManager.Current">
+            <summary>The currently cached identity, or null before the first load/registration.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayIdentityManager.IsRegistered">
+            <summary>True when the cached identity is REGISTERED (SP-02); the sync worker gates on this.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.GatewayIdentityManager.LoadAsync(System.Threading.CancellationToken)">
+            <summary>
+            Loads the persisted identity from the secret store (or returns null on first boot) and caches it.
+            Does not contact the Relay — this is the cheap, offline-safe read the sync worker uses on every cycle.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.GatewayIdentityManager.EnsureRegisteredAsync(System.Threading.CancellationToken)">
+            <summary>
+            Ensures the gateway is REGISTERED with the Relay (SP-02). Offline-first: when no Relay is configured
+            this returns the local identity as-is (Unregistered) without attempting the network. When a Relay is
+            configured and the stored identity is PENDING, it resumes by confirming the stored token; when no
+            token exists it runs the full two-step handshake. Returns the final identity (Registered on success).
+            </summary>
+            <exception cref="T:HumanGateway.Edge.Security.GatewayRegistrationException">
+            The Relay permanently rejected the handshake (e.g. suspended/revoked gateway, invalid token).
+            </exception>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.GatewayIdentityManager.RotateTokenAsync(System.Threading.CancellationToken)">
+            <summary>
+            Rotates the registration token: asks the Relay to issue a fresh one (verifying the current token) and
+            persists the new token. Used when the current token approaches expiry. Returns the updated identity.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.GatewayIdentityManager.ConfirmAndPersistAsync(HumanGateway.Edge.Security.GatewayIdentity,System.Threading.CancellationToken)">
+            <summary>Presents the stored token to the Relay and persists the REGISTERED state on success.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Security.GatewayIdentityState">
+            <summary>
+            The Edge's local view of its gateway registration lifecycle (AUTH-FR-01, SP-02). Mirrors the protocol's
+            <c>GatewayStatus</c> but only the states the Edge itself can observe or drive: a gateway starts
+            <see cref="F:HumanGateway.Edge.Security.GatewayIdentityState.Unregistered"/> (or becomes so when its stored token is missing/corrupt), is
+            <see cref="F:HumanGateway.Edge.Security.GatewayIdentityState.Pending"/> between the two handshake steps, and is <see cref="F:HumanGateway.Edge.Security.GatewayIdentityState.Registered"/> once the Relay has
+            confirmed its token. SUSPENDED/REVOKED are Relay-side states surfaced via sync rejections; the Edge does
+            not persist them locally.
+            </summary>
+        </member>
+        <member name="F:HumanGateway.Edge.Security.GatewayIdentityState.Unregistered">
+            <summary>No usable registration token is stored; the Edge must run the registration handshake.</summary>
+        </member>
+        <member name="F:HumanGateway.Edge.Security.GatewayIdentityState.Pending">
+            <summary>A registration token has been issued but the confirm step has not completed (or the stored
+            state is stale). A Pending identity cannot sync.</summary>
+        </member>
+        <member name="F:HumanGateway.Edge.Security.GatewayIdentityState.Registered">
+            <summary>The Relay has confirmed the token; the Edge may exchange sync batches (SP-02).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Security.GatewayRegistrationClientGate">
+            <summary>
+            Serialises registration handshake work (AUTH-FR-01, SP-02): at most one request/confirm/rotate attempt runs
+            at a time, so two cycles can never race the Relay (e.g. a sync-worker retry and the registration worker's
+            expiry check both calling <see cref="T:HumanGateway.Edge.Security.GatewayIdentityManager"/> concurrently). Cheap and re-entrant-safe:
+            callers await <see cref="M:HumanGateway.Edge.Security.GatewayRegistrationClientGate.RunAsync(System.Func{System.Threading.CancellationToken,System.Threading.Tasks.Task},System.Threading.CancellationToken)"/> and the delegate runs inside a <see cref="T:System.Threading.SemaphoreSlim"/> gate.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.GatewayRegistrationClientGate.RunAsync(System.Func{System.Threading.CancellationToken,System.Threading.Tasks.Task},System.Threading.CancellationToken)">
+            <summary>Runs <paramref name="work"/> holding the registration gate (serialised).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Security.GatewayRegistrationException">
+            <summary>
+            Raised by the Edge registration client when the Relay rejects a registration/rotation attempt (SP-02).
+            Carries the protocol error <see cref="P:HumanGateway.Edge.Security.GatewayRegistrationException.Code"/> and the retryability hint so the identity manager can decide
+            between retrying and surfacing a permanent rejection. The message never contains the registration token
+            (SP-07).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayRegistrationException.StatusCode">
+            <summary>HTTP status code returned by the Relay.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayRegistrationException.Code">
+            <summary>Machine-readable protocol error code (ErrorCodes catalog), when the Relay returned one.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayRegistrationException.Retryable">
+            <summary>Retry hint from the Relay error (true for transient conditions).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.GatewayRegistrationException.FromResponseAsync(System.Net.Http.HttpResponseMessage,System.String,System.Threading.CancellationToken)">
+            <summary>Translates a non-success Relay response into a <see cref="T:HumanGateway.Edge.Security.GatewayRegistrationException"/>.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Security.GatewayRegistrationOptions">
+            <summary>
+            Configuration for the Edge's gateway registration (AUTH-FR-01), bound from the <c>Relay</c> configuration
+            section — the same Relay the artifact transport and (later) the sync transport dial out to. When no Relay
+            base URL is configured the Edge stays offline-first: it keeps its local identity but never attempts the
+            registration handshake (NF-01, SP-01).
+            </summary>
+        </member>
+        <member name="F:HumanGateway.Edge.Security.GatewayRegistrationOptions.SectionName">
+            <summary>The configuration section this options type binds to (shared with the Relay options).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayRegistrationOptions.BaseUrl">
+            <summary>
+            Base URL of the Relay's HTTP API (e.g. <c>https://relay.example.com</c>). When null/empty the Edge
+            does not register and stays LAN-only (SP-01).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayRegistrationOptions.DisplayName">
+            <summary>Human-readable gateway name presented to the Relay during registration (e.g. the school name).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayRegistrationOptions.Enabled">
+            <summary>True when a Relay base URL is configured, so registration may be attempted.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayRegistrationOptions.Timeout">
+            <summary>Timeout for each registration-handshake HTTP call (default 15 s).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Security.GatewayRegistrationWorker">
+            <summary>
+            The Edge's gateway registration worker (AUTH-FR-01, SP-02): a hosted service that ensures the gateway is
+            REGISTERED with the Relay before sync begins, then keeps the registration token fresh by rotating it
+            before expiry. When no Relay is configured it is a no-op (offline-first, SP-01). Token bytes are never
+            logged (SP-07).
+            </summary>
+            <remarks>
+            <para>
+            Registration is a prerequisite for every Edge↔Relay exchange, so this worker is registered before the sync
+            worker and its first registration must complete before the first sync cycle (the sync worker additionally
+            gates on <see cref="P:HumanGateway.Edge.Security.GatewayIdentityManager.IsRegistered"/>). Transient Relay failures are retried with
+            capped, jittered exponential backoff so a school that boots during an outage still comes up registered the
+            moment the Relay is reachable — without hammering it.
+            </para>
+            <para>
+            The worker is single-threaded: only one handshake/rotation attempt runs at a time, serialised through the
+            manager, so request/confirm/rotate can never race (SP-02).
+            </para>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.GatewayRegistrationWorker.#ctor(HumanGateway.Edge.Security.GatewayIdentityManager,HumanGateway.Edge.Security.GatewayRegistrationClientGate,Microsoft.Extensions.Options.IOptions{HumanGateway.Edge.Security.GatewayRegistrationWorkerOptions},Microsoft.Extensions.Logging.ILogger{HumanGateway.Edge.Security.GatewayRegistrationWorker},System.TimeProvider)">
+            <summary>Creates the worker over the identity manager, options, and logger.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayRegistrationWorker.CurrentIdentity">
+            <summary>The identity manager's current cached identity (null before the first load/registration).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayRegistrationWorker.IsRegistered">
+            <summary>True once the gateway is REGISTERED with the Relay (SP-02); surfaced for observability (NF-09).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.GatewayRegistrationWorker.ExecuteAsync(System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Security.GatewayRegistrationWorker.SafeDelayAsync(System.TimeSpan,System.Threading.CancellationToken)">
+            <summary>Delays honouring cancellation (TimeProvider-aware so tests can fake time).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Security.GatewayRegistrationWorkerOptions">
+            <summary>
+            Configuration for the gateway registration worker (AUTH-FR-01), bound from the <c>Sync</c> configuration
+            section (alongside the sync worker options). The registration worker runs the two-step handshake before
+            sync begins, retrying transient Relay failures with the same capped, jittered exponential backoff the sync
+            worker uses (SYNC-FR-04), and then keeps the token fresh by rotating before it expires.
+            </summary>
+        </member>
+        <member name="F:HumanGateway.Edge.Security.GatewayRegistrationWorkerOptions.SectionName">
+            <summary>The configuration section this options type binds to.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayRegistrationWorkerOptions.PollIntervalSeconds">
+            <summary>Re-check interval after a successful registration (token-expiry watch, seconds).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayRegistrationWorkerOptions.RotateWithinSeconds">
+            <summary>
+            Rotation is triggered when the token expires within this horizon (seconds). Default 48 h — comfortably
+            inside the Relay's 30-day token TTL so a long weekend of darkness cannot strand a school.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayRegistrationWorkerOptions.Backoff">
+            <summary>Backoff shape for transient registration failures.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayRegistrationWorkerOptions.PollInterval">
+            <summary>The delay between successful registration checks.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayRegistrationWorkerOptions.RotateWithin">
+            <summary>The rotation-now horizon.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Security.GatewaySecretJson">
+            <summary>
+            JSON contract for the Edge secret store (SP-07). The file holds the gateway identity including the
+            plaintext registration token; it is written with owner-only permissions and must never be committed to a
+            repo (<c>src/HumanGateway.Edge/data/</c> is gitignored). Explicit <c>[JsonPropertyName]</c> attributes
+            keep the format stable and independent of any naming policy.
+            </summary>
+        </member>
+        <member name="F:HumanGateway.Edge.Security.GatewaySecretJson.Options">
+            <summary>Serializer options for the secret store document.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Security.GatewaySecretDocument">
+            <summary>
+            The on-disk shape of the Edge secret store (gateway-identity.json): the gateway ID, its registration
+            lifecycle state, and the plaintext registration token (SP-07).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.GatewaySecretDocument.ToIdentity">
+            <summary>Projects the persisted document to the domain identity record.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.GatewaySecretDocument.From(HumanGateway.Edge.Security.GatewayIdentity)">
+            <summary>Builds the persisted document from the domain identity record.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Security.HttpGatewayRegistrationClient">
+            <summary>
+            The Edge's real outbound registration client (AUTH-FR-01, SP-02, SP-07): performs the two-step handshake
+            against the Relay's <c>POST /gateways</c> and <c>POST /gateways/{gatewayId}/register</c> endpoints, and
+            token rotation. Outbound-only (SP-01). The registration token is handled as a secret: it is never logged,
+            never included in exception messages, and never written to disk here — the identity manager persists it to
+            the secret store.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.HttpGatewayRegistrationClient.#ctor(System.Net.Http.HttpClient,HumanGateway.Edge.Security.GatewayRegistrationOptions,Microsoft.Extensions.Logging.ILogger{HumanGateway.Edge.Security.HttpGatewayRegistrationClient})">
+            <summary>Creates the client over the given HTTP transport and options.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.HttpGatewayRegistrationClient.IsConfigured">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Security.HttpGatewayRegistrationClient.RequestRegistrationAsync(System.String,System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Security.HttpGatewayRegistrationClient.ConfirmRegistrationAsync(System.String,System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Security.HttpGatewayRegistrationClient.RotateTokenAsync(System.String,System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Security.HttpGatewayRegistrationClient.ReadIssuedAsync(System.Net.Http.HttpResponseMessage,System.String,System.Threading.CancellationToken)">
+            <summary>Reads a <c>RegistrationTokenIssued</c> response, translating Relay errors without leaking the token.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Security.RegistrationTokenIssued">
+            <summary>
+            The wire response of <c>POST /gateways</c> and <c>POST /gateways/{gatewayId}/rotate</c> (camelCase JSON,
+            mirroring the Relay's <c>RegistrationIssued</c>). The <see cref="P:HumanGateway.Edge.Security.RegistrationTokenIssued.RegistrationToken"/> is returned exactly
+            once over TLS; the Edge stores it in its secret store (SP-07).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.RegistrationTokenIssued.Status">
+            <summary>Gateway registration lifecycle after this call (PENDING, or REGISTERED after a rotation).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.RegistrationTokenIssued.RegistrationToken">
+            <summary>The one-time plaintext registration token. Handle as a secret.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Security.IGatewayRegistrationClient">
+            <summary>
+            Port for the Edge's outbound registration client (AUTH-FR-01, SP-02): the two-step handshake against the
+            Relay — request a registration token, then present it to confirm registration — plus token rotation.
+            Implementations must never log the token or include it in exception messages (SP-07).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Security.IGatewayRegistrationClient.IsConfigured">
+            <summary>True when a Relay is configured so registration may be attempted (SP-01).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.IGatewayRegistrationClient.RequestRegistrationAsync(System.String,System.String,System.Threading.CancellationToken)">
+            <summary>
+            Step 1 — <c>POST /gateways</c>: requests a registration token for this gateway. The Relay creates the
+            identity in PENDING and returns the one-time token.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.IGatewayRegistrationClient.ConfirmRegistrationAsync(System.String,System.String,System.Threading.CancellationToken)">
+            <summary>
+            Step 2 — <c>POST /gateways/{gatewayId}/register</c>: presents the token to complete registration.
+            Returns the canonical <see cref="T:HumanGateway.Protocol.Models.Gateway"/> record with status REGISTERED.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.IGatewayRegistrationClient.RotateTokenAsync(System.String,System.String,System.Threading.CancellationToken)">
+            <summary>
+            <c>POST /gateways/{gatewayId}/rotate</c>: rotates a registered gateway's token. The current token is
+            verified by the Relay, then a fresh one is returned.
+            </summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Security.IGatewaySecretStore">
+            <summary>
+            Port for the Edge's secret store (SP-07): durable persistence of the gateway identity including the
+            plaintext registration token. The implementation decides the backing (v1: an owner-only file under the
+            Edge data directory); anything the Edge must survive a restart with — the gateway ID and its registration
+            token — lives behind this port so a later task can swap in an OS secret store / keychain without touching
+            the identity manager.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.IGatewaySecretStore.LoadAsync(System.Threading.CancellationToken)">
+            <summary>
+            Loads the persisted gateway identity (including the plaintext registration token), or null when no
+            secret has been stored yet (first boot / never registered). A corrupt or tampered store must throw,
+            never silently drop the identity — silently re-registering would change the gateway's identity.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.IGatewaySecretStore.SaveAsync(HumanGateway.Edge.Security.GatewayIdentity,System.Threading.CancellationToken)">
+            <summary>
+            Persists the gateway identity atomically (temp-file + rename so a crash mid-write cannot leave a
+            half-written secret). The token is written with owner-only file permissions (SP-07).
+            </summary>
         </member>
         <member name="T:HumanGateway.Edge.Storage.EdgeDbContext">
             <summary>
@@ -771,6 +1181,13 @@
         </member>
         <member name="M:HumanGateway.Edge.Storage.SqliteConnectionFactory.BuildConnectionString(System.String)">
             <summary>Builds the SQLite connection string for the given database file path.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Storage.SqliteConnectionFactory.DataSourceDirectory(System.String)">
+            <summary>
+            The directory containing the SQLite database file named by a connection string, or null when the
+            string has no usable <c>Data Source</c>. Used to co-locate the gateway secret store with the database
+            (SP-07) so durable state shares one gitignored/volume-mounted directory.
+            </summary>
         </member>
         <member name="M:HumanGateway.Edge.Storage.SqliteConnectionFactory.Open(System.String)">
             <summary>

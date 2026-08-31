@@ -535,6 +535,9 @@
         <member name="F:HumanGateway.Protocol.Validation.CommonRules.Sha256FingerprintPattern">
             <summary>gateway.schema.json#/registrationTokenFingerprint — sha256:&lt;64 lowercase hex&gt;.</summary>
         </member>
+        <member name="F:HumanGateway.Protocol.Validation.CommonRules.RegistrationTokenPattern">
+            <summary>gateway.schema.json#/$defs/registrationToken — <c>hgrt_</c> + base64url body (48..256 chars).</summary>
+        </member>
         <member name="F:HumanGateway.Protocol.Validation.CommonRules.MaxArtifactSizeBytes">
             <summary>artifact.schema.json#/sizeBytes maximum — protocol ceiling of 512 MiB.</summary>
         </member>
@@ -707,6 +710,26 @@
             ○ Match if at the end of the string or if before an ending newline.<br/>
             </code>
             </remarks>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.RegistrationTokenRegex">
+            <remarks>
+            Pattern:<br/>
+            <code>^hgrt_[A-Za-z0-9_-]{43,251}$</code><br/>
+            Explanation:<br/>
+            <code>
+            ○ Match if at the beginning of the string.<br/>
+            ○ Match the string "hgrt_".<br/>
+            ○ Match a character in the set [\-0-9A-Z_a-z] atomically at least 43 and at most 251 times.<br/>
+            ○ Match if at the end of the string or if before an ending newline.<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Protocol.Validation.CommonRules.IsRegistrationTokenWellFormed(System.String)">
+            <summary>
+            True when <paramref name="value"/> matches gateway.schema.json#/$defs/registrationToken
+            (<c>hgrt_</c> + base64url body, 48..256 chars). Used by both sides of the registration handshake
+            (AUTH-FR-01) so a malformed token is rejected before it reaches a store.
+            </summary>
         </member>
         <member name="M:HumanGateway.Protocol.Validation.CommonRules.Id(System.String,System.String,HumanGateway.Protocol.Validation.ErrorSink)">
             <summary>Validates a durable ID (common.schema.json#/$defs/id).</summary>
@@ -1320,6 +1343,38 @@
             <returns>true if a possible match was found; false if no more matches are possible.</returns>
         </member>
         <member name="M:System.Text.RegularExpressions.Generated.PasswordVerifierRegex_9.RunnerFactory.Runner.TryMatchAtCurrentPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Determine whether <paramref name="inputSpan"/> at base.runtextpos is a match for the regular expression.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if the regular expression matches at the current position; otherwise, false.</returns>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.RegistrationTokenRegex_10">
+            <summary>Custom <see cref="T:System.Text.RegularExpressions.Regex"/>-derived type for the RegistrationTokenRegex method.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.RegistrationTokenRegex_10.Instance">
+            <summary>Cached, thread-safe singleton instance.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.RegistrationTokenRegex_10.#ctor">
+            <summary>Initializes the instance.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.RegistrationTokenRegex_10.RunnerFactory">
+            <summary>Provides a factory for creating <see cref="T:System.Text.RegularExpressions.RegexRunner"/> instances to be used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.RegistrationTokenRegex_10.RunnerFactory.CreateInstance">
+            <summary>Creates an instance of a <see cref="T:System.Text.RegularExpressions.RegexRunner"/> used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.RegistrationTokenRegex_10.RunnerFactory.Runner">
+            <summary>Provides the runner that contains the custom logic implementing the specified regular expression.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.RegistrationTokenRegex_10.RunnerFactory.Runner.Scan(System.ReadOnlySpan{System.Char})">
+            <summary>Scan the <paramref name="inputSpan"/> starting from base.runtextstart for the next match.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.RegistrationTokenRegex_10.RunnerFactory.Runner.TryFindNextPossibleStartingPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Search <paramref name="inputSpan"/> starting from base.runtextpos for the next location a match could possibly start.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if a possible match was found; false if no more matches are possible.</returns>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.RegistrationTokenRegex_10.RunnerFactory.Runner.TryMatchAtCurrentPosition(System.ReadOnlySpan{System.Char})">
             <summary>Determine whether <paramref name="inputSpan"/> at base.runtextpos is a match for the regular expression.</summary>
             <param name="inputSpan">The text being scanned by the regular expression.</param>
             <returns>true if the regular expression matches at the current position; otherwise, false.</returns>
