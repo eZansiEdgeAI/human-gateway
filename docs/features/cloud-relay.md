@@ -53,8 +53,8 @@ No user-facing UI (service-side).
 ## 5. Implementation Tasks
 
 ### Phase 4: Cloud Relay
-- [ ] Scaffold `src/HumanGateway.Relay` (ASP.NET Core minimal API + EF Core/PostgreSQL)
-- [ ] PostgreSQL schema: gateways, conversations, messages, deliveries, artifacts, cursors
+- [x] Scaffold `src/HumanGateway.Relay` (ASP.NET Core minimal API + EF Core/PostgreSQL)
+- [x] PostgreSQL schema: gateways, conversations, messages, deliveries, artifacts, cursors
 - [ ] Gateway registration + rendezvous endpoints
 - [ ] Sync endpoint: push/pull cursors, delivery ack (consumes the synchronisation protocol)
 - [ ] `ArtifactStore` interface with a PostgreSQL BYTEA implementation (streaming reads; S3-compatible adapter as an optional later step)

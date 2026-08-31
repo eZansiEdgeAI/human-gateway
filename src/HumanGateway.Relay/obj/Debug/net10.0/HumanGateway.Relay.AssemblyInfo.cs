@@ -16,7 +16,7 @@ using System.Reflection;
     " artifact bytes via BYTEA) that acts as the rendezvous point for Edge Gateway sy" +
     "nc and cross-school message exchange (product vision §6.3, RELAY-FR-01..05)."))]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1f183c297490eee2efc28db048b01a8c8f38aa09")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7c09566a651bb113f0bb1f4833a8da88f228c93d")]
 [assembly: System.Reflection.AssemblyProductAttribute("HumanGateway.Relay")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HumanGateway.Relay")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
