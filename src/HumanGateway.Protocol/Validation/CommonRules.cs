@@ -47,6 +47,9 @@ public static partial class CommonRules
     /// <summary>gateway.schema.json#/registrationTokenFingerprint — sha256:&lt;64 lowercase hex&gt;.</summary>
     public const string Sha256FingerprintPattern = "^sha256:[0-9a-f]{64}$";
 
+    /// <summary>gateway.schema.json#/$defs/registrationToken — <c>hgrt_</c> + base64url body (48..256 chars).</summary>
+    public const string RegistrationTokenPattern = "^hgrt_[A-Za-z0-9_-]{43,251}$";
+
     /// <summary>artifact.schema.json#/sizeBytes maximum — protocol ceiling of 512 MiB.</summary>
     public const long MaxArtifactSizeBytes = 536_870_912;
 
@@ -93,6 +96,19 @@ public static partial class CommonRules
 
     [GeneratedRegex(Sha256FingerprintPattern)]
     internal static partial Regex Sha256FingerprintRegex();
+
+    [GeneratedRegex(RegistrationTokenPattern)]
+    internal static partial Regex RegistrationTokenRegex();
+
+    // ---- Public shape predicates (shared by the Relay and Edge registration flows, SP-07) ----
+
+    /// <summary>
+    /// True when <paramref name="value"/> matches gateway.schema.json#/$defs/registrationToken
+    /// (<c>hgrt_</c> + base64url body, 48..256 chars). Used by both sides of the registration handshake
+    /// (AUTH-FR-01) so a malformed token is rejected before it reaches a store.
+    /// </summary>
+    public static bool IsRegistrationTokenWellFormed(string? value)
+        => value is not null && RegistrationTokenRegex().IsMatch(value);
 
     // ---- Shared validators (common.schema.json $defs) ----
 

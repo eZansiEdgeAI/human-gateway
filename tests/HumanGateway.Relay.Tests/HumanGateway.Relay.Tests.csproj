@@ -37,6 +37,12 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/HumanGateway.Relay/HumanGateway.Relay.csproj" />
+    <!-- Aliased so the Edge service's top-level-statement-generated global `Program` type does not collide
+         with the Relay's own global `Program` type in this test assembly (identity-security §6: integration
+         tests drive the real Edge registration client against the real Relay). -->
+    <ProjectReference Include="../../src/HumanGateway.Edge/HumanGateway.Edge.csproj">
+      <Aliases>edge</Aliases>
+    </ProjectReference>
   </ItemGroup>
 
 </Project>

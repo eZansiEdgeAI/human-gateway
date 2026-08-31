@@ -57,7 +57,7 @@
 ## 5. Implementation Tasks
 
 ### Phase 5: Identity and Security
-- [ ] Gateway identity: unique ID + registration token; Relay rejects unregistered gateways
+- [x] Gateway identity: unique ID + registration token; Relay rejects unregistered gateways
 - [ ] User identity + authentication at the Edge (local) and Relay (remote) with signed tokens/sessions
 - [ ] Authorisation middleware: per-conversation/task/artifact access control
 - [ ] TLS everywhere; signed request tokens for Edge↔Relay traffic

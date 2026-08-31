@@ -40,6 +40,36 @@ public static class SqliteConnectionFactory
         }.ToString();
 
     /// <summary>
+    /// The directory containing the SQLite database file named by a connection string, or null when the
+    /// string has no usable <c>Data Source</c>. Used to co-locate the gateway secret store with the database
+    /// (SP-07) so durable state shares one gitignored/volume-mounted directory.
+    /// </summary>
+    public static string? DataSourceDirectory(string connectionString)
+    {
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return null;
+        }
+
+        try
+        {
+            var builder = new SqliteConnectionStringBuilder(connectionString);
+            if (string.IsNullOrWhiteSpace(builder.DataSource)
+                || string.Equals(builder.DataSource, ":memory:", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            var fullPath = Path.GetFullPath(builder.DataSource);
+            return Path.GetDirectoryName(fullPath);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Opens a connection and applies the durability PRAGMAs. Used by the DI wiring and by tests so that a
     /// single code path owns the pragma set (one source of truth).
     /// </summary>

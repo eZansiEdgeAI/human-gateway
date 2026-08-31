@@ -7,6 +7,7 @@ using HumanGateway.Core.Sync;
 using HumanGateway.Edge.Api;
 using HumanGateway.Edge.Artifacts;
 using HumanGateway.Edge.Endpoints;
+using HumanGateway.Edge.Security;
 using HumanGateway.Edge.Storage;
 using HumanGateway.Edge.Sync;
 using Microsoft.AspNetCore.Diagnostics;
@@ -19,14 +20,34 @@ var builder = WebApplication.CreateBuilder(args);
 // SQLite store (LOCAL-EDGE-1.2, EDGE-FR-02): the durable local schema for
 // conversations, messages, deliveries, tasks, artifacts, and participants. The
 // SqlitePragmaInterceptor applies WAL + synchronous=NORMAL (and per-connection
-// foreign_keys/busy_timeout) on every open (EDGE-FR-06/07, NF-04).
+// foreign_keys/busy_timeout) on every open (EDGE-FR-06/07, NF-04). The data
+// directory also roots the gateway secret store (SP-07), so it is resolved once
+// and shared below.
 // ---------------------------------------------------------------------------
 var connectionString = builder.Configuration.GetConnectionString("Edge");
+var configuredDataDir = builder.Configuration.GetValue<string>(
+    $"{GatewayOptions.SectionName}:{nameof(GatewayOptions.DataDirectory)}");
+
+string dataDir;
 if (string.IsNullOrWhiteSpace(connectionString))
 {
-    var dataDir = Path.Combine(builder.Environment.ContentRootPath, "data");
+    // The Edge owns the default connection string → root durable state (SQLite + gateway secret store) in
+    // the configured data directory, or <ContentRoot>/data when unset (gitignored, SP-07).
+    dataDir = !string.IsNullOrWhiteSpace(configuredDataDir)
+        ? configuredDataDir
+        : Path.Combine(builder.Environment.ContentRootPath, "data");
     Directory.CreateDirectory(dataDir);
     connectionString = SqliteConnectionFactory.BuildConnectionString(Path.Combine(dataDir, "edge.db"));
+}
+else
+{
+    // A connection string was supplied (tests, containers) → co-locate the secret store with the SQLite
+    // database so durable state (DB + gateway identity) shares one gitignored/volume-mounted directory.
+    dataDir = SqliteConnectionFactory.DataSourceDirectory(connectionString)
+        ?? (!string.IsNullOrWhiteSpace(configuredDataDir)
+            ? configuredDataDir
+            : Path.Combine(builder.Environment.ContentRootPath, "data"));
+    Directory.CreateDirectory(dataDir);
 }
 
 builder.Services.AddSingleton<SqlitePragmaInterceptor>();
@@ -52,6 +73,42 @@ builder.Services.AddSingleton<IInbox, SqliteInbox>();
 builder.Services.AddSingleton<IIdempotencyStore, SqliteIdempotencyStore>();
 builder.Services.AddSingleton<ISyncCursorStore, SqliteSyncCursorStore>();
 builder.Services.AddSingleton<ISyncEngine, SyncEngine>();
+
+// ---------------------------------------------------------------------------
+// Gateway identity + registration (IDENTITY-SECURITY-5.1, AUTH-FR-01, SP-02):
+// the Edge's durable identity (gateway ID + registration token) and the
+// two-step registration handshake against the Relay. The plaintext token lives
+// only in the owner-only secret store under the data directory (SP-07); the
+// registration worker runs before the sync worker and re-confirms/rotates as
+// needed. When no Relay is configured the client is disabled and the Edge stays
+// LAN-only (SP-01).
+// ---------------------------------------------------------------------------
+builder.Services.Configure<GatewayRegistrationOptions>(
+    builder.Configuration.GetSection(GatewayRegistrationOptions.SectionName));
+builder.Services.Configure<GatewayRegistrationWorkerOptions>(
+    builder.Configuration.GetSection(GatewayRegistrationWorkerOptions.SectionName));
+builder.Services.AddSingleton<IGatewaySecretStore>(new FileGatewaySecretStore(dataDir));
+builder.Services.AddSingleton<GatewayRegistrationClientGate>();
+builder.Services.AddSingleton<IGatewayRegistrationClient>(sp =>
+{
+    var options = sp.GetRequiredService<IOptions<GatewayRegistrationOptions>>().Value;
+    if (!options.Enabled)
+    {
+        return new DisabledGatewayRegistrationClient();
+    }
+
+    var http = new HttpClient
+    {
+        BaseAddress = new Uri(options.BaseUrl!.TrimEnd('/') + "/", UriKind.Absolute),
+        Timeout = options.Timeout,
+    };
+    return new HttpGatewayRegistrationClient(
+        http,
+        options,
+        sp.GetRequiredService<ILogger<HttpGatewayRegistrationClient>>());
+});
+builder.Services.AddSingleton<GatewayIdentityManager>();
+builder.Services.AddHostedService<GatewayRegistrationWorker>();
 
 // ---------------------------------------------------------------------------
 // Background sync worker (LOCAL-EDGE-1.6, EDGE-FR-05, product vision §10): a

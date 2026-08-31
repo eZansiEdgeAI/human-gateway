@@ -31,4 +31,13 @@ public sealed class GatewayOptions
 
     /// <summary>The durable gateway ID used as the outbox stream key (AUTH-FR-01).</summary>
     public string GatewayId { get; init; } = "edge:local";
+
+    /// <summary>Human-readable gateway name (e.g. the school name), presented during registration (AUTH-FR-01).</summary>
+    public string? DisplayName { get; init; }
+
+    /// <summary>
+    /// Directory for durable runtime state (SQLite DB, artifact store, secret store). When null the Edge uses
+    /// <c>&lt;ContentRoot&gt;/data</c> (SP-07: that path is gitignored).
+    /// </summary>
+    public string? DataDirectory { get; init; }
 }
