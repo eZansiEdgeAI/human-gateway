@@ -1,0 +1,92 @@
+# ---------------------------------------------------------------------------
+# HumanGateway full-stack dev/test environment (CLOUD-RELAY-4.6, RELAY-FR-05):
+# PostgreSQL + Cloud Relay + Edge Gateway, orchestrated with Docker Compose.
+# Works with Docker Compose v2 and Podman (`podman-compose`).
+#
+#   docker compose up -d --build
+#   # or, with Podman:
+#   podman-compose up -d
+#
+# Topology:
+#   - postgres: the Relay's durable store (RELAY-FR-01). Internal to the compose
+#     network by default; publish a host port via HG_DB_PORT if you need psql.
+#   - relay:    the stateless Cloud Relay. Applies the EF Core migration on
+#     startup (so it waits for postgres), exposes /healthz with a store round-trip.
+#   - edge:     the on-site Edge Gateway (SQLite + filesystem artifacts on the
+#     edge-data volume). Points at the Relay via Edge__RelayBaseUrl for when the
+#     sync transport is enabled; until then outbound sync stays off and the
+#     durable outbox retains entries (offline-first, NF-01).
+#
+# Environment overrides are all optional (defaults in .env.example):
+#   HG_DB_PORT, HG_RELAY_PORT, HG_EDGE_PORT, HG_GATEWAY_ID
+# ---------------------------------------------------------------------------
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: humangateway
+      POSTGRES_PASSWORD: humangateway
+      POSTGRES_DB: humangateway_relay
+    volumes:
+      - relay-pgdata:/var/lib/postgresql/data
+    # Internal to the compose network unless HG_DB_PORT is set (the Relay talks
+    # to `postgres:5432` by name). Override to reach the DB from the host, e.g.
+    # for `psql` or `dotnet ef` migrations.
+    ports:
+      - "${HG_DB_PORT:-127.0.0.1:5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U humangateway -d humangateway_relay"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  relay:
+    build:
+      context: .
+      dockerfile: deployment/docker/Dockerfile.relay
+    environment:
+      ConnectionStrings__Relay: Host=postgres;Port=5432;Database=humangateway_relay;Username=humangateway;Password=humangateway
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${HG_RELAY_PORT:-5275}:8080"
+    # curl-free HTTP probe (the aspnet base image has no curl/wget): bash's
+    # /dev/tcp opens a real socket and issues a GET so the check reflects
+    # /healthz, not just the open port. bash is invoked explicitly because the
+    # CMD-SHELL default shell (dash) has no /dev/tcp.
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080; printf \"GET /healthz HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3; head -1 <&3 | grep -q \" 200 \"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  edge:
+    build:
+      context: .
+      dockerfile: deployment/docker/Dockerfile.edge
+    environment:
+      Edge__GatewayId: ${HG_GATEWAY_ID:-edge:compose}
+      Edge__RelayBaseUrl: http://relay:8080
+    volumes:
+      - edge-data:/data
+    depends_on:
+      relay:
+        condition: service_healthy
+    ports:
+      - "${HG_EDGE_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080; printf \"GET /healthz HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3; head -1 <&3 | grep -q \" 200 \"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  relay-pgdata:
+  edge-data:

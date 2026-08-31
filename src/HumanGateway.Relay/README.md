@@ -49,7 +49,7 @@ The full API surface is built by the following tasks:
 | CLOUD-RELAY-4.3 | **Done** — Gateway registration + rendezvous endpoints (`Endpoints/GatewayEndpoints.cs`, `Endpoints/RendezvousEndpoints.cs`, `Services/`, `Security/`; `RELAY-FR-03`, `WEBX-FR-02`); validated against live PostgreSQL |
 | CLOUD-RELAY-4.4 | Sync endpoint: push/pull cursors + delivery ack (`SYNC-FR-03/05`, consumes the synchronisation protocol) |
 | CLOUD-RELAY-4.5 | `ArtifactStore` BYTEA implementation (streaming reads) |
-| CLOUD-RELAY-4.6 | Docker Compose environment: Relay + PostgreSQL + Edge |
+| CLOUD-RELAY-4.6 | **Done** — Docker Compose environment: Relay + PostgreSQL + Edge (`deployment/docker-compose.yml`, `deployment/docker/Dockerfile.relay`) |
 | CLOUD-RELAY-4.7 | Structured logging + health endpoint |
 
 ### Endpoints

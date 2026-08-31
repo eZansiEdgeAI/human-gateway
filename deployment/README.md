@@ -6,7 +6,50 @@ run scripts for each (product vision §6.2 "deployment/").
 | Surface | Target | Where |
 |---------|--------|-------|
 | **Edge Gateway** | Raspberry Pi (arm64) / old PC (amd64), Linux or Windows | [`docker/`](docker/) |
-| **Cloud Relay** | containerised (Docker/Podman), PostgreSQL backend | (arrives with the cloud-relay feature) |
+| **Cloud Relay** | containerised (Docker/Podman), PostgreSQL backend | [`docker/`](docker/) |
+
+## Full stack via Docker Compose (Relay + PostgreSQL + Edge)
+
+The whole system — the Cloud Relay, its PostgreSQL store, and an Edge Gateway —
+runs together for dev/test with a single Compose command (CLOUD-RELAY-4.6,
+RELAY-FR-05). The compose file lives at the **repo root** so the build context
+and `dockerfile:` paths resolve identically under Docker Compose v2 and Podman
+(`podman-compose`); it builds both container images natively for the local
+architecture.
+
+```bash
+# from the repo root
+docker compose up -d --build
+# or, with Podman:
+podman-compose up -d
+```
+
+What starts:
+
+| Service | Purpose | Published |
+|---------|---------|-----------|
+| `postgres` | Relay's durable store (RELAY-FR-01) | `127.0.0.1:5433` (internal otherwise; override `HG_DB_PORT`) |
+| `relay` | Cloud Relay: sync + registration + rendezvous API | `http://127.0.0.1:5275` |
+| `edge` | Edge Gateway: local REST API + SQLite/artifacts | `http://127.0.0.1:8080` |
+
+The Relay applies its EF Core migration on startup (it waits for `postgres` to
+be healthy) and the Edge waits for the Relay; both expose `/healthz` and are
+health-checked by Compose. The Edge's SQLite store and artifact files live on
+the `edge-data` volume (`/data`); PostgreSQL data on `relay-pgdata`.
+
+Verify:
+
+```bash
+curl http://127.0.0.1:5275/healthz   # {"status":"ok","store":"postgres"}
+curl http://127.0.0.1:8080/healthz   # {"status":"ok","store":"sqlite"}
+curl http://127.0.0.1:5275/relay     # service identity probe
+docker compose ps
+```
+
+All settings are optional environment overrides (see
+[`.env.example`](../.env.example)): `HG_DB_PORT`, `HG_RELAY_PORT`, `HG_EDGE_PORT`,
+`HG_GATEWAY_ID`. Tear the stack down with `docker compose down` (add `-v` to
+also remove the data volumes).
 
 ## Edge Gateway (Raspberry Pi / old PC)
 

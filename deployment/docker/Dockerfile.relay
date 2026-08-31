@@ -1,0 +1,62 @@
+# syntax=docker/dockerfile:1
+
+# ---------------------------------------------------------------------------
+# HumanGateway Cloud Relay container image (CLOUD-RELAY-4.6, RELAY-FR-05,
+# product vision §6.3 "cloud/"). Multi-arch: builds natively for the local
+# architecture. Docker and Podman both read this file; the
+# deployment/docker-compose.yml orchestrates it with PostgreSQL + the Edge.
+#
+#   podman build -f deployment/docker/Dockerfile.relay -t humangateway-relay .
+#
+# The Relay is the stateless cloud side of HumanGateway: it runs the ASP.NET
+# Core minimal API backed by PostgreSQL (message metadata + artifact bytes via
+# BYTEA), accepts outbound sync from Edge Gateways (no inbound connectivity at
+# the school), and provides gateway registration + rendezvous. All durable
+# state lives in the PostgreSQL database (RELAY-FR-01), so the container itself
+# carries nothing persistent. It runs as the unprivileged `app` user (uid 1654)
+# from the ASP.NET base image.
+# ---------------------------------------------------------------------------
+
+# ---- build stage: restore + publish the Relay project ----
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+ARG TARGETARCH
+WORKDIR /src
+
+# Project files first so a dependency-only change reuses the restore layer.
+COPY src/HumanGateway.Relay/HumanGateway.Relay.csproj src/HumanGateway.Relay/
+COPY src/HumanGateway.Core/HumanGateway.Core.csproj src/HumanGateway.Core/
+COPY src/HumanGateway.Protocol/HumanGateway.Protocol.csproj src/HumanGateway.Protocol/
+# The Protocol project embeds the versioned JSON Schemas (../../schemas).
+COPY schemas/ schemas/
+
+RUN dotnet restore src/HumanGateway.Relay/HumanGateway.Relay.csproj --arch $TARGETARCH
+
+# Remaining sources, then a framework-dependent publish for the target arch.
+COPY src/ src/
+RUN dotnet publish src/HumanGateway.Relay/HumanGateway.Relay.csproj \
+        --configuration Release \
+        --arch $TARGETARCH \
+        --self-contained false \
+        --output /app/publish \
+        -p:DebugType=None \
+        -p:DebugSymbols=false \
+        -p:UseAppHost=false
+
+# ---- runtime stage ----
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+WORKDIR /app
+
+COPY --from=build /app/publish .
+
+# Unprivileged runtime user from the ASP.NET base image (uid 1654).
+USER app
+
+# The Relay is stateless: PostgreSQL holds all durable state (the schema is
+# migrated automatically on startup). The connection string is supplied at run
+# time via ConnectionStrings__Relay (from the compose environment or an
+# external postgres).
+ENV ASPNETCORE_URLS=http://0.0.0.0:8080
+
+EXPOSE 8080
+
+ENTRYPOINT ["dotnet", "HumanGateway.Relay.dll"]
