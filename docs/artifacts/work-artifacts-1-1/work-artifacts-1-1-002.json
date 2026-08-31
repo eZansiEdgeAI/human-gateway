@@ -1,0 +1,16 @@
+{
+  "type": "work.artifacts-1.1",
+  "category": "work",
+  "taskId": "ARTIFACTS-1.1",
+  "producedBy": "artifact-engineer",
+  "status": "complete",
+  "summary": "The task table arrived empty, but the manifest identifies the current task as **ARTIFACTS-1.1** (Phase ARTIFACTS-1, owner artifact-engineer) — the feature-doc table header was misparsed into the task ",
+  "inputs": [],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "The task table arrived empty, but the manifest identifies the current task as **ARTIFACTS-1.1** (Phase ARTIFACTS-1, owner artifact-engineer) — the feature-doc table header was misparsed into the task title. The code was already committed in `e01ab5c` but the task is still marked `running` with retries logged. Let me verify the deliverable end-to-end and finalize the task.\nBuild is green. Now the test suites.\nRelay tests use Testcontainers (PostgreSQL). Let me check Docker availability.\nDocker is"
+  },
+  "nextActions": [],
+  "artifactId": "work-artifacts-1-1-002",
+  "createdAt": "2026-08-31T22:17:24.999Z"
+}
