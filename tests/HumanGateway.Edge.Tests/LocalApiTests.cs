@@ -1,4 +1,5 @@
 using HumanGateway.Edge.Api;
+using HumanGateway.Edge.Artifacts;
 using HumanGateway.Edge.Storage;
 using HumanGateway.Protocol.Models;
 using HumanGateway.Protocol.Validation;
@@ -71,7 +72,9 @@ public sealed class LocalApiTests : IDisposable
         }
 
         var gatewayOptions = Options.Create(new GatewayOptions { GatewayId = GatewayId });
-        return new LocalApiService(factory, gatewayOptions);
+        var artifactStore = new FilesystemArtifactStore(Path.Combine(_dbPath, "artifacts"));
+        var artifactOptions = Options.Create(new ArtifactStoreOptions());
+        return new LocalApiService(factory, gatewayOptions, artifactStore, artifactOptions);
     }
 
     // -----------------------------------------------------------------------------------------------

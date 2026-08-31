@@ -1,4 +1,7 @@
+using System.Text;
+using HumanGateway.Core.Artifacts;
 using HumanGateway.Core.Cursor;
+using HumanGateway.Core.Hashing;
 using HumanGateway.Core.Idempotency;
 using HumanGateway.Core.Inbox;
 using HumanGateway.Core.Outbox;
@@ -286,6 +289,117 @@ public sealed class SyncWorkerTests
     }
 
     // -----------------------------------------------------------------------------------------------
+    // Artifact byte transfer (ARTF-FR-01/02, PROTO-FR-04 exception)
+    // -----------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task SyncOnce_Push_UploadsArtifactsTheRelayLacks()
+    {
+        // The local store holds the bytes a pushed message references.
+        var content = Encoding.UTF8.GetBytes("photo-evidence-0001");
+        var hash = ContentHasher.Compute(content);
+        var localStore = new InMemoryArtifactStore();
+        await localStore.SaveAsync(new MemoryStream(content), hash, Ct);
+
+        var message = MessageWithArtifactRef("msg-artifact-0001", "artifact-0001", hash, content.Length);
+        var artifactTransfer = new FakeArtifactTransfer(); // the Relay holds nothing
+        var relay = new FakeRelaySyncClient();
+        var (worker, outbox, _, _) = NewHarness(relay, artifactStore: localStore, artifactTransfer: artifactTransfer);
+
+        await outbox.EnqueueAsync(GatewayId, MessageItem(message));
+        await worker.SyncOnceAsync(Ct);
+
+        // The missing bytes were transferred to the Relay (dedup first, upload the missing hash only).
+        Assert.Contains(hash, artifactTransfer.UploadedHashes);
+        Assert.Contains(hash, artifactTransfer.CheckedHashes);
+        // And the batch still flowed.
+        Assert.Single(relay.PushedBatches);
+    }
+
+    [Fact]
+    public async Task SyncOnce_Push_DoesNotReTransferArtifactsTheRelayAlreadyHolds()
+    {
+        var content = Encoding.UTF8.GetBytes("photo-evidence-0002");
+        var hash = ContentHasher.Compute(content);
+        var localStore = new InMemoryArtifactStore();
+        await localStore.SaveAsync(new MemoryStream(content), hash, Ct);
+
+        // The Relay already holds the hash — dedup (ARTF-FR-01, NF-03): no re-transfer.
+        var artifactTransfer = new FakeArtifactTransfer();
+        artifactTransfer.RemoteHashes.Add(hash);
+
+        var message = MessageWithArtifactRef("msg-artifact-0002", "artifact-0002", hash, content.Length);
+        var relay = new FakeRelaySyncClient();
+        var (worker, outbox, _, _) = NewHarness(relay, artifactStore: localStore, artifactTransfer: artifactTransfer);
+
+        await outbox.EnqueueAsync(GatewayId, MessageItem(message));
+        await worker.SyncOnceAsync(Ct);
+
+        Assert.DoesNotContain(hash, artifactTransfer.UploadedHashes);
+    }
+
+    [Fact]
+    public async Task SyncOnce_Push_SkipsArtifactsWhoseBytesAreNotOnDiskYet()
+    {
+        // Metadata exists (the reference) but the bytes have not landed in the local store (the PWA uploads
+        // them in a separate step) — the push must not fail and must not transfer anything.
+        var hash = "sha256:" + new string('b', 64);
+        var message = MessageWithArtifactRef("msg-artifact-0003", "artifact-0003", hash, 10);
+        var artifactTransfer = new FakeArtifactTransfer();
+        var relay = new FakeRelaySyncClient();
+        var (worker, outbox, _, _) = NewHarness(relay, artifactStore: new InMemoryArtifactStore(), artifactTransfer: artifactTransfer);
+
+        await outbox.EnqueueAsync(GatewayId, MessageItem(message));
+        await worker.SyncOnceAsync(Ct);
+
+        Assert.Empty(artifactTransfer.UploadedHashes);
+        Assert.Single(relay.PushedBatches);
+    }
+
+    [Fact]
+    public async Task SyncOnce_Pull_DownloadsArtifactsTheGatewayLacks()
+    {
+        // The Relay holds the bytes referenced by a pulled message.
+        var content = Encoding.UTF8.GetBytes("evidence-from-relay-0001");
+        var hash = ContentHasher.Compute(content);
+        var artifactTransfer = new FakeArtifactTransfer();
+        artifactTransfer.RemoteContent[hash] = content;
+        artifactTransfer.RemoteHashes.Add(hash);
+
+        var remote = MessageWithArtifactRef("msg-artifact-0004", "artifact-0004", hash, content.Length);
+        var inbound = PullBatch(remote);
+
+        var localStore = new InMemoryArtifactStore();
+        var relay = new FakeRelaySyncClient { OnPull = (_, _) => Task.FromResult<SyncBatch?>(inbound) };
+        var (worker, _, _, _) = NewHarness(relay, artifactStore: localStore, artifactTransfer: artifactTransfer);
+
+        await worker.SyncOnceAsync(Ct);
+
+        // The bytes landed in the local store, content-hash intact (SP-06).
+        Assert.True(await localStore.ExistsAsync(hash, Ct));
+        var downloaded = await localStore.GetSizeAsync(hash, Ct);
+        Assert.Equal(content.Length, downloaded);
+    }
+
+    [Fact]
+    public async Task SyncOnce_Pull_SkipsArtifactsNotYetAtTheRelay()
+    {
+        // A pulled message references bytes the Relay does not hold yet (the sender uploads on a later
+        // cycle) — the pull must not fail; the reference awaits a later sync cycle.
+        var hash = "sha256:" + new string('c', 64);
+        var remote = MessageWithArtifactRef("msg-artifact-0005", "artifact-0005", hash, 10);
+        var inbound = PullBatch(remote);
+
+        var localStore = new InMemoryArtifactStore();
+        var relay = new FakeRelaySyncClient { OnPull = (_, _) => Task.FromResult<SyncBatch?>(inbound) };
+        var (worker, _, _, _) = NewHarness(relay, artifactStore: localStore, artifactTransfer: new FakeArtifactTransfer());
+
+        await worker.SyncOnceAsync(Ct);
+
+        Assert.False(await localStore.ExistsAsync(hash, Ct));
+    }
+
+    // -----------------------------------------------------------------------------------------------
     // Lifecycle (product vision §10)
     // -----------------------------------------------------------------------------------------------
 
@@ -335,13 +449,61 @@ public sealed class SyncWorkerTests
         Message = NewMessage(id),
     };
 
+    private static SyncItem MessageItem(Message message) => new()
+    {
+        Kind = SyncItemKind.Message,
+        Sequence = 0,
+        Message = message,
+    };
+
     private static Message NewMessage(string id) => TestData.NewMessage(id: id);
+
+    /// <summary>A message carrying one artifact reference, with its content hash recomputed over the refs.</summary>
+    private static Message MessageWithArtifactRef(string messageId, string artifactId, string hash, long sizeBytes)
+    {
+        var message = TestData.NewMessage(id: messageId);
+        message = message with
+        {
+            ArtifactRefs = new List<ArtifactReference>
+            {
+                new()
+                {
+                    Id = artifactId,
+                    Hash = hash,
+                    Filename = "evidence.bin",
+                    MimeType = "application/octet-stream",
+                    SizeBytes = sizeBytes,
+                },
+            },
+            ContentHash = null!,
+        };
+        return message with { ContentHash = ContentHasher.ComputeMessageHash(message) };
+    }
+
+    /// <summary>An inbound PULL batch carrying one message item.</summary>
+    private static SyncBatch PullBatch(Message message)
+    {
+        var item = new SyncItem { Kind = SyncItemKind.Message, Sequence = 1, Message = message };
+        return new SyncBatch
+        {
+            BatchId = "batch-pull-artifacts-" + message.Id,
+            GatewayId = "edge:relay-gateway",
+            Direction = BatchDirection.Pull,
+            IdempotencyKey = IdempotencyKeys.Derive("batch-pull-artifacts-" + message.Id, new[] { item }),
+            SequenceStart = 1,
+            SequenceEnd = 1,
+            Items = new List<SyncItem> { item },
+            CreatedAt = "2026-08-31T00:00:00.000Z",
+        };
+    }
 
     private static (SyncWorker Worker, InMemoryOutbox Outbox, InMemoryInbox Inbox, InMemorySyncCursorStore Cursors) NewHarness(
         IRelaySyncClient relay,
         int pollSeconds = 30,
         string gatewayId = GatewayId,
-        InMemorySyncCursorStore? cursors = null)
+        InMemorySyncCursorStore? cursors = null,
+        IArtifactStore? artifactStore = null,
+        IArtifactTransfer? artifactTransfer = null)
     {
         var outbox = new InMemoryOutbox();
         var inbox = new InMemoryInbox();
@@ -357,6 +519,8 @@ public sealed class SyncWorkerTests
             outbox,
             cursors,
             relay,
+            artifactStore ?? new InMemoryArtifactStore(),
+            artifactTransfer ?? new FakeArtifactTransfer(),
             gateway,
             options,
             NullLogger<SyncWorker>.Instance,
@@ -388,6 +552,92 @@ public sealed class SyncWorkerTests
         {
             PullCursors.Add(sinceCursor);
             return await (OnPull?.Invoke(sinceCursor, ct) ?? Task.FromResult<SyncBatch?>(null)).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// In-memory <see cref="IArtifactTransfer"/> recording every dedup check and upload, with optional remote
+    /// content for download tests.
+    /// </summary>
+    private sealed class FakeArtifactTransfer : IArtifactTransfer
+    {
+        public bool IsConfigured { get; init; } = true;
+
+        /// <summary>Hashes the "Relay" already holds (dedup).</summary>
+        public HashSet<string> RemoteHashes { get; } = new(StringComparer.Ordinal);
+
+        /// <summary>Bytes the "Relay" serves for downloads, keyed by hash.</summary>
+        public Dictionary<string, byte[]> RemoteContent { get; } = new(StringComparer.Ordinal);
+
+        public List<string> CheckedHashes { get; } = new();
+
+        public List<string> UploadedHashes { get; } = new();
+
+        public Task<IReadOnlyList<string>> CheckHashesAsync(IReadOnlyCollection<string> hashes, CancellationToken ct = default)
+        {
+            CheckedHashes.AddRange(hashes);
+            var missing = hashes.Where(h => !RemoteHashes.Contains(h)).ToList();
+            return Task.FromResult<IReadOnlyList<string>>(missing);
+        }
+
+        public async Task UploadAsync(string hash, long sizeBytes, Stream content, CancellationToken ct = default)
+        {
+            UploadedHashes.Add(hash);
+            using var buffer = new MemoryStream();
+            await content.CopyToAsync(buffer, ct);
+            RemoteContent[hash] = buffer.ToArray();
+            RemoteHashes.Add(hash);
+        }
+
+        public Task<long?> GetRemoteSizeAsync(string hash, CancellationToken ct = default)
+            => Task.FromResult<long?>(
+                RemoteContent.TryGetValue(hash, out var bytes) ? bytes.LongLength : null);
+
+        public async Task<long> DownloadAsync(string hash, Stream sink, CancellationToken ct = default)
+        {
+            if (!RemoteContent.TryGetValue(hash, out var bytes))
+            {
+                throw new ArtifactNotFoundException(hash);
+            }
+
+            await sink.WriteAsync(bytes, ct);
+            return bytes.LongLength;
+        }
+    }
+
+    /// <summary>In-memory <see cref="IArtifactStore"/> verifying content hashes on save.</summary>
+    private sealed class InMemoryArtifactStore : IArtifactStore
+    {
+        private readonly Dictionary<string, byte[]> _blobs = new(StringComparer.Ordinal);
+
+        public async Task<bool> SaveAsync(Stream content, string expectedHash, CancellationToken ct = default)
+        {
+            using var buffer = new MemoryStream();
+            await content.CopyToAsync(buffer, ct);
+            var actual = ContentHasher.Compute(buffer.ToArray());
+            if (!string.Equals(actual, expectedHash, StringComparison.Ordinal))
+            {
+                throw new ArtifactHashMismatchException(expectedHash, actual);
+            }
+
+            return _blobs.TryAdd(expectedHash, buffer.ToArray());
+        }
+
+        public Task<Stream?> OpenReadAsync(string hash, CancellationToken ct = default)
+            => Task.FromResult<Stream?>(
+                _blobs.TryGetValue(hash, out var bytes) ? new MemoryStream(bytes, writable: false) : null);
+
+        public Task<bool> ExistsAsync(string hash, CancellationToken ct = default)
+            => Task.FromResult(_blobs.ContainsKey(hash));
+
+        public Task<long?> GetSizeAsync(string hash, CancellationToken ct = default)
+            => Task.FromResult<long?>(
+                _blobs.TryGetValue(hash, out var bytes) ? bytes.LongLength : null);
+
+        public Task DeleteAsync(string hash, CancellationToken ct = default)
+        {
+            _blobs.Remove(hash);
+            return Task.CompletedTask;
         }
     }
 }

@@ -1,6 +1,8 @@
+using HumanGateway.Core.Artifacts;
 using HumanGateway.Core.Hashing;
 using HumanGateway.Core.Ids;
 using HumanGateway.Core.Time;
+using HumanGateway.Edge.Artifacts;
 using HumanGateway.Edge.Storage;
 using HumanGateway.Edge.Storage.Entities;
 using HumanGateway.Protocol.Models;
@@ -21,12 +23,20 @@ public sealed class LocalApiService
 {
     private readonly IDbContextFactory<EdgeDbContext> _factory;
     private readonly IOptions<GatewayOptions> _options;
+    private readonly IArtifactStore _artifactStore;
+    private readonly ArtifactStoreOptions _artifactOptions;
 
-    /// <summary>Creates the service over the durable store factory and gateway options.</summary>
-    public LocalApiService(IDbContextFactory<EdgeDbContext> factory, IOptions<GatewayOptions> options)
+    /// <summary>Creates the service over the durable store factory, gateway options, and the artifact byte store.</summary>
+    public LocalApiService(
+        IDbContextFactory<EdgeDbContext> factory,
+        IOptions<GatewayOptions> options,
+        IArtifactStore artifactStore,
+        IOptions<ArtifactStoreOptions> artifactOptions)
     {
         _factory = factory ?? throw new ArgumentNullException(nameof(factory));
         _options = options ?? throw new ArgumentNullException(nameof(options));
+        _artifactStore = artifactStore ?? throw new ArgumentNullException(nameof(artifactStore));
+        _artifactOptions = artifactOptions?.Value ?? throw new ArgumentNullException(nameof(artifactOptions));
     }
 
     private string GatewayId => _options.Value.GatewayId;
@@ -440,6 +450,15 @@ public sealed class LocalApiService
         };
         ProtocolValidator.Default.Artifact.Validate(artifact).ThrowIfInvalid();
 
+        // ARTF-FR-03: reject oversized metadata up front so the PWA surfaces the size-limit message before
+        // any bytes are transferred.
+        if (ArtifactLimits.ExceedsMaxSize(artifact.SizeBytes, _artifactOptions.MaxArtifactSizeBytes))
+        {
+            throw new LocalApiException(StatusCodes.Status413PayloadTooLarge, ErrorCodes.SizeExceeded,
+                $"Artifact {artifact.Id} is {artifact.SizeBytes} bytes, exceeding this gateway's limit of "
+                + $"{_artifactOptions.MaxArtifactSizeBytes} bytes.");
+        }
+
         await using var db = await _factory.CreateDbContextAsync(ct).ConfigureAwait(false);
 
         var exists = await db.Artifacts.AsNoTracking().AnyAsync(a => a.Id == artifact.Id, ct).ConfigureAwait(false);
@@ -473,6 +492,121 @@ public sealed class LocalApiService
         return record?.Envelope;
     }
 
+    /// <summary>
+    /// Uploads artifact bytes for a registered metadata record (ARTF-FR-01, ARTF-FR-03): verifies the record
+    /// exists, enforces the per-gateway size limit and storage quota, then saves through the content-addressed
+    /// <see cref="IArtifactStore"/> which verifies the content hash while writing (SP-06) and deduplicates
+    /// identical bytes (no second write, no extra quota).
+    /// </summary>
+    public async Task<ArtifactUploadResult> UploadArtifactContentAsync(
+        string id, Stream content, long? declaredSize, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+
+        await using var db = await _factory.CreateDbContextAsync(ct).ConfigureAwait(false);
+
+        var record = await db.Artifacts.AsNoTracking().SingleOrDefaultAsync(a => a.Id == id, ct).ConfigureAwait(false);
+        if (record is null)
+        {
+            throw new LocalApiException(StatusCodes.Status404NotFound, ErrorCodes.NotFound,
+                $"Artifact {id} not found; register metadata before uploading bytes.");
+        }
+
+        // Size accounting: the caller's declared size wins, falling back to a seekable stream's length.
+        var size = declaredSize ?? (content.CanSeek ? content.Length : -1);
+        if (size < 0)
+        {
+            throw new LocalApiException(StatusCodes.Status400BadRequest, ErrorCodes.BadRequest,
+                "The upload size could not be determined; send a Content-Length header or a declared size.");
+        }
+
+        if (ArtifactLimits.ExceedsMaxSize(size, _artifactOptions.MaxArtifactSizeBytes))
+        {
+            throw new LocalApiException(StatusCodes.Status413PayloadTooLarge, ErrorCodes.SizeExceeded,
+                $"Artifact {id} is {size} bytes, exceeding this gateway's limit of {_artifactOptions.MaxArtifactSizeBytes} bytes.");
+        }
+
+        // Quota accounting is content-addressed: bytes already stored under this hash are free (dedup,
+        // ARTF-FR-01). Only genuinely new content consumes quota.
+        var alreadyStored = await _artifactStore.ExistsAsync(record.Hash, ct).ConfigureAwait(false);
+        if (!alreadyStored)
+        {
+            var used = await SumStoredBytesAsync(db, ct).ConfigureAwait(false);
+            if (ArtifactLimits.ExceedsMaxSize(used + size, _artifactOptions.QuotaBytes))
+            {
+                throw new LocalApiException(StatusCodes.Status413PayloadTooLarge, ErrorCodes.QuotaExceeded,
+                    $"Storing artifact {id} would use {used + size} of this gateway's {_artifactOptions.QuotaBytes} byte quota.");
+            }
+        }
+
+        // SaveAsync streams once, hashing incrementally, and throws ArtifactHashMismatchException when the
+        // bytes do not match the declared content hash (SP-06). Returns false for a deduplicated write.
+        var stored = await _artifactStore.SaveAsync(content, record.Hash, ct).ConfigureAwait(false);
+        return new ArtifactUploadResult
+        {
+            Id = id,
+            Hash = record.Hash,
+            SizeBytes = size,
+            Stored = stored,
+        };
+    }
+
+    /// <summary>
+    /// Opens the artifact bytes for download as a read stream, or returns <see langword="null"/> when the
+    /// metadata exists but the bytes have not been uploaded yet (the PWA may attach and send in a later step).
+    /// </summary>
+    public async Task<(Artifact Artifact, Stream? Content)> DownloadArtifactContentAsync(string id, CancellationToken ct)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct).ConfigureAwait(false);
+
+        var record = await db.Artifacts.AsNoTracking().SingleOrDefaultAsync(a => a.Id == id, ct).ConfigureAwait(false);
+        if (record is null)
+        {
+            throw new LocalApiException(StatusCodes.Status404NotFound, ErrorCodes.NotFound,
+                $"Artifact {id} not found.");
+        }
+
+        var content = await _artifactStore.OpenReadAsync(record.Hash, ct).ConfigureAwait(false);
+        return (record.Envelope, content);
+    }
+
+    /// <summary>
+    /// Presence/size snapshot for an artifact's bytes (ARTF-FR-03, dedup + resume queries by the PWA and the
+    /// sync worker) plus the gateway's configured limits and current quota usage.
+    /// </summary>
+    public async Task<ArtifactContentStatus> GetArtifactContentStatusAsync(string id, CancellationToken ct)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct).ConfigureAwait(false);
+
+        var record = await db.Artifacts.AsNoTracking().SingleOrDefaultAsync(a => a.Id == id, ct).ConfigureAwait(false);
+        if (record is null)
+        {
+            throw new LocalApiException(StatusCodes.Status404NotFound, ErrorCodes.NotFound,
+                $"Artifact {id} not found.");
+        }
+
+        var size = await _artifactStore.GetSizeAsync(record.Hash, ct).ConfigureAwait(false);
+        var used = await SumStoredBytesAsync(db, ct).ConfigureAwait(false);
+        return new ArtifactContentStatus
+        {
+            Id = id,
+            Hash = record.Hash,
+            Present = size is not null,
+            StoredBytes = size ?? 0,
+            MaxSizeBytes = _artifactOptions.MaxArtifactSizeBytes,
+            QuotaBytes = _artifactOptions.QuotaBytes,
+            QuotaUsedBytes = used,
+        };
+    }
+
+    /// <summary>Sum of stored artifact bytes across distinct content hashes (content-addressed quota).</summary>
+    private static async Task<long> SumStoredBytesAsync(EdgeDbContext db, CancellationToken ct)
+        => await db.Artifacts.AsNoTracking()
+            .GroupBy(a => a.Hash)
+            .Select(g => g.Max(a => a.SizeBytes))
+            .SumAsync(ct)
+            .ConfigureAwait(false);
+
     // -----------------------------------------------------------------------------------------------
     // Sync status
     // -----------------------------------------------------------------------------------------------
@@ -502,11 +636,18 @@ public sealed class LocalApiService
             .ConfigureAwait(false);
 
         var byState = stateCounts.ToDictionary(s => s.State, s => s.Count);
+        var usedBytes = await SumStoredBytesAsync(db, ct).ConfigureAwait(false);
         return new SyncStatusView
         {
             GatewayId = GatewayId,
             Queued = queued,
             LastSequence = lastSequence,
+            Artifacts = new ArtifactSummary
+            {
+                MaxSizeBytes = _artifactOptions.MaxArtifactSizeBytes,
+                QuotaBytes = _artifactOptions.QuotaBytes,
+                UsedBytes = usedBytes,
+            },
             Deliveries = new DeliverySummary
             {
                 Queued = byState.GetValueOrDefault("QUEUED"),

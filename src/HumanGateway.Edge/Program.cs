@@ -70,6 +70,34 @@ builder.Services.AddSingleton<SyncWorker>();
 builder.Services.AddHostedService(static sp => sp.GetRequiredService<SyncWorker>());
 
 // ---------------------------------------------------------------------------
+// Artifact-byte channel to the Relay (ARTF-FR-01/02, PROTO-FR-04 exception): the
+// outbound, content-addressed, resumable chunked transfer of artifact bytes. When
+// a Relay base URL is configured (Relay:BaseUrl) a real HTTP transport is used;
+// otherwise the DisabledArtifactTransfer keeps the Edge offline-first for bytes
+// (NF-01). The sync-batch transport is owned by the synchronisation feature.
+// ---------------------------------------------------------------------------
+builder.Services.Configure<RelayArtifactOptions>(builder.Configuration.GetSection(RelayArtifactOptions.SectionName));
+builder.Services.AddSingleton<IArtifactTransfer>(sp =>
+{
+    var options = sp.GetRequiredService<IOptions<RelayArtifactOptions>>().Value;
+    if (!options.Enabled)
+    {
+        return new DisabledArtifactTransfer();
+    }
+
+    var http = new HttpClient
+    {
+        BaseAddress = new Uri(options.BaseUrl!.TrimEnd('/') + "/", UriKind.Absolute),
+        Timeout = TimeSpan.FromMinutes(15),
+    };
+    return new HttpArtifactTransport(
+        http,
+        Options.Create(options),
+        sp.GetRequiredService<IOptions<GatewayOptions>>(),
+        sp.GetRequiredService<ILogger<HttpArtifactTransport>>());
+});
+
+// ---------------------------------------------------------------------------
 // Local filesystem artifact store (LOCAL-EDGE-1.5, EDGE-FR-02, ARTF-FR-01):
 // content-hash-named files with deduplication, rooted under the configured
 // directory (default <ContentRoot>/data/artifacts). Bytes are written

@@ -47,10 +47,11 @@ The full API surface is built by the following tasks:
 | CLOUD-RELAY-4.1 | **Done** — Scaffold: ASP.NET Core minimal API host + EF Core/PostgreSQL store + entity model + initial migration + health probe |
 | CLOUD-RELAY-4.2 | **Done** — PostgreSQL schema (gateways, conversations, messages, deliveries, artifacts + BYTEA blobs, cursors); validated against live PostgreSQL |
 | CLOUD-RELAY-4.3 | **Done** — Gateway registration + rendezvous endpoints (`Endpoints/GatewayEndpoints.cs`, `Endpoints/RendezvousEndpoints.cs`, `Services/`, `Security/`; `RELAY-FR-03`, `WEBX-FR-02`); validated against live PostgreSQL |
-| CLOUD-RELAY-4.4 | Sync endpoint: push/pull cursors + delivery ack (`SYNC-FR-03/05`, consumes the synchronisation protocol) |
-| CLOUD-RELAY-4.5 | `ArtifactStore` BYTEA implementation (streaming reads) |
+| CLOUD-RELAY-4.4 | **Done** — Sync endpoint: push/pull cursors + delivery ack (`SYNC-FR-03/05`, consumes the synchronisation protocol) |
+| CLOUD-RELAY-4.5 | **Done** — `ArtifactStore` BYTEA implementation (streaming reads) |
 | CLOUD-RELAY-4.6 | **Done** — Docker Compose environment: Relay + PostgreSQL + Edge (`deployment/docker-compose.yml`, `deployment/docker/Dockerfile.relay`) |
-| CLOUD-RELAY-4.7 | Structured logging + health endpoint |
+| CLOUD-RELAY-4.7 | **Done** — Structured logging + health endpoint |
+| ARTF-FR-01/02/03 | **Done** — Artifact byte channel: dedup state, offset-addressed resumable upload, hash-verified completion, streaming (Range-capable) download — gated on a REGISTERED gateway (SP-02) |
 
 ### Endpoints
 
@@ -64,6 +65,13 @@ The full API surface is built by the following tasks:
 | `GET` | `/rendezvous/gateways` | List registered gateways as rendezvous targets (`WEBX-FR-02`) |
 | `GET` | `/rendezvous/gateways/{gatewayId}` | Rendezvous info for one registered gateway |
 | `GET` | `/rendezvous/lookup?participant=` | Resolve a participant address to its serving gateway |
+| `POST` | `/sync/push` | Apply a PUSH batch idempotently; returns the keepalive result batch with the durable push cursor (`SYNC-FR-01..07`) |
+| `POST` | `/sync/pull` | Return the gateway's inbound PULL batch after its echoed cursor |
+| `POST` | `/sync/artifacts/state` | Dedup check — which referenced hashes the Relay already holds (`ARTF-FR-01`, `NF-03`) |
+| `GET` | `/sync/artifacts/{hash}/offset` | Bytes durably held for a hash + completeness (resume state, `ARTF-FR-02`) |
+| `PUT` | `/sync/artifacts/{hash}?offset=` | Accept one chunk at an explicit offset (idempotent; 409 on offset mismatch) |
+| `POST` | `/sync/artifacts/{hash}/complete` | Finalise: content-hash verification + quota + durable publish (SP-06, ARTF-FR-03) |
+| `GET` | `/sync/artifacts/{hash}?gatewayId=` | Streaming download with manual Range support for resumable downloads (`ARTF-FR-02`) |
 
 ### Registration + rendezvous (RELAY-FR-03, WEBX-FR-02)
 
@@ -80,7 +88,8 @@ the `system:<gatewayId>` form of the lookup maps directly to a gateway (its suff
 Remote message delivery rides the gateway's next outbound sync pull.
 
 Registration/rendezvous behaviour is configurable under the `Relay` section (`RegistrationTokenTtlDays`,
-`Relay:Rendezvous:OnlineWindowMinutes`).
+`Relay:Rendezvous:OnlineWindowMinutes`); artifact limits under `Relay:Artifacts`
+(`MaxArtifactSizeBytes`, `QuotaBytes` — per-gateway configurable, defaults 50 MiB / 1 GiB, ARTF-FR-03).
 
 ## Run
 

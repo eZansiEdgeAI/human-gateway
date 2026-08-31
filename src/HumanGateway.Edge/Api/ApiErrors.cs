@@ -1,3 +1,4 @@
+using HumanGateway.Core.Artifacts;
 using HumanGateway.Protocol.Models;
 using HumanGateway.Protocol.Validation;
 using Microsoft.EntityFrameworkCore;
@@ -49,6 +50,12 @@ public static class ApiErrors
     {
         ProtocolValidationException ve => ValidationFailed(ve.Result.Errors),
         LocalApiException le => FromLocalApiException(le),
+        ArtifactHashMismatchException e => Problem(
+            StatusCodes.Status422UnprocessableEntity,
+            ErrorCodes.HashMismatch,
+            e.Message,
+            new { declaredHash = e.DeclaredHash, actualHash = e.ActualHash },
+            retryable: false),
         DbUpdateException => Conflict("The request conflicts with an existing durable record."),
         OperationCanceledException => throw ex,
         _ => InternalError(),

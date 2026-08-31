@@ -43,11 +43,16 @@ public sealed class LocalApiEndpointTests : IClassFixture<LocalApiEndpointTests.
                 Pooling = false,
             }.ToString();
 
+            // UseSetting writes a HOST setting, available to builder.Configuration from the very start of
+            // Program.cs. A plain ConfigureAppConfiguration override is applied only at builder.Build(), so
+            // Program.cs's `GetConnectionString("Edge")` would silently fall back to the shared repo default
+            // database instead of this test's temp file (same precedence trap as the Relay factory, CLOUD-RELAY-4.3).
+            builder.UseSetting("ConnectionStrings:Edge", connectionString);
+
             builder.ConfigureAppConfiguration((_, config) =>
             {
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["ConnectionStrings:Edge"] = connectionString,
                     ["Artifacts:RootPath"] = Path.Combine(_dir, "artifacts"),
                 });
             });

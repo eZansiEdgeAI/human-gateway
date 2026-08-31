@@ -100,6 +100,16 @@ public sealed class FilesystemArtifactStore : IArtifactStore
     }
 
     /// <inheritdoc />
+    public Task<long?> GetSizeAsync(string hash, CancellationToken ct = default)
+    {
+        var path = PathFor(ArtifactHash.RequireHex(hash));
+        ct.ThrowIfCancellationRequested();
+
+        var info = new FileInfo(path);
+        return Task.FromResult(info.Exists ? (long?)info.Length : null);
+    }
+
+    /// <inheritdoc />
     public Task DeleteAsync(string hash, CancellationToken ct = default)
     {
         var path = PathFor(ArtifactHash.RequireHex(hash));

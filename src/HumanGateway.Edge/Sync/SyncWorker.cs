@@ -1,3 +1,4 @@
+using HumanGateway.Core.Artifacts;
 using HumanGateway.Core.Cursor;
 using HumanGateway.Core.Outbox;
 using HumanGateway.Core.Sync;
@@ -36,6 +37,8 @@ public sealed class SyncWorker : BackgroundService
     private readonly IOutbox _outbox;
     private readonly ISyncCursorStore _cursors;
     private readonly IRelaySyncClient _relay;
+    private readonly IArtifactStore _artifactStore;
+    private readonly IArtifactTransfer _artifactTransfer;
     private readonly IOptions<GatewayOptions> _gateway;
     private readonly IOptions<SyncWorkerOptions> _options;
     private readonly ILogger<SyncWorker> _logger;
@@ -60,6 +63,8 @@ public sealed class SyncWorker : BackgroundService
         IOutbox outbox,
         ISyncCursorStore cursors,
         IRelaySyncClient relay,
+        IArtifactStore artifactStore,
+        IArtifactTransfer artifactTransfer,
         IOptions<GatewayOptions> gateway,
         IOptions<SyncWorkerOptions> options,
         ILogger<SyncWorker> logger,
@@ -69,6 +74,8 @@ public sealed class SyncWorker : BackgroundService
         _outbox = outbox ?? throw new ArgumentNullException(nameof(outbox));
         _cursors = cursors ?? throw new ArgumentNullException(nameof(cursors));
         _relay = relay ?? throw new ArgumentNullException(nameof(relay));
+        _artifactStore = artifactStore ?? throw new ArgumentNullException(nameof(artifactStore));
+        _artifactTransfer = artifactTransfer ?? throw new ArgumentNullException(nameof(artifactTransfer));
         _gateway = gateway ?? throw new ArgumentNullException(nameof(gateway));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -167,7 +174,7 @@ public sealed class SyncWorker : BackgroundService
     /// </summary>
     public async Task SyncOnceAsync(CancellationToken ct = default)
     {
-        if (!_relay.IsConfigured)
+        if (!_relay.IsConfigured || !_artifactTransfer.IsConfigured)
         {
             return;
         }
@@ -209,6 +216,11 @@ public sealed class SyncWorker : BackgroundService
         }
 
         var batch = built.Batch;
+
+        // Artifact bytes first, batch second (ARTF-FR-01): the Relay must hold every artifact a routed
+        // message references before the batch carries the message, or a fast recipient could pull a message
+        // whose bytes are not yet retrievable. Dedup: only hashes the Relay lacks are transferred.
+        await UploadPendingArtifactsAsync(batch, ct).ConfigureAwait(false);
 
         if (built.EntryIds.Count > 0)
         {
@@ -301,7 +313,167 @@ public sealed class SyncWorker : BackgroundService
                 applied.AppliedItems.Count,
                 _pullCursor);
         }
+
+        // Download any artifact bytes the applied items reference that this gateway does not already hold
+        // (dedup ARTF-FR-01). Resumable per artifact: a partial temp file survives a mid-way interruption and
+        // the next cycle appends from its length; the bytes are content-hash verified before publishing.
+        await DownloadInboundArtifactsAsync(applied.AppliedItems, ct).ConfigureAwait(false);
     }
+
+    // -----------------------------------------------------------------------------------------------
+    // Artifact byte transfer (ARTF-FR-01/02, PROTO-FR-04 exception)
+    // -----------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Ensures the Relay holds the bytes of every artifact referenced by <paramref name="batch"/>. Dedup:
+    /// only hashes the Relay reports missing are transferred (no re-transfer of known content, NF-03), and
+    /// each upload is resumable chunk-wise (ARTF-FR-02). Runs <em>before</em> the batch is pushed so routed
+    /// messages never reach a recipient whose artifact bytes are still absent at the Relay.
+    /// </summary>
+    private async Task UploadPendingArtifactsAsync(SyncBatch batch, CancellationToken ct)
+    {
+        var hashes = CollectArtifactHashes(batch.Items).Distinct().ToList();
+        if (hashes.Count == 0)
+        {
+            return;
+        }
+
+        var missing = await _artifactTransfer.CheckHashesAsync(hashes, ct).ConfigureAwait(false);
+        foreach (var hash in missing)
+        {
+            var size = await _artifactStore.GetSizeAsync(hash, ct).ConfigureAwait(false);
+            if (size is null || size.Value <= 0)
+            {
+                // Metadata is registered but the bytes have not landed on disk yet (the PWA uploads in a
+                // separate step) — skip this cycle; a later push picks it up.
+                continue;
+            }
+
+            await using (var content = await _artifactStore.OpenReadAsync(hash, ct).ConfigureAwait(false))
+            {
+                if (content is null)
+                {
+                    continue;
+                }
+
+                await _artifactTransfer.UploadAsync(hash, size.Value, content, ct).ConfigureAwait(false);
+            }
+
+            _logger.LogInformation("Uploaded artifact {Hash} ({SizeBytes} bytes) to the Relay", hash, size.Value);
+        }
+    }
+
+    /// <summary>
+    /// Downloads artifact bytes referenced by freshly applied inbound items that this gateway does not hold.
+    /// Each download writes to a partial temp file (resumable across interruptions, ARTF-FR-02) and is
+    /// published through <see cref="IArtifactStore.SaveAsync"/>, which verifies the content hash before the
+    /// bytes appear at a content-addressed path (SP-06). A corrupt partial is discarded and re-downloaded.
+    /// </summary>
+    private async Task DownloadInboundArtifactsAsync(IReadOnlyList<SyncItem> appliedItems, CancellationToken ct)
+    {
+        foreach (var hash in CollectArtifactHashes(appliedItems).Distinct())
+        {
+            // Dedup — already have the bytes, nothing to transfer (NF-03).
+            if (await _artifactStore.ExistsAsync(hash, ct).ConfigureAwait(false))
+            {
+                continue;
+            }
+
+            if (await _artifactTransfer.GetRemoteSizeAsync(hash, ct).ConfigureAwait(false) is not { } remoteSize)
+            {
+                // The Relay does not hold the bytes yet (sender uploads in a later cycle) — retry next cycle.
+                continue;
+            }
+
+            var partialPath = PartialDownloadPath(hash);
+            var directory = Path.GetDirectoryName(partialPath)!;
+            Directory.CreateDirectory(directory);
+
+            try
+            {
+                await using (var sink = new FileStream(
+                    partialPath,
+                    FileMode.OpenOrCreate,
+                    FileAccess.Write,
+                    FileShare.None,
+                    64 * 1024,
+                    FileOptions.Asynchronous | FileOptions.SequentialScan))
+                {
+                    sink.Seek(0, SeekOrigin.End); // resume: append past bytes already downloaded
+                    var received = await _artifactTransfer.DownloadAsync(hash, sink, ct).ConfigureAwait(false);
+                    if (received != remoteSize)
+                    {
+                        _logger.LogWarning(
+                            "Download of artifact {Hash} is incomplete ({Received}/{Expected} bytes); retrying next cycle",
+                            hash, received, remoteSize);
+                        continue;
+                    }
+                }
+
+                // Publish atomically with hash verification (SP-06); dedup if another cycle beat us to it.
+                await using var content = new FileStream(
+                    partialPath, FileMode.Open, FileAccess.Read, FileShare.Read,
+                    64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                await _artifactStore.SaveAsync(content, hash, ct).ConfigureAwait(false);
+                File.Delete(partialPath);
+
+                _logger.LogInformation("Downloaded artifact {Hash} ({SizeBytes} bytes) from the Relay", hash, remoteSize);
+            }
+            catch (ArtifactHashMismatchException)
+            {
+                // The partial is corrupt (e.g. the source changed mid-transfer) — discard and re-download
+                // from scratch on the next cycle.
+                TryDelete(partialPath);
+                throw;
+            }
+        }
+    }
+
+    /// <summary>All artifact content hashes referenced by a set of sync items (artifact items + message refs).</summary>
+    private static IEnumerable<string> CollectArtifactHashes(IReadOnlyList<SyncItem>? items)
+    {
+        if (items is null)
+        {
+            yield break;
+        }
+
+        foreach (var item in items)
+        {
+            switch (item.Kind)
+            {
+                case SyncItemKind.Artifact when item.Artifact is { } artifact:
+                    if (artifact.Hash is { Length: > 0 })
+                    {
+                        yield return artifact.Hash;
+                    }
+
+                    break;
+                case SyncItemKind.Message when item.Message is { } message:
+                    foreach (var reference in message.ArtifactRefs ?? Enumerable.Empty<ArtifactReference>())
+                    {
+                        if (reference.Hash is { Length: > 0 })
+                        {
+                            yield return reference.Hash;
+                        }
+                    }
+
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// The partial-download path for an artifact hash, under the store's temp area so an interrupted download
+    /// survives a worker restart and resumes by appending (ARTF-FR-02).
+    /// </summary>
+    private string PartialDownloadPath(string hash) =>
+        Path.Combine(
+            Path.GetTempPath(),
+            "humangateway",
+            "partials",
+            ArtifactHash.RequireHex(hash)[..2],
+            ArtifactHash.RequireHex(hash)[..]);
+
 
     /// <summary>
     /// RECOVERING (product vision §10): reconcile the local store with Relay cursors before resuming sync.
@@ -338,4 +510,24 @@ public sealed class SyncWorker : BackgroundService
         InFlightIdempotencyKey = _inFlightIdempotencyKey,
         InFlightAfterSequence = _inFlightAfterSequence,
     }, ct);
+
+    /// <summary>Best-effort deletion of a partial download temp file.</summary>
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch (IOException)
+        {
+            // Best-effort cleanup; a leaked partial is harmless (resumed or overwritten next cycle).
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Best-effort cleanup (Windows file-lock window).
+        }
+    }
 }

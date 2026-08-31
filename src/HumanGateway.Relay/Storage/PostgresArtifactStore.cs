@@ -137,6 +137,29 @@ public sealed class PostgresArtifactStore : IArtifactStore
     }
 
     /// <inheritdoc />
+    public async Task<long?> GetSizeAsync(string hash, CancellationToken ct = default)
+    {
+        var key = ArtifactKey(hash);
+
+        await using var db = await _factory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        return await db.ArtifactBlobs.AsNoTracking()
+            .Where(e => e.Hash == key)
+            .Select(e => (long?)e.SizeBytes)
+            .SingleOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The total bytes held in the BYTEA blob store — the Relay's storage-quota accounting baseline
+    /// (ARTF-FR-03). Deduplicated content counts once, matching the bytes actually stored.
+    /// </summary>
+    public async Task<long> GetTotalSizeBytesAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        return await db.ArtifactBlobs.AsNoTracking().SumAsync(e => (long?)e.SizeBytes, ct).ConfigureAwait(false) ?? 0;
+    }
+
+    /// <inheritdoc />
     /// <remarks>Deletes in SQL (EF <c>ExecuteDeleteAsync</c>) — a true no-op when the hash is absent, with no
     /// row ever loaded into memory.</remarks>
     public async Task DeleteAsync(string hash, CancellationToken ct = default)

@@ -42,6 +42,97 @@
         <member name="M:HumanGateway.Core.Artifacts.ArtifactHashMismatchException.#ctor(System.String,System.String)">
             <summary>Creates the exception for a declared/actual hash pair.</summary>
         </member>
+        <member name="T:HumanGateway.Core.Artifacts.ArtifactLimits">
+            <summary>
+            Shared artifact transfer defaults and chunk-framing math (ARTF-FR-02, ARTF-FR-03, product vision Open Q #7,
+            artifacts Open Q #1). Both Edge and Relay bind these defaults for their configurable per-gateway limits;
+            deployments override via configuration. Keeping the defaults here (Core) means the two sides can never
+            drift on the chunk size that frames resumable transfers.
+            </summary>
+        </member>
+        <member name="F:HumanGateway.Core.Artifacts.ArtifactLimits.DefaultMaxArtifactSizeBytes">
+            <summary>Default maximum size of a single artifact: 50 MiB (product vision Open Q #7).</summary>
+        </member>
+        <member name="F:HumanGateway.Core.Artifacts.ArtifactLimits.DefaultChunkSizeBytes">
+            <summary>Default chunk size for resumable transfer: 4 MiB (artifacts Open Q #1).</summary>
+        </member>
+        <member name="F:HumanGateway.Core.Artifacts.ArtifactLimits.DefaultQuotaBytes">
+            <summary>
+            Default per-gateway storage quota: 1 GiB. The Edge enforces it against its local filesystem store
+            (sum of registered artifact sizes); the Relay enforces it against its BYTEA blob budget (ARTF-FR-03).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.ArtifactLimits.ExceedsMaxSize(System.Int64,System.Int64)">
+            <summary>True when an artifact of <paramref name="sizeBytes"/> exceeds the gateway's configured ceiling.</summary>
+        </member>
+        <member name="T:HumanGateway.Core.Artifacts.ArtifactChunking">
+            <summary>
+            Deterministic chunk framing for resumable artifact transfer (ARTF-FR-02). Both peers derive identical
+            chunk boundaries from <c>(sizeBytes, chunkSizeBytes)</c>, so an interrupted transfer can resume by offset
+            without either side guessing where a chunk starts.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.ArtifactChunking.ChunkCount(System.Int64,System.Int32)">
+            <summary>
+            The number of chunks covering <paramref name="sizeBytes"/> at <paramref name="chunkSizeBytes"/> each.
+            Zero bytes → zero chunks (a complete upload of an empty artifact is a single completion handshake).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.ArtifactChunking.ChunkRange(System.Int64,System.Int32,System.Int32)">
+            <summary>
+            The byte range of chunk <paramref name="index"/>: <c>(offset, length)</c> within an artifact of
+            <paramref name="sizeBytes"/> at <paramref name="chunkSizeBytes"/> framing. The final chunk is short.
+            </summary>
+        </member>
+        <member name="T:HumanGateway.Core.Artifacts.ArtifactNotFoundException">
+            <summary>
+            Raised when a download target is addressed by a content hash the remote side does not hold (ARTF-FR-01).
+            Callers treat it as "skip and retry later" — the remote gateway may not have uploaded the bytes yet.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.ArtifactNotFoundException.#ctor(System.String)">
+            <summary>Creates the exception for a missing content hash.</summary>
+        </member>
+        <member name="T:HumanGateway.Core.Artifacts.ChunkedArtifactTransfer">
+            <summary>
+            Transport-agnostic driver for resumable, chunked artifact transfer (ARTF-FR-02). Uploads stream the source
+            in fixed-size chunks through an <see cref="T:HumanGateway.Core.Artifacts.IChunkedArtifactChannel"/>; a transfer interrupted mid-way
+            resumes from the receiving side's durably accepted offset (chunks are idempotent by offset, and the driver
+            seeks the source past bytes already delivered). Downloads stream the remote bytes into a resumable sink,
+            resuming from the sink's current length via a Range read. Both directions finish with a receiving-side
+            content-hash verification (SP-06), so an interrupted-and-resumed transfer is never trusted until its hash
+            checks out.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.ChunkedArtifactTransfer.UploadAsync(HumanGateway.Core.Artifacts.IChunkedArtifactChannel,System.IO.Stream,System.String,System.Int32,System.Threading.CancellationToken)">
+            <summary>
+            Uploads <paramref name="source"/> (a seekable stream whose bytes hash to <paramref name="hash"/>) to
+            <paramref name="channel"/> in <paramref name="chunkSizeBytes"/> chunks, resuming from whatever the
+            channel already holds. Returns the total number of bytes the channel holds when complete (the full
+            artifact size). The source's hash must equal <paramref name="hash"/> — the channel verifies the
+            accumulated bytes on <see cref="M:HumanGateway.Core.Artifacts.IChunkedArtifactChannel.CompleteAsync(System.String,System.Threading.CancellationToken)"/> and throws
+            <see cref="T:HumanGateway.Core.Artifacts.ArtifactHashMismatchException"/> on mismatch.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.ChunkedArtifactTransfer.DownloadAsync(HumanGateway.Core.Artifacts.IChunkedArtifactChannel,System.IO.Stream,System.String,System.Int32,System.Threading.CancellationToken)">
+            <summary>
+            Downloads <paramref name="hash"/> from <paramref name="channel"/> into <paramref name="sink"/>, a
+            resumable sink whose <see cref="P:System.IO.Stream.Length"/> is the number of bytes already persisted locally
+            (the transport positions a partial temp file before calling). Resumes via a Range read from that
+            length; returns the total bytes written. Throws <see cref="T:HumanGateway.Core.Artifacts.ArtifactNotFoundException"/> when the remote
+            does not hold the hash.
+            </summary>
+        </member>
+        <member name="T:HumanGateway.Core.Artifacts.ChunkOffsetMismatchException">
+            <summary>
+            Raised by a chunked channel when a chunk's offset does not match the receiving side's expected position
+            (concurrent writer, or the receiver lost/reset its partial state). The resumable upload driver catches it
+            and re-queries the receiving side's authoritative offset before continuing (ARTF-FR-02).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.ChunkOffsetMismatchException.#ctor(System.Int64,System.String)">
+            <summary>Creates the exception for a rejected chunk at <paramref name="offset"/>.</summary>
+        </member>
         <member name="T:HumanGateway.Core.Artifacts.IArtifactStore">
             <summary>
             Content-addressed artifact byte store port (ARTF-FR-01, PROTO-FR-04). Bytes are addressed by their SHA-256
@@ -66,8 +157,93 @@
         <member name="M:HumanGateway.Core.Artifacts.IArtifactStore.ExistsAsync(System.String,System.Threading.CancellationToken)">
             <summary>Returns <c>true</c> when bytes for the given hash are present.</summary>
         </member>
+        <member name="M:HumanGateway.Core.Artifacts.IArtifactStore.GetSizeAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Returns the stored byte size for the hash, or <see langword="null"/> when absent. Used to size a
+            resumable transfer and to account storage against a per-gateway quota (ARTF-FR-03).
+            </summary>
+        </member>
         <member name="M:HumanGateway.Core.Artifacts.IArtifactStore.DeleteAsync(System.String,System.Threading.CancellationToken)">
             <summary>Removes stored bytes for the hash; a no-op when absent.</summary>
+        </member>
+        <member name="T:HumanGateway.Core.Artifacts.IArtifactTransfer">
+            <summary>
+            The Edge → Relay artifact byte channel (ARTF-FR-01, PROTO-FR-04 exception: "only the sync channel's
+            artifact chunk transfer moves bytes"). Content-addressed, deduplicated, and resumable: the caller checks
+            which hashes the remote already holds, uploads/downloads only the missing bytes, and every transfer ends
+            with a content-hash verification on the receiving side (SP-06).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Core.Artifacts.IArtifactTransfer.IsConfigured">
+            <summary>
+            True when a remote artifact service is configured. When false the worker skips artifact transfer
+            entirely (offline-first, NF-01) and inbound references simply await a later sync cycle.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.IArtifactTransfer.CheckHashesAsync(System.Collections.Generic.IReadOnlyCollection{System.String},System.Threading.CancellationToken)">
+            <summary>
+            Returns the subset of <paramref name="hashes"/> the remote side does <em>not</em> hold (dedup
+            ARTF-FR-01): transfer only what is missing. Identical hashes are de-duplicated in the result.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.IArtifactTransfer.UploadAsync(System.String,System.Int64,System.IO.Stream,System.Threading.CancellationToken)">
+            <summary>
+            Uploads <paramref name="content"/> (whose bytes hash to <paramref name="hash"/> of
+            <paramref name="sizeBytes"/>) in resumable chunks (ARTF-FR-02). Deduplicated: the remote skips
+            identical content it already holds, and a transfer interrupted mid-way resumes from the last completed
+            chunk. Throws <see cref="T:HumanGateway.Core.Artifacts.ArtifactHashMismatchException"/> when the completed upload fails the remote's
+            content-hash verification.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.IArtifactTransfer.GetRemoteSizeAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            The remote byte size of <paramref name="hash"/>, or <see langword="null"/> when the remote does not
+            hold it. A receiver calls this to decide whether a pull-side reference can be satisfied yet.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.IArtifactTransfer.DownloadAsync(System.String,System.IO.Stream,System.Threading.CancellationToken)">
+            <summary>
+            Downloads <paramref name="hash"/> into <paramref name="sink"/>, a resumable stream positioned at the
+            number of bytes already persisted locally (a partial temp file); the transfer resumes from that length
+            via a Range read (ARTF-FR-02). Returns the total bytes held after the copy. Throws
+            <see cref="T:HumanGateway.Core.Artifacts.ArtifactNotFoundException"/> when the remote does not hold the hash.
+            </summary>
+        </member>
+        <member name="T:HumanGateway.Core.Artifacts.IChunkedArtifactChannel">
+            <summary>
+            The low-level, offset-addressed channel a resumable chunked transfer runs over (ARTF-FR-02). The HTTP
+            transport implements it against the Relay's artifact endpoints; tests implement it in memory. Chunks are
+            idempotent by <c>(hash, offset)</c>, so replaying a chunk is harmless and an interrupted transfer resumes
+            from <see cref="M:HumanGateway.Core.Artifacts.IChunkedArtifactChannel.GetResumeOffsetAsync(System.String,System.Threading.CancellationToken)"/> — the number of bytes the receiving side has durably accepted.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.IChunkedArtifactChannel.GetResumeOffsetAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            The number of bytes the receiving side already holds for <paramref name="hash"/> (0 when nothing; the
+            full size when the content is already complete). The upload resumes from this offset.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.IChunkedArtifactChannel.SendChunkAsync(System.String,System.Int64,System.ReadOnlyMemory{System.Byte},System.Threading.CancellationToken)">
+            <summary>
+            Delivers one chunk of <paramref name="chunk"/> that must land at byte <paramref name="offset"/>.
+            Idempotent per (hash, offset). Throws when the offset does not match the receiving side's expectation
+            (concurrent writer / out-of-order delivery) so the caller re-queries the resume offset.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.IChunkedArtifactChannel.CompleteAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Finalises the upload: the receiving side verifies the accumulated bytes against the declared content
+            hash and publishes them durably. Throws <see cref="T:HumanGateway.Core.Artifacts.ArtifactHashMismatchException"/> on corruption.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.IChunkedArtifactChannel.GetSizeAsync(System.String,System.Threading.CancellationToken)">
+            <summary>The remote byte size of <paramref name="hash"/>, or -1 when the remote does not hold it.</summary>
+        </member>
+        <member name="M:HumanGateway.Core.Artifacts.IChunkedArtifactChannel.OpenRangeAsync(System.String,System.Int64,System.Threading.CancellationToken)">
+            <summary>
+            Opens a read stream over the remote bytes starting at byte <paramref name="offset"/> (a Range request),
+            or returns <see langword="null"/> when the remote does not hold <paramref name="hash"/>.
+            </summary>
         </member>
         <member name="T:HumanGateway.Core.Batch.BatchValidationResult">
             <summary>

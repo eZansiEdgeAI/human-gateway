@@ -96,6 +96,34 @@ public static class LocalApiEndpoints
             var artifact = await service.GetArtifactAsync(id, ct);
             return artifact is null ? ApiErrors.NotFound($"Artifact {id} not found.") : Results.Ok(artifact);
         });
+
+        // Byte upload (ARTF-FR-01, ARTF-FR-03): raw body, hash-verified against the registered metadata,
+        // size-limit + quota enforced. Deduplicated writes return 200 Stored=false (identical bytes already
+        // on disk — no re-transfer, no quota).
+        app.MapPut("/artifacts/{id}/content", static async (string id, HttpRequest request, LocalApiService service, CancellationToken ct) =>
+        {
+            var result = await service.UploadArtifactContentAsync(id, request.Body, request.ContentLength, ct);
+            return result.Stored
+                ? Results.Created($"/artifacts/{id}/content", result)
+                : Results.Ok(result);
+        });
+
+        // Byte download: streamed with Range support (resumable downloads, ARTF-FR-02) and the artifact's
+        // MIME type/filename so the receiving app can render or interpret the content (artifacts §5).
+        app.MapGet("/artifacts/{id}/content", static async (string id, LocalApiService service, CancellationToken ct) =>
+        {
+            var (artifact, content) = await service.DownloadArtifactContentAsync(id, ct);
+            if (content is null)
+            {
+                return ApiErrors.NotFound($"Artifact {id} metadata is registered but its bytes are not uploaded yet.");
+            }
+
+            return Results.File(content, artifact.MimeType, artifact.Filename, enableRangeProcessing: true);
+        });
+
+        // Presence + limits snapshot for dedup/resume queries and PWA size/quota messaging (ARTF-FR-03).
+        app.MapGet("/artifacts/{id}/content/status", static async (string id, LocalApiService service, CancellationToken ct) =>
+            Results.Ok(await service.GetArtifactContentStatusAsync(id, ct)));
     }
 
     private static void MapSyncStatusEndpoints(this WebApplication app)

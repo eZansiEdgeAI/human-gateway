@@ -48,13 +48,13 @@ Attachment pickers in the PWA Compose and Task views (photo via camera/file pick
 
 ## 5. Implementation Tasks
 
-- [ ] Artifact store on Edge (filesystem, content-hash named, deduplicated)
-- [ ] Artifact store on Relay (PostgreSQL BYTEA via `ArtifactStore` interface; S3-compatible adapter optional later)
-- [ ] Authenticated artifact-serving endpoints on Edge (`GET /artifacts/{id}`, filesystem) and Relay (BYTEA, streaming); artifact `filename`/`MIME type`/`hash` metadata travels with the message so the receiving app can render or interpret content (PWA renders by MIME; FlowForge consumes via `ArtifactReceived`)
-- [ ] Artifact transfer in the sync protocol: hash verification on both sides, deduplication (skip if hash known)
-- [ ] Resumable chunked upload/download for large artifacts
-- [ ] Configurable size limits and per-gateway quotas (surfaced in PWA)
-- [ ] Interrupted-transfer resume tests
+- [x] Artifact store on Edge (filesystem, content-hash named, deduplicated)
+- [x] Artifact store on Relay (PostgreSQL BYTEA via `ArtifactStore` interface; S3-compatible adapter optional later)
+- [x] Authenticated artifact-serving endpoints on Edge (`GET /artifacts/{id}`, filesystem) and Relay (BYTEA, streaming); artifact `filename`/`MIME type`/`hash` metadata travels with the message so the receiving app can render or interpret content (PWA renders by MIME; FlowForge consumes via `ArtifactReceived`)
+- [x] Artifact transfer in the sync protocol: hash verification on both sides, deduplication (skip if hash known)
+- [x] Resumable chunked upload/download for large artifacts
+- [x] Configurable size limits and per-gateway quotas (surfaced in PWA)
+- [x] Interrupted-transfer resume tests
 
 ---
 

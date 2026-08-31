@@ -48,19 +48,23 @@ jittered exponential backoff. The full HTTPS transport arrives with the synchron
 | `GET`    | `/tasks?status=REQUESTED` | List tasks, optionally filtered by lifecycle state |
 | `GET`    | `/tasks/{id}` | Get a task |
 | `POST`   | `/tasks/{id}/response` | Answer a task (text / approval decision + reason + artifact refs) |
-| `POST`   | `/artifacts` | Register artifact metadata (bytes land via the artifact store, LOCAL-EDGE-1.5) |
-| `GET`    | `/artifacts` | List artifact metadata |
-| `GET`    | `/artifacts/{id}` | Get artifact metadata |
-| `GET`    | `/sync/status` | Sync-status snapshot for the PWA sync banner (queued count, last sequence, delivery-state summary) |
+ | `POST`   | `/artifacts` | Register artifact metadata (bytes land via the artifact store, LOCAL-EDGE-1.5) |
+ | `GET`    | `/artifacts` | List artifact metadata |
+ | `GET`    | `/artifacts/{id}` | Get artifact metadata |
+ | `PUT`    | `/artifacts/{id}/content` | Upload artifact bytes: size-limit + quota enforced, content-hash verified (SP-06), deduplicated (ARTF-FR-01) |
+ | `GET`    | `/artifacts/{id}/content` | Download artifact bytes with the artifact's MIME type/filename (Range-capable, ARTF-FR-02) |
+ | `GET`    | `/artifacts/{id}/content/status` | Presence + configured size limit + quota usage snapshot (ARTF-FR-03) |
+ | `GET`    | `/sync/status` | Sync-status snapshot for the PWA sync banner (queued count, last sequence, delivery-state summary, artifact limits) |
 
-| Task | What lands here |
-|------|-----------------|
-| LOCAL-EDGE-1.1 | Scaffold: boots the `HumanGateway.Core` sync engine over in-memory ports, health probe, sync-status stub |
-| LOCAL-EDGE-1.2 | **Done** — ASP.NET Core minimal API + SQLite (WAL) schema (conversations, messages, deliveries, artifacts, participants) |
-| LOCAL-EDGE-1.3 | **Done** — Durable SQLite inbox/outbox/idempotency (`SqliteOutbox`/`SqliteInbox`/`SqliteIdempotencyStore`) |
-| LOCAL-EDGE-1.4 | **Done** — Local REST API endpoints (conversations, messages, tasks, artifacts, sync status) |
-| LOCAL-EDGE-1.5 | **Done** — Local filesystem artifact store (content-hash naming, dedup) |
-| LOCAL-EDGE-1.6 | **Done** — Background sync worker skeleton (outbound `IRelaySyncClient` hook; full protocol in synchronisation feature) |
+ | Task | What lands here |
+ |------|-----------------|
+ | LOCAL-EDGE-1.1 | Scaffold: boots the `HumanGateway.Core` sync engine over in-memory ports, health probe, sync-status stub |
+ | LOCAL-EDGE-1.2 | **Done** — ASP.NET Core minimal API + SQLite (WAL) schema (conversations, messages, deliveries, artifacts, participants) |
+ | LOCAL-EDGE-1.3 | **Done** — Durable SQLite inbox/outbox/idempotency (`SqliteOutbox`/`SqliteInbox`/`SqliteIdempotencyStore`) |
+ | LOCAL-EDGE-1.4 | **Done** — Local REST API endpoints (conversations, messages, tasks, artifacts, sync status) |
+ | LOCAL-EDGE-1.5 | **Done** — Local filesystem artifact store (content-hash naming, dedup) |
+ | LOCAL-EDGE-1.6 | **Done** — Background sync worker skeleton (outbound `IRelaySyncClient` hook; full protocol in synchronisation feature) |
+ | ARTF-FR-01/02/03 | **Done** — Artifact byte transfer (ARTF): Edge filesystem + Relay BYTEA stores, authenticated serving endpoints, hash-verified dedup transfer over sync, resumable chunked transfer, configurable limits/quotas |
 
 The `ISyncEngine` contract (Core) is already fixed; swapping the in-memory ports for durable stores requires
 no change to the engine or the endpoints in `Program.cs`.

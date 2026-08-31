@@ -28,6 +28,21 @@
         <member name="M:HumanGateway.Relay.Api.ApiErrors.FromException(System.Exception)">
             <summary>Maps an arbitrary exception to a response; the default is a generic 500 (SP-07).</summary>
         </member>
+        <member name="T:HumanGateway.Relay.Api.PartialContentResult">
+            <summary>
+            A streaming 206 Partial Content response for the artifact download endpoint (ARTF-FR-02 — resumable
+            downloads over low bandwidth). ASP.NET's built-in range processing requires a <em>seekable</em> stream, but
+            the BYTEA read stream is deliberately non-seekable (true streaming reads, never materialised in memory), so
+            the Relay honours the <c>Range</c> header manually: the endpoint positions the stream past the requested
+            offset and this result writes exactly the requested byte span with the <c>Content-Range</c> header.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Api.PartialContentResult.#ctor(System.IO.Stream,System.Int64,System.Int64,System.Int64)">
+            <summary>Creates the result over a stream positioned at <paramref name="start"/>.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Api.PartialContentResult.ExecuteAsync(Microsoft.AspNetCore.Http.HttpContext)">
+            <inheritdoc />
+        </member>
         <member name="T:HumanGateway.Relay.Api.RequestValidation">
             <summary>
             Wire models for the gateway registration + rendezvous API (RELAY-FR-03, WEBX-FR-02). Request records are
@@ -162,6 +177,54 @@
         <member name="M:HumanGateway.Relay.Api.SyncPullRequest.Validate">
             <summary>Validates the request shape; throws a 400 on failure.</summary>
         </member>
+        <member name="T:HumanGateway.Relay.Api.ArtifactStateRequest">
+            <summary>
+            Body of <c>POST /sync/artifacts/state</c> — a gateway asks which artifact content hashes the Relay already
+            holds so it transfers only the missing bytes (dedup, ARTF-FR-01, NF-03).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Api.ArtifactStateRequest.GatewayId">
+            <summary>The registered gateway performing the dedup check.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Api.ArtifactStateRequest.Hashes">
+            <summary>Content hashes (<c>sha256:&lt;hex&gt;</c>) to check. Duplicates are collapsed.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Api.ArtifactStateRequest.Validate">
+            <summary>Validates the request shape; throws a 400 on failure.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Api.ArtifactStateResponse">
+            <summary>Response of <c>POST /sync/artifacts/state</c>: the hashes the Relay already holds.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Api.ArtifactStateResponse.Present">
+            <summary>Content hashes present in the Relay's blob store (dedup: transfer everything not listed).</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Api.ArtifactOffsetState">
+            <summary>
+            The receiving side's offset state for a hash: how many bytes it durably holds and whether the content is
+            complete. A complete hash has <c>received == size</c> and never stores partial bytes.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Api.ArtifactOffsetState.Received">
+            <summary>Bytes durably accepted for this hash (0 when nothing has been received).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Api.ArtifactOffsetState.Complete">
+            <summary>True when the content is complete and verified (published to the blob store).</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Api.ArtifactChunkResult">
+            <summary>Result of accepting one upload chunk.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Api.ArtifactChunkResult.Received">
+            <summary>Bytes durably accepted for the hash after this chunk.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Api.ArtifactChunkResult.Complete">
+            <summary>True when the chunk completed the upload (the caller then finalises with the complete call).</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Api.ArtifactCompleteResult">
+            <summary>Result of finalising an upload (content-hash verified and published, or deduplicated).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Api.ArtifactCompleteResult.Stored">
+            <summary>True when bytes were newly published; false when identical bytes were already stored (dedup).</summary>
+        </member>
         <member name="T:HumanGateway.Relay.Endpoints.GatewayEndpoints">
             <summary>
             Gateway registration endpoints (RELAY-FR-03, AUTH-FR-01, SP-02, SP-07). Handlers stay thin — all state
@@ -226,6 +289,20 @@
         </member>
         <member name="M:HumanGateway.Relay.Endpoints.SyncEndpoints.MapSyncEndpoints(Microsoft.AspNetCore.Builder.WebApplication)">
             <summary>Maps the sync endpoint group onto the app.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Endpoints.SyncEndpoints.MapArtifactEndpoints(Microsoft.AspNetCore.Builder.WebApplication)">
+            <summary>
+            The artifact byte channel (ARTF-FR-01/02, PROTO-FR-04 exception): dedup state, offset-addressed
+            resumable upload, hash-verified completion, and streaming download — all gated on a REGISTERED gateway
+            (SP-02). The gateway identity travels as the <c>gatewayId</c> query parameter (body for the state
+            check). Handlers stay thin; <see cref="T:HumanGateway.Relay.Services.RelayArtifactService"/> owns the domain logic.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Endpoints.SyncEndpoints.SkipAsync(System.IO.Stream,System.Int64,System.Threading.CancellationToken)">
+            <summary>Advances a sequential (non-seekable) stream past <paramref name="count"/> bytes.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Endpoints.SyncEndpoints.RequireGatewayId(System.String)">
+            <summary>Rejects an artifact-byte request that omits the gateway identity (SP-02).</summary>
         </member>
         <member name="M:HumanGateway.Relay.Endpoints.SyncEndpoints.PushAsync(HumanGateway.Relay.Services.RelaySyncService,HumanGateway.Protocol.Models.SyncBatch,System.Threading.CancellationToken)">
             <summary>
@@ -307,6 +384,9 @@
         <member name="P:HumanGateway.Relay.Options.RelayOptions.Sync">
             <summary>Sync endpoint behaviour (RELAY-FR-02, SYNC-FR-03).</summary>
         </member>
+        <member name="P:HumanGateway.Relay.Options.RelayOptions.Artifacts">
+            <summary>Artifact byte-channel behaviour (RELAY-FR-01, ARTF-FR-02/03).</summary>
+        </member>
         <member name="T:HumanGateway.Relay.Options.SyncOptions">
             <summary>Sync endpoint behaviour options, bound from <c>Relay:Sync</c>.</summary>
         </member>
@@ -318,6 +398,27 @@
         </member>
         <member name="P:HumanGateway.Relay.Options.RendezvousOptions.OnlineWindowMinutes">
             <summary>How recent a gateway's <c>lastSeenAt</c> must be to count as "online" for rendezvous routing.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Options.RelayArtifactOptions">
+            <summary>
+            Relay artifact byte-channel behaviour, bound from <c>Relay:Artifacts</c> (ARTF-FR-02/03). These are the
+            Relay's own configurable limits — each Edge gateway enforces its own per-gateway limits locally too.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Options.RelayArtifactOptions.MaxArtifactSizeBytes">
+            <summary>
+            Maximum size of a single artifact the Relay accepts, in bytes (product vision Open Q #7: 50 MiB
+            default, configurable per gateway).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Options.RelayArtifactOptions.QuotaBytes">
+            <summary>
+            Total BYTEA blob-store budget, in bytes (ARTF-FR-03). Deduplicated content counts once — the sum of
+            <c>artifact_blobs.size_bytes</c> may not exceed this. Default 1 GiB.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Options.RelayArtifactOptions.ChunkSizeBytes">
+            <summary>Chunk size framing resumable transfers (artifacts Open Q #1: 4 MiB default).</summary>
         </member>
         <member name="T:HumanGateway.Relay.Security.RegistrationTokens">
             <summary>
@@ -472,6 +573,70 @@
         </member>
         <member name="M:HumanGateway.Relay.Services.GatewayServiceException.Conflict(System.String)">
             <summary>409 — the request conflicts with an existing durable record.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Services.RelayArtifactService">
+             <summary>
+             The Relay's artifact byte-channel service (RELAY-FR-01, ARTF-FR-01/02/03): serves the dedup state check,
+             the offset-addressed resumable upload, the hash-verified completion, and the streaming download. Every
+             operation requires a REGISTERED gateway (SP-02). Bytes land in the content-addressed BYTEA store
+             (<see cref="T:HumanGateway.Relay.Storage.PostgresArtifactStore"/>) which deduplicates identical content and verifies hashes on write.
+            
+             <para><b>Resumable uploads.</b> Chunks are accepted idempotently by offset into an in-memory partial buffer
+             (single Relay instance in v1, NF-10). An interrupted transfer resumes from <see cref="M:HumanGateway.Relay.Services.RelayArtifactService.GetOffsetAsync(System.String,System.String,System.Threading.CancellationToken)"/> —
+             the durably accepted byte count. On <see cref="M:HumanGateway.Relay.Services.RelayArtifactService.CompleteAsync(System.String,System.String,System.Threading.CancellationToken)"/> the accumulated bytes are verified against
+             the declared content hash before being published (SP-06), so a truncated or corrupt transfer can never
+             reach the store. A Relay restart loses in-memory partials; the sender transparently re-uploads from zero
+             (correct, merely less efficient).</para>
+            
+             <para><b>Limits and quota (ARTF-FR-03).</b> A single artifact may not exceed <see cref="P:HumanGateway.Relay.Options.RelayArtifactOptions.MaxArtifactSizeBytes"/>
+             and the aggregate BYTEA budget may not exceed <see cref="P:HumanGateway.Relay.Options.RelayArtifactOptions.QuotaBytes"/> (deduplicated
+             content counts once, matching the bytes actually stored).</para>
+             </summary>
+        </member>
+        <member name="F:HumanGateway.Relay.Services.RelayArtifactService.Partials">
+            <summary>In-memory partial upload state per canonical content hash. Static: survives across the scoped service instances.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelayArtifactService.CheckHashesAsync(System.String,System.Collections.Generic.IReadOnlyCollection{System.String},System.Threading.CancellationToken)">
+            <summary>Returns the subset of <paramref name="hashes"/> the Relay already holds (skip transfer for these).</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelayArtifactService.GetOffsetAsync(System.String,System.String,System.Threading.CancellationToken)">
+            <summary>How many bytes the Relay durably holds for a hash, and whether the content is complete.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelayArtifactService.UploadChunkAsync(System.String,System.String,System.Int64,System.IO.Stream,System.Threading.CancellationToken)">
+            <summary>
+            Accepts one chunk that must land at byte <paramref name="offset"/>. Idempotent per (hash, offset):
+            a replayed chunk appends nothing, and a chunk that does not match the expected offset is rejected with
+            a conflict so the sender re-queries the authoritative offset (resume).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelayArtifactService.CompleteAsync(System.String,System.String,System.Threading.CancellationToken)">
+            <summary>
+            Finalises an upload: verifies the accumulated bytes against the declared content hash (SP-06), enforces
+            the blob-store quota (ARTF-FR-03), and publishes durably (deduplicating against a concurrent identical
+            upload). A hash mismatch discards the partial and raises <see cref="T:HumanGateway.Core.Artifacts.ArtifactHashMismatchException"/>.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelayArtifactService.DownloadAsync(System.String,System.String,System.Threading.CancellationToken)">
+            <summary>Opens the stored bytes for a hash as a streaming read, or null when the Relay does not hold it.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelayArtifactService.GetStoredSizeAsync(System.String,System.String,System.Threading.CancellationToken)">
+            <summary>The stored byte size of a hash, or null when the Relay does not hold it (Range download math).</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelayArtifactService.CanonicalKey(System.String)">
+            <summary>Normalises a content hash to the canonical <c>sha256:&lt;lowercase hex&gt;</c> storage key.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelayArtifactService.SizeExceeded(System.String,System.Int64,System.Int64)">
+            <summary>413 — the artifact exceeds the configured per-artifact size limit (ARTF-FR-03).</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelayArtifactService.CopyBoundedAsync(HumanGateway.Relay.Services.RelayArtifactService.PartialUpload,System.IO.Stream,System.String,System.Threading.CancellationToken)">
+            <summary>
+            Appends the request body into a partial buffer. The copy is bounded by the configured max artifact
+            size: once the buffer would exceed it, the partial is discarded and the upload rejected — a malicious
+            or buggy sender cannot buffer unbounded bytes.
+            </summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Services.RelayArtifactService.PartialUpload">
+            <summary>Per-hash partial-upload state: a gate (for serialised chunk acceptance) and the accumulated bytes.</summary>
         </member>
         <member name="T:HumanGateway.Relay.Services.RelaySyncService">
              <summary>
@@ -1004,6 +1169,15 @@
         </member>
         <member name="M:HumanGateway.Relay.Storage.PostgresArtifactStore.ExistsAsync(System.String,System.Threading.CancellationToken)">
             <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.PostgresArtifactStore.GetSizeAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.PostgresArtifactStore.GetTotalSizeBytesAsync(System.Threading.CancellationToken)">
+            <summary>
+            The total bytes held in the BYTEA blob store — the Relay's storage-quota accounting baseline
+            (ARTF-FR-03). Deduplicated content counts once, matching the bytes actually stored.
+            </summary>
         </member>
         <member name="M:HumanGateway.Relay.Storage.PostgresArtifactStore.DeleteAsync(System.String,System.Threading.CancellationToken)">
             <inheritdoc />

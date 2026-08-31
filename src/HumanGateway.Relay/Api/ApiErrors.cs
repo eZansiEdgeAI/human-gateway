@@ -1,3 +1,4 @@
+using HumanGateway.Core.Artifacts;
 using HumanGateway.Protocol.Models;
 using HumanGateway.Relay.Services;
 using Microsoft.EntityFrameworkCore;
@@ -34,6 +35,12 @@ public static class ApiErrors
     public static IResult FromException(Exception ex) => ex switch
     {
         GatewayServiceException e => Problem(e.StatusCode, e.Code, e.Message, null, e.Retryable),
+        ArtifactHashMismatchException e => Problem(
+            StatusCodes.Status422UnprocessableEntity,
+            ErrorCodes.HashMismatch,
+            e.Message,
+            new { declaredHash = e.DeclaredHash, actualHash = e.ActualHash },
+            retryable: false),
         DbUpdateException => Conflict("The request conflicts with an existing durable record."),
         OperationCanceledException => throw ex,
         _ => InternalError(),

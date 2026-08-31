@@ -24,6 +24,12 @@ public interface IArtifactStore
     /// <summary>Returns <c>true</c> when bytes for the given hash are present.</summary>
     Task<bool> ExistsAsync(string hash, CancellationToken ct = default);
 
+    /// <summary>
+    /// Returns the stored byte size for the hash, or <see langword="null"/> when absent. Used to size a
+    /// resumable transfer and to account storage against a per-gateway quota (ARTF-FR-03).
+    /// </summary>
+    Task<long?> GetSizeAsync(string hash, CancellationToken ct = default);
+
     /// <summary>Removes stored bytes for the hash; a no-op when absent.</summary>
     Task DeleteAsync(string hash, CancellationToken ct = default);
 }

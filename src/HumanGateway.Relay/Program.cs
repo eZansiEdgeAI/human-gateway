@@ -103,7 +103,15 @@ builder.Services.AddScoped<RelaySyncService>();
 // durable ports — each operation opens a short-lived context from the pooled factory. An S3-compatible
 // adapter is an optional later step, not v1 (cloud-relay Open Q #2, NF-10).
 // ---------------------------------------------------------------------------
-builder.Services.AddSingleton<IArtifactStore, PostgresArtifactStore>();
+builder.Services.AddSingleton<PostgresArtifactStore>();
+builder.Services.AddSingleton<IArtifactStore>(sp => sp.GetRequiredService<PostgresArtifactStore>());
+
+// ---------------------------------------------------------------------------
+// Artifact byte channel (RELAY-FR-01, ARTF-FR-01/02/03): dedup state, resumable chunked upload with
+// content-hash verification, and streaming download — every operation gated on a registered gateway (SP-02).
+// Scoped: each request opens its own short-lived context; the in-memory partial-upload state is static.
+// ---------------------------------------------------------------------------
+builder.Services.AddScoped<RelayArtifactService>();
 
 // ---------------------------------------------------------------------------
 // Health checks (NF-09, RELAY-FR-05): the durable-store round-trip (RelayStoreHealthCheck) plus the relay

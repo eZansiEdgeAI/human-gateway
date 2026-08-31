@@ -79,6 +79,30 @@
         <member name="T:HumanGateway.Edge.Api.SyncStatusView">
             <summary>Sync-status snapshot for the PWA sync banner (EDGE-FR-05, PWA-FR-05).</summary>
         </member>
+        <member name="T:HumanGateway.Edge.Api.ArtifactSummary">
+            <summary>
+            This gateway's artifact limits and current storage usage (ARTF-FR-03) — surfaced to the PWA so size-limit
+            and quota messages can be rendered before an upload is attempted.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Api.ArtifactSummary.MaxSizeBytes">
+            <summary>Maximum bytes per artifact (per-gateway configurable).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Api.ArtifactSummary.QuotaBytes">
+            <summary>Per-gateway storage quota in bytes.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Api.ArtifactSummary.UsedBytes">
+            <summary>Bytes currently stored across distinct content hashes.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Api.ArtifactUploadResult">
+            <summary>Result of an artifact byte upload (PUT /artifacts/{id}/content).</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Api.ArtifactUploadResult.Stored">
+            <summary>True when bytes were newly written; false when identical bytes were already present (dedup).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Api.ArtifactContentStatus">
+            <summary>Presence/limits snapshot for an artifact's bytes (GET /artifacts/{id}/content/status).</summary>
+        </member>
         <member name="T:HumanGateway.Edge.Api.DeliverySummary">
             <summary>Counts of delivery records by lifecycle state (icon + text, never colour alone — ACC-03).</summary>
         </member>
@@ -109,8 +133,8 @@
             exception handler wired in <c>Program.cs</c> maps both to HTTP responses.
             </summary>
         </member>
-        <member name="M:HumanGateway.Edge.Api.LocalApiService.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{HumanGateway.Edge.Storage.EdgeDbContext},Microsoft.Extensions.Options.IOptions{HumanGateway.Edge.Api.GatewayOptions})">
-            <summary>Creates the service over the durable store factory and gateway options.</summary>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{HumanGateway.Edge.Storage.EdgeDbContext},Microsoft.Extensions.Options.IOptions{HumanGateway.Edge.Api.GatewayOptions},HumanGateway.Core.Artifacts.IArtifactStore,Microsoft.Extensions.Options.IOptions{HumanGateway.Edge.Artifacts.ArtifactStoreOptions})">
+            <summary>Creates the service over the durable store factory, gateway options, and the artifact byte store.</summary>
         </member>
         <member name="M:HumanGateway.Edge.Api.LocalApiService.ListConversationsAsync(System.Threading.CancellationToken)">
             <summary>Lists conversations with membership and activity metadata (message count + last message).</summary>
@@ -161,6 +185,29 @@
         <member name="M:HumanGateway.Edge.Api.LocalApiService.GetArtifactAsync(System.String,System.Threading.CancellationToken)">
             <summary>Gets artifact metadata by ID, or null when absent.</summary>
         </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.UploadArtifactContentAsync(System.String,System.IO.Stream,System.Nullable{System.Int64},System.Threading.CancellationToken)">
+            <summary>
+            Uploads artifact bytes for a registered metadata record (ARTF-FR-01, ARTF-FR-03): verifies the record
+            exists, enforces the per-gateway size limit and storage quota, then saves through the content-addressed
+            <see cref="T:HumanGateway.Core.Artifacts.IArtifactStore"/> which verifies the content hash while writing (SP-06) and deduplicates
+            identical bytes (no second write, no extra quota).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.DownloadArtifactContentAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Opens the artifact bytes for download as a read stream, or returns <see langword="null"/> when the
+            metadata exists but the bytes have not been uploaded yet (the PWA may attach and send in a later step).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.GetArtifactContentStatusAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Presence/size snapshot for an artifact's bytes (ARTF-FR-03, dedup + resume queries by the PWA and the
+            sync worker) plus the gateway's configured limits and current quota usage.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Api.LocalApiService.SumStoredBytesAsync(HumanGateway.Edge.Storage.EdgeDbContext,System.Threading.CancellationToken)">
+            <summary>Sum of stored artifact bytes across distinct content hashes (content-addressed quota).</summary>
+        </member>
         <member name="M:HumanGateway.Edge.Api.LocalApiService.GetSyncStatusAsync(System.Threading.CancellationToken)">
             <summary>Builds the sync-status snapshot for the PWA sync banner (EDGE-FR-05).</summary>
         </member>
@@ -171,6 +218,24 @@
             <summary>
             Root directory for content-addressed artifact bytes. When null/empty, the service falls back to
             <c>&lt;ContentRoot&gt;/data/artifacts</c> (see Program.cs).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Artifacts.ArtifactStoreOptions.MaxArtifactSizeBytes">
+            <summary>
+            Maximum size of a single artifact accepted by the local upload endpoint, in bytes (ARTF-FR-03,
+            product vision Open Q #7). Default 50 MiB; per-gateway configurable.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Artifacts.ArtifactStoreOptions.QuotaBytes">
+            <summary>
+            Per-gateway storage quota: the sum of registered artifact sizes may not exceed this, in bytes
+            (ARTF-FR-03). Deduplicated content (identical bytes already stored) is not counted again. Default 1 GiB.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Artifacts.ArtifactStoreOptions.ChunkSizeBytes">
+            <summary>
+            Chunk size framing resumable artifact transfers between this Edge and the Relay (ARTF-FR-02,
+            artifacts Open Q #1). Default 4 MiB.
             </summary>
         </member>
         <member name="T:HumanGateway.Edge.Artifacts.FilesystemArtifactStore">
@@ -200,6 +265,9 @@
             <inheritdoc />
         </member>
         <member name="M:HumanGateway.Edge.Artifacts.FilesystemArtifactStore.ExistsAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Artifacts.FilesystemArtifactStore.GetSizeAsync(System.String,System.Threading.CancellationToken)">
             <inheritdoc />
         </member>
         <member name="M:HumanGateway.Edge.Artifacts.FilesystemArtifactStore.DeleteAsync(System.String,System.Threading.CancellationToken)">
@@ -816,6 +884,32 @@
         <member name="M:HumanGateway.Edge.Storage.SqliteSyncCursorStore.SaveAsync(HumanGateway.Core.Cursor.SyncCursorState,System.Threading.CancellationToken)">
             <inheritdoc />
         </member>
+        <member name="T:HumanGateway.Edge.Sync.DisabledArtifactTransfer">
+            <summary>
+            Placeholder <see cref="T:HumanGateway.Core.Artifacts.IArtifactTransfer"/> used until a Relay is configured (<see cref="P:HumanGateway.Edge.Sync.RelayArtifactOptions.Enabled"/>
+            is false). The Edge stays fully functional offline-first: inbound artifact references simply await a later
+            sync cycle once the channel is configured (NF-01).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Sync.DisabledArtifactTransfer.IsConfigured">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.DisabledArtifactTransfer.CheckHashesAsync(System.Collections.Generic.IReadOnlyCollection{System.String},System.Threading.CancellationToken)">
+            <inheritdoc />
+            <remarks>Never called — the worker guards on <see cref="P:HumanGateway.Edge.Sync.DisabledArtifactTransfer.IsConfigured"/> first.</remarks>
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.DisabledArtifactTransfer.UploadAsync(System.String,System.Int64,System.IO.Stream,System.Threading.CancellationToken)">
+            <inheritdoc />
+            <remarks>Never called — the worker guards on <see cref="P:HumanGateway.Edge.Sync.DisabledArtifactTransfer.IsConfigured"/> first.</remarks>
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.DisabledArtifactTransfer.GetRemoteSizeAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+            <remarks>Never called — the worker guards on <see cref="P:HumanGateway.Edge.Sync.DisabledArtifactTransfer.IsConfigured"/> first.</remarks>
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.DisabledArtifactTransfer.DownloadAsync(System.String,System.IO.Stream,System.Threading.CancellationToken)">
+            <inheritdoc />
+            <remarks>Never called — the worker guards on <see cref="P:HumanGateway.Edge.Sync.DisabledArtifactTransfer.IsConfigured"/> first.</remarks>
+        </member>
         <member name="T:HumanGateway.Edge.Sync.DisabledRelaySyncClient">
             <summary>
             Placeholder <see cref="T:HumanGateway.Edge.Sync.IRelaySyncClient"/> used until the synchronisation feature provides the real HTTPS
@@ -833,6 +927,57 @@
         <member name="M:HumanGateway.Edge.Sync.DisabledRelaySyncClient.PullAsync(System.String,System.Threading.CancellationToken)">
             <inheritdoc />
             <remarks>Never called — the worker guards on <see cref="P:HumanGateway.Edge.Sync.DisabledRelaySyncClient.IsConfigured"/> first.</remarks>
+        </member>
+        <member name="T:HumanGateway.Edge.Sync.HttpArtifactTransport">
+             <summary>
+             The Edge's real outbound artifact-byte channel to the Relay (ARTF-FR-01, PROTO-FR-04 exception). Bytes
+             flow in resumable, content-addressed chunks (<see cref="T:HumanGateway.Core.Artifacts.ChunkedArtifactTransfer"/> over the Relay's
+             <c>/sync/artifacts</c> endpoints): the Edge first asks which hashes the Relay lacks (dedup — skip transfer
+             for known content, NF-03), uploads only the missing bytes with offset-based resume, and the Relay verifies
+             the content hash before publishing (SP-06). Downloads resume via Range reads into a local partial file.
+            
+             <para>The channel is outbound-only (SP-01) and scoped to artifact bytes; the sync-batch transport is owned
+             by the synchronisation feature.</para>
+             </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.HttpArtifactTransport.#ctor(System.Net.Http.HttpClient,Microsoft.Extensions.Options.IOptions{HumanGateway.Edge.Sync.RelayArtifactOptions},Microsoft.Extensions.Options.IOptions{HumanGateway.Edge.Api.GatewayOptions},Microsoft.Extensions.Logging.ILogger{HumanGateway.Edge.Sync.HttpArtifactTransport})">
+            <summary>Creates the transport over the given client, options, and the gateway identity it uploads as.</summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Sync.HttpArtifactTransport.IsConfigured">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.HttpArtifactTransport.CheckHashesAsync(System.Collections.Generic.IReadOnlyCollection{System.String},System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.HttpArtifactTransport.UploadAsync(System.String,System.Int64,System.IO.Stream,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.HttpArtifactTransport.GetRemoteSizeAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.HttpArtifactTransport.DownloadAsync(System.String,System.IO.Stream,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.HttpArtifactTransport.GetResumeOffsetAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.HttpArtifactTransport.SendChunkAsync(System.String,System.Int64,System.ReadOnlyMemory{System.Byte},System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.HttpArtifactTransport.CompleteAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.HttpArtifactTransport.GetSizeAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.HttpArtifactTransport.OpenRangeAsync(System.String,System.Int64,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.HttpArtifactTransport.EnsureSuccessAsync(System.Net.Http.HttpResponseMessage,System.String,System.Threading.CancellationToken)">
+            <summary>Throws on a non-success response, mapping known Relay <see cref="T:HumanGateway.Protocol.Models.ProtocolError"/> codes to typed exceptions.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.HttpArtifactTransport.TryReadHashPair(HumanGateway.Protocol.Models.ProtocolError,System.String@,System.String@)">
+            <summary>Extracts the declared/actual hash pair from a HASH_MISMATCH error's structured details.</summary>
         </member>
         <member name="T:HumanGateway.Edge.Sync.IRelaySyncClient">
             <summary>
@@ -863,6 +1008,27 @@
         <member name="P:HumanGateway.Edge.Sync.PushResult.Cursor">
             <summary>The Relay's new cursor (opaque); null at the start position. Echoed back on the next push.</summary>
         </member>
+        <member name="T:HumanGateway.Edge.Sync.RelayArtifactOptions">
+            <summary>
+            Configuration for the Edge's outbound artifact-byte channel to the Relay (ARTF-FR-01, PROTO-FR-04
+            exception), bound from the <c>Relay</c> configuration section. The byte channel is outbound-only (SP-01)
+            and separate from the sync-batch channel — the batch transport is provided by the synchronisation feature.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Sync.RelayArtifactOptions.BaseUrl">
+            <summary>
+            Base URL of the Relay's HTTP API (e.g. <c>https://relay.example.com</c>). When null/empty the channel
+            is disabled and the Edge stays offline-first for artifact bytes (NF-01).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Sync.RelayArtifactOptions.ChunkSizeBytes">
+            <summary>
+            Chunk size framing resumable uploads to the Relay (ARTF-FR-02, artifacts Open Q #1). Default 4 MiB.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Sync.RelayArtifactOptions.Enabled">
+            <summary>True when a Relay base URL is configured.</summary>
+        </member>
         <member name="T:HumanGateway.Edge.Sync.SyncWorker">
              <summary>
              The Edge Gateway's background sync worker (EDGE-FR-05, product vision §6.2/§10): a hosted service that
@@ -888,7 +1054,7 @@
              lose or duplicate a message (EDGE-FR-07).
              </summary>
         </member>
-        <member name="M:HumanGateway.Edge.Sync.SyncWorker.#ctor(HumanGateway.Core.Sync.ISyncEngine,HumanGateway.Core.Outbox.IOutbox,HumanGateway.Core.Cursor.ISyncCursorStore,HumanGateway.Edge.Sync.IRelaySyncClient,Microsoft.Extensions.Options.IOptions{HumanGateway.Edge.Api.GatewayOptions},Microsoft.Extensions.Options.IOptions{HumanGateway.Edge.Sync.SyncWorkerOptions},Microsoft.Extensions.Logging.ILogger{HumanGateway.Edge.Sync.SyncWorker},System.TimeProvider)">
+        <member name="M:HumanGateway.Edge.Sync.SyncWorker.#ctor(HumanGateway.Core.Sync.ISyncEngine,HumanGateway.Core.Outbox.IOutbox,HumanGateway.Core.Cursor.ISyncCursorStore,HumanGateway.Edge.Sync.IRelaySyncClient,HumanGateway.Core.Artifacts.IArtifactStore,HumanGateway.Core.Artifacts.IArtifactTransfer,Microsoft.Extensions.Options.IOptions{HumanGateway.Edge.Api.GatewayOptions},Microsoft.Extensions.Options.IOptions{HumanGateway.Edge.Sync.SyncWorkerOptions},Microsoft.Extensions.Logging.ILogger{HumanGateway.Edge.Sync.SyncWorker},System.TimeProvider)">
             <summary>Creates the worker over the sync engine, durable outbox, durable cursor store, transport hook, and options.</summary>
         </member>
         <member name="P:HumanGateway.Edge.Sync.SyncWorker.State">
@@ -912,6 +1078,31 @@
             When no Relay is configured this is a no-op that leaves the outbox untouched.
             </summary>
         </member>
+        <member name="M:HumanGateway.Edge.Sync.SyncWorker.UploadPendingArtifactsAsync(HumanGateway.Protocol.Models.SyncBatch,System.Threading.CancellationToken)">
+            <summary>
+            Ensures the Relay holds the bytes of every artifact referenced by <paramref name="batch"/>. Dedup:
+            only hashes the Relay reports missing are transferred (no re-transfer of known content, NF-03), and
+            each upload is resumable chunk-wise (ARTF-FR-02). Runs <em>before</em> the batch is pushed so routed
+            messages never reach a recipient whose artifact bytes are still absent at the Relay.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.SyncWorker.DownloadInboundArtifactsAsync(System.Collections.Generic.IReadOnlyList{HumanGateway.Protocol.Models.SyncItem},System.Threading.CancellationToken)">
+            <summary>
+            Downloads artifact bytes referenced by freshly applied inbound items that this gateway does not hold.
+            Each download writes to a partial temp file (resumable across interruptions, ARTF-FR-02) and is
+            published through <see cref="M:HumanGateway.Core.Artifacts.IArtifactStore.SaveAsync(System.IO.Stream,System.String,System.Threading.CancellationToken)"/>, which verifies the content hash before the
+            bytes appear at a content-addressed path (SP-06). A corrupt partial is discarded and re-downloaded.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.SyncWorker.CollectArtifactHashes(System.Collections.Generic.IReadOnlyList{HumanGateway.Protocol.Models.SyncItem})">
+            <summary>All artifact content hashes referenced by a set of sync items (artifact items + message refs).</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.SyncWorker.PartialDownloadPath(System.String)">
+            <summary>
+            The partial-download path for an artifact hash, under the store's temp area so an interrupted download
+            survives a worker restart and resumes by appending (ARTF-FR-02).
+            </summary>
+        </member>
         <member name="M:HumanGateway.Edge.Sync.SyncWorker.ReconcileAsync(System.Threading.CancellationToken)">
             <summary>
             RECOVERING (product vision §10): reconcile the local store with Relay cursors before resuming sync.
@@ -925,6 +1116,9 @@
         </member>
         <member name="M:HumanGateway.Edge.Sync.SyncWorker.SaveCursorStateAsync(System.Threading.CancellationToken)">
             <summary>Persists the current cursor + in-flight state durably.</summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Sync.SyncWorker.TryDelete(System.String)">
+            <summary>Best-effort deletion of a partial download temp file.</summary>
         </member>
         <member name="T:HumanGateway.Edge.Sync.SyncWorkerOptions">
             <summary>

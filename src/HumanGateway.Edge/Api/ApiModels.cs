@@ -102,6 +102,46 @@ public sealed record SyncStatusView
     public int Queued { get; init; }
     public long LastSequence { get; init; }
     public DeliverySummary Deliveries { get; init; } = new();
+    public ArtifactSummary Artifacts { get; init; } = new();
+}
+
+/// <summary>
+/// This gateway's artifact limits and current storage usage (ARTF-FR-03) — surfaced to the PWA so size-limit
+/// and quota messages can be rendered before an upload is attempted.
+/// </summary>
+public sealed record ArtifactSummary
+{
+    /// <summary>Maximum bytes per artifact (per-gateway configurable).</summary>
+    public long MaxSizeBytes { get; init; }
+
+    /// <summary>Per-gateway storage quota in bytes.</summary>
+    public long QuotaBytes { get; init; }
+
+    /// <summary>Bytes currently stored across distinct content hashes.</summary>
+    public long UsedBytes { get; init; }
+}
+
+/// <summary>Result of an artifact byte upload (PUT /artifacts/{id}/content).</summary>
+public sealed record ArtifactUploadResult
+{
+    public string Id { get; init; } = null!;
+    public string Hash { get; init; } = null!;
+    public long SizeBytes { get; init; }
+
+    /// <summary>True when bytes were newly written; false when identical bytes were already present (dedup).</summary>
+    public bool Stored { get; init; }
+}
+
+/// <summary>Presence/limits snapshot for an artifact's bytes (GET /artifacts/{id}/content/status).</summary>
+public sealed record ArtifactContentStatus
+{
+    public string Id { get; init; } = null!;
+    public string Hash { get; init; } = null!;
+    public bool Present { get; init; }
+    public long StoredBytes { get; init; }
+    public long MaxSizeBytes { get; init; }
+    public long QuotaBytes { get; init; }
+    public long QuotaUsedBytes { get; init; }
 }
 
 /// <summary>Counts of delivery records by lifecycle state (icon + text, never colour alone — ACC-03).</summary>

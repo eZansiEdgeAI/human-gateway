@@ -72,6 +72,8 @@ services:
     environment:
       Edge__GatewayId: ${HG_GATEWAY_ID:-edge:compose}
       Edge__RelayBaseUrl: http://relay:8080
+      # Artifact-byte channel (ARTF-FR-01/02): same Relay, outbound-only (SP-01).
+      Relay__BaseUrl: http://relay:8080
     volumes:
       - edge-data:/data
     depends_on:
