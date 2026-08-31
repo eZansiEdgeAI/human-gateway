@@ -1,4 +1,5 @@
 using HumanGateway.Protocol.Models;
+using HumanGateway.Relay.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace HumanGateway.Relay.Api;
@@ -32,6 +33,7 @@ public static class ApiErrors
     /// <summary>Maps an arbitrary exception to a response; the default is a generic 500 (SP-07).</summary>
     public static IResult FromException(Exception ex) => ex switch
     {
+        GatewayServiceException e => Problem(e.StatusCode, e.Code, e.Message, null, e.Retryable),
         DbUpdateException => Conflict("The request conflicts with an existing durable record."),
         OperationCanceledException => throw ex,
         _ => InternalError(),

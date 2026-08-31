@@ -1,0 +1,5 @@
+{
+  "HumanGateway.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "\/home\/mcfuzzysquirrel\/Projects\/human-gateway\/src\/HumanGateway.Core",
+  "HumanGateway.Protocol, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "\/home\/mcfuzzysquirrel\/Projects\/human-gateway\/src\/HumanGateway.Protocol",
+  "HumanGateway.Relay, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "\/home\/mcfuzzysquirrel\/Projects\/human-gateway\/src\/HumanGateway.Relay"
+}

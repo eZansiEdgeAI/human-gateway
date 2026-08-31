@@ -1,7 +1,7 @@
 {
   "runId": "cc1dad89-27a5-4765-8655-91bea28ec9c3",
   "startedAt": "2026-08-28T21:20:12.360Z",
-  "lastUpdatedAt": "2026-08-31T20:11:16.058Z",
+  "lastUpdatedAt": "2026-08-31T22:55:00.000Z",
   "manifestPath": "/home/mcfuzzysquirrel/Projects/human-gateway/docs/EXECUTION-MANIFEST.json",
   "manifestVersion": "1.0",
   "harness": "opencode",
@@ -398,10 +398,17 @@
     },
     "CLOUD-RELAY-4.3": {
       "taskId": "CLOUD-RELAY-4.3",
-      "status": "pending",
+      "status": "complete",
       "ownerAgent": "relay-engineer",
-      "attempt": 0,
-      "outputFiles": []
+      "attempt": 3,
+      "outputFiles": [],
+      "startedAt": "2026-08-31T20:11:16.196Z",
+      "completedAt": "2026-08-31T22:55:00.000Z",
+      "agentOutput": "## Task CLOUD-RELAY-4.3: Gateway registration + rendezvous endpoints — summary\n\nThe registration + rendezvous surface is complete and validated end-to-end (36/36 tests pass, including HTTP integration against real PostgreSQL via Testcontainers).\n\n### Endpoints (`Endpoints/GatewayEndpoints.cs`, `Endpoints/RendezvousEndpoints.cs`)\n- `POST /gateways` — requests a registration token; creates the identity PENDING (201, one-time plaintext token; only its `sha256:` fingerprint is persisted — SP-07)\n- `POST /gateways/{gatewayId}/register` — presents the token; moves the identity to REGISTERED\n- `POST /gateways/{gatewayId}/rotate` — rotates a REGISTERED gateway's token; the old token stops working immediately\n- `GET /rendezvous/gateways` — lists registered gateways as rendezvous targets (SP-02 filters PENDING/SUSPENDED/REVOKED)\n- `GET /rendezvous/gateways/{gatewayId}` — one gateway's rendezvous info (404 when unregistered)\n- `GET /rendezvous/lookup?participant=...` — resolves a typed participant address to its serving gateway\n\n### Behaviour\n- `Services/GatewayService.cs` — registration lifecycle; SP-02 rejection of unregistered/pending/suspended/revoked; constant-time token verification that never leaks token bytes\n- `Security/RegistrationTokens.cs` — `hgrt_` + 256-bit base64url tokens, `sha256:` fingerprints, constant-time verification\n- `Api/RegistrationModels.cs` — validation mirroring gateway.schema.json; `ProtocolError`-shaped 400s\n- `Api/ApiErrors.cs` — maps `GatewayServiceException` to stable reserved error codes\n\n### Root cause fixed during validation\n`RelayApiFactory` originally used `ConfigureAppConfiguration` to override `ConnectionStrings:Relay`, but the factory host runs in the Development environment where `appsettings.Development.json` defines the dev database string — which shadowed the in-memory override, so the test Relay silently connected to the developer's local `humangateway_relay` database instead of the fixture container. Fixed with `builder.UseSetting(\"ConnectionStrings:Relay\", ...)` (host settings have the highest precedence). With the fix, all 36 tests pass against a throwaway Testcontainers PostgreSQL.\n\n### Verification\n- `dotnet test tests/HumanGateway.Relay.Tests` — 36/36 pass (unit + HTTP integration over Testcontainers PostgreSQL)\n- `dotnet build HumanGateway.slnx` — 0 warnings, 0 errors",
+      "artifactId": "work-cloud-relay-4-3-001",
+      "inputArtifactIds": [
+        "work-cloud-relay-4-2-001"
+      ]
     },
     "CLOUD-RELAY-4.4": {
       "taskId": "CLOUD-RELAY-4.4",

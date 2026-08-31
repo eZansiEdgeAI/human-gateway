@@ -1,0 +1,40 @@
+{
+  "type": "work.cloud-relay-4.3",
+  "category": "work",
+  "taskId": "CLOUD-RELAY-4.3",
+  "producedBy": "relay-engineer",
+  "status": "complete",
+  "summary": "Gateway registration + rendezvous endpoints (RELAY-FR-03, WEBX-FR-02): two-step registration handshake issuing a one-time hgrt_ token (SP-07 — only the SHA-256 fingerprint is persisted), rotation, SP-02 rejection of unregistered/pending/suspended/revoked identities, and rendezvous listing/lookup of registered gateways. Validated with 36 passing tests (unit + HTTP integration over Testcontainers PostgreSQL).",
+  "inputs": [
+    "work-cloud-relay-4-2-001"
+  ],
+  "filesChanged": [
+    "src/HumanGateway.Relay/Endpoints/GatewayEndpoints.cs",
+    "src/HumanGateway.Relay/Endpoints/RendezvousEndpoints.cs",
+    "src/HumanGateway.Relay/Endpoints/RelayEndpoints.cs",
+    "src/HumanGateway.Relay/Api/RegistrationModels.cs",
+    "src/HumanGateway.Relay/Api/ApiErrors.cs",
+    "src/HumanGateway.Relay/Services/GatewayService.cs",
+    "src/HumanGateway.Relay/Services/GatewayServiceException.cs",
+    "src/HumanGateway.Relay/Services/RendezvousService.cs",
+    "src/HumanGateway.Relay/Security/RegistrationTokens.cs",
+    "src/HumanGateway.Relay/Options/RelayOptions.cs",
+    "src/HumanGateway.Relay/Program.cs",
+    "src/HumanGateway.Relay/appsettings.json",
+    "tests/HumanGateway.Relay.Tests/RelayApiFactory.cs",
+    "tests/HumanGateway.Relay.Tests/GatewayRegistrationTests.cs",
+    "tests/HumanGateway.Relay.Tests/RequestValidationTests.cs",
+    "tests/HumanGateway.Relay.Tests/RegistrationTokensTests.cs",
+    "tests/HumanGateway.Relay.Tests/GatewayRecordMappingTests.cs",
+    "docs/features/cloud-relay.md",
+    "src/HumanGateway.Relay/README.md"
+  ],
+  "payload": {
+    "agentOutputExcerpt": "## Task CLOUD-RELAY-4.3: Gateway registration + rendezvous endpoints — summary\n\nThe registration + rendezvous surface is complete and **validated end-to-end** (36/36 tests pass, including HTTP integration against real PostgreSQL via Testcontainers).\n\n### Endpoints (`Endpoints/GatewayEndpoints.cs`, `Endpoints/RendezvousEndpoints.cs`)\n- `POST /gateways` — requests a registration token; creates the identity PENDING (201, one-time plaintext token; only its `sha256:` fingerprint is persisted — SP-07)\n- `POST /gateways/{gatewayId}/register` — presents the token; moves the identity to REGISTERED\n- `POST /gateways/{gatewayId}/rotate` — rotates a REGISTERED gateway's token; the old token stops working immediately\n- `GET /rendezvous/gateways` — lists registered gateways as rendezvous targets (SP-02 filters PENDING/SUSPENDED/REVOKED)\n- `GET /rendezvous/gateways/{gatewayId}` — one gateway's rendezvous info (404 when unregistered)\n- `GET /rendezvous/lookup?participant=...` — resolves a typed participant address to its serving gateway (`system:<gatewayId>` and participant-directory forms)\n\n### Behaviour\n- `Services/GatewayService.cs` — full registration lifecycle; `EnsureStatus` rejects non-REGISTERED identities with the SP-02 error codes; `VerifyTokenOrThrow` is constant-time and never leaks token bytes into logs/errors\n- `Security/RegistrationTokens.cs` — `hgrt_` + 256-bit base64url tokens, `sha256:` fingerprints, constant-time verification\n- `Api/RegistrationModels.cs` — request validation mirroring gateway.schema.json shapes; `ProtocolError`-shaped 400s\n- `Api/ApiErrors.cs` — maps `GatewayServiceException` to stable reserved error codes\n\n### Root cause fixed during validation\n`RelayApiFactory` originally used `ConfigureAppConfiguration` to override `ConnectionStrings:Relay`, but the factory host runs in the Development environment where `appsettings.Development.json` defines the dev database string — which shadowed the in-memory override, so the test Relay silently connected to the developer's local `humangateway_relay` database instead of the fixture container. Fixed with `builder.UseSetting(\"ConnectionStrings:Relay\", ...)` (host settings have the highest precedence). With the fix, all 36 tests pass against a throwaway Testcontainers PostgreSQL.\n\n### Verification\n- `dotnet test tests/HumanGateway.Relay.Tests` — 36/36 pass (unit: token shape/entropy/fingerprint/verification, request validation, record→protocol mapping; HTTP integration: handshake, wrong-token/unknown/duplicate rejections, rotation invalidation, route/body mismatch, rendezvous list/get/lookup, SP-02 404s)\n- `dotnet build HumanGateway.slnx` — 0 warnings, 0 errors"
+  },
+  "nextActions": [
+    "CLOUD-RELAY-4.4: Sync endpoint — push/pull cursors, delivery ack (consumes the synchronisation protocol)"
+  ],
+  "artifactId": "work-cloud-relay-4-3-001",
+  "createdAt": "2026-08-31T22:55:00.000Z"
+}

@@ -28,6 +28,112 @@
         <member name="M:HumanGateway.Relay.Api.ApiErrors.FromException(System.Exception)">
             <summary>Maps an arbitrary exception to a response; the default is a generic 500 (SP-07).</summary>
         </member>
+        <member name="T:HumanGateway.Relay.Api.RequestValidation">
+            <summary>
+            Wire models for the gateway registration + rendezvous API (RELAY-FR-03, WEBX-FR-02). Request records are
+            validated against the gateway/participant schema shapes before any store access; responses follow the
+            Relay JSON contract (camelCase, exact enum tokens, omit-null).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Api.RequestValidation.GatewayIdRegex">
+            <remarks>
+            Pattern:<br/>
+            <code>^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$</code><br/>
+            Explanation:<br/>
+            <code>
+            ○ Match if at the beginning of the string.<br/>
+            ○ Match an ASCII letter or digit.<br/>
+            ○ Match a character in the set [\-.0-:A-Z_a-z] atomically at least 7 and at most 127 times.<br/>
+            ○ Match if at the end of the string or if before an ending newline.<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Relay.Api.RequestValidation.RegistrationTokenRegex">
+            <remarks>
+            Pattern:<br/>
+            <code>^hgrt_[A-Za-z0-9_-]{43,251}$</code><br/>
+            Explanation:<br/>
+            <code>
+            ○ Match if at the beginning of the string.<br/>
+            ○ Match the string "hgrt_".<br/>
+            ○ Match a character in the set [\-0-9A-Z_a-z] atomically at least 43 and at most 251 times.<br/>
+            ○ Match if at the end of the string or if before an ending newline.<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Relay.Api.RequestValidation.ParticipantAddressRegex">
+            <remarks>
+            Pattern:<br/>
+            <code>^(human|agent|system):[A-Za-z0-9._@+-]{1,191}$</code><br/>
+            Explanation:<br/>
+            <code>
+            ○ Match if at the beginning of the string.<br/>
+            ○ 1st capture group.<br/>
+                ○ Match with 3 alternative expressions.<br/>
+                    ○ Match the string "human".<br/>
+                    ○ Match the string "agent".<br/>
+                    ○ Match the string "system".<br/>
+            ○ Match ':'.<br/>
+            ○ Match a character in the set [+\-.0-9@-Z_a-z] atomically at least 1 and at most 191 times.<br/>
+            ○ Match if at the end of the string or if before an ending newline.<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Relay.Api.RequestValidation.ThrowIfInvalid(System.Collections.Generic.List{System.String})">
+            <summary>Rejects a request with a VALIDATION_FAILED 400 when the message is non-empty.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Api.RegisterGatewayRequest">
+            <summary>Body of <c>POST /gateways</c> — the initial registration handshake (AUTH-FR-01).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Api.RegisterGatewayRequest.GatewayId">
+            <summary>The Edge's proposed durable gateway identity (common.schema.json#/$defs/id).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Api.RegisterGatewayRequest.DisplayName">
+            <summary>Optional human-readable gateway name (e.g. the school or site name).</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Api.RegisterGatewayRequest.Validate">
+            <summary>Validates the request against gateway.schema.json shapes; throws a 400 on failure.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Api.ConfirmRegistrationRequest">
+            <summary>Body of <c>POST /gateways/{gatewayId}/register</c> and <c>/rotate</c> — presents the registration token.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Api.ConfirmRegistrationRequest.GatewayId">
+            <summary>The gateway confirming or rotating its token.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Api.ConfirmRegistrationRequest.RegistrationToken">
+            <summary>The registration token (gateway.schema.json <c>$defs.registrationToken</c>). Never logged (SP-07).</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Api.ConfirmRegistrationRequest.Validate">
+            <summary>Validates the request against gateway.schema.json shapes; throws a 400 on failure.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Api.RegistrationIssued">
+            <summary>
+            Response of <c>POST /gateways</c> and <c>/gateways/{gatewayId}/rotate</c>. The plaintext
+            <see cref="P:HumanGateway.Relay.Api.RegistrationIssued.RegistrationToken"/> is returned exactly once, over TLS; the Relay persists only its
+            fingerprint (SP-07). The caller must store it in the Edge secret store before the response is discarded.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Api.RegistrationIssued.Status">
+            <summary>Gateway registration lifecycle after this call (PENDING, or REGISTERED after a rotation).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Api.RegistrationIssued.RegistrationToken">
+            <summary>The one-time plaintext registration token. Handle as a secret.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Api.RegistrationIssued.From(HumanGateway.Relay.Storage.Entities.GatewayRecord,System.String)">
+            <summary>Builds the issued-token response from the durable record and the plaintext token.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Api.RendezvousGatewayInfo">
+            <summary>Rendezvous summary of a registered gateway (WEBX-FR-02).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Api.RendezvousGatewayInfo.Status">
+            <summary>Always REGISTERED — only registered gateways are rendezvous targets (SP-02).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Api.RendezvousGatewayInfo.Online">
+            <summary>True when the gateway synced within the rendezvous online window (default 15 min).</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Api.RendezvousLookup">
+            <summary>Rendezvous resolution of a participant address to its serving school Edge (WEBX-FR-02).</summary>
+        </member>
         <member name="T:HumanGateway.Relay.Api.RelayJson">
             <summary>
             JSON configuration for the Relay's HTTP API. Mirrors <c>ProtocolJson.Options</c> (exact enum tokens,
@@ -40,15 +146,245 @@
         <member name="M:HumanGateway.Relay.Api.RelayJson.Configure(System.Text.Json.JsonSerializerOptions)">
             <summary>Applies the Relay API JSON contract to a serializer options instance.</summary>
         </member>
+        <member name="T:HumanGateway.Relay.Endpoints.GatewayEndpoints">
+            <summary>
+            Gateway registration endpoints (RELAY-FR-03, AUTH-FR-01, SP-02, SP-07). Handlers stay thin — all state
+            transitions and token verification live in <see cref="T:HumanGateway.Relay.Services.GatewayService"/>; exceptions translate to
+            <see cref="T:HumanGateway.Protocol.Models.ProtocolError"/> responses by the global exception handler. The plaintext registration token is
+            returned exactly once, never persisted, and never logged (SP-07).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Endpoints.GatewayEndpoints.MapGatewayEndpoints(Microsoft.AspNetCore.Builder.WebApplication)">
+            <summary>Maps the gateway registration endpoint group onto the app.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Endpoints.GatewayEndpoints.RequestRegistrationAsync(HumanGateway.Relay.Services.GatewayService,HumanGateway.Relay.Api.RegisterGatewayRequest,System.Threading.CancellationToken)">
+            <summary>Step 1 — requests a registration token; the identity is created in PENDING (201).</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Endpoints.GatewayEndpoints.ConfirmRegistrationAsync(System.String,HumanGateway.Relay.Api.ConfirmRegistrationRequest,HumanGateway.Relay.Services.GatewayService,System.Threading.CancellationToken)">
+            <summary>Step 2 — presents the token and completes registration (200 with the full Gateway record).</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Endpoints.GatewayEndpoints.RotateTokenAsync(System.String,HumanGateway.Relay.Api.ConfirmRegistrationRequest,HumanGateway.Relay.Services.GatewayService,System.Threading.CancellationToken)">
+            <summary>Rotates a registered gateway's token (200 with a fresh one-time token).</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Endpoints.GatewayEndpoints.EnsureRouteMatches(System.String,System.String)">
+            <summary>Rejects a request whose route gatewayId differs from the body gatewayId (defence-in-depth).</summary>
+        </member>
         <member name="T:HumanGateway.Relay.Endpoints.RelayEndpoints">
             <summary>
-            Maps the Cloud Relay HTTP API (RELAY-FR-02..04). The scaffold carries the service-info probe; the
-            gateway registration + rendezvous endpoints (RELAY-FR-03, task CLOUD-RELAY-4.3) and the sync endpoint
-            (push/pull cursors + delivery ack, SYNC-FR-03/05, task CLOUD-RELAY-4.4) land here as their own groups.
+            Maps the Cloud Relay HTTP API (RELAY-FR-02..04). Carries the service-info probe, the gateway
+            registration + rendezvous endpoints (RELAY-FR-03, WEBX-FR-02), and — in a later task — the sync endpoint
+            (push/pull cursors + delivery ack, SYNC-FR-03/05, task CLOUD-RELAY-4.4) as its own group.
             </summary>
         </member>
         <member name="M:HumanGateway.Relay.Endpoints.RelayEndpoints.MapRelayEndpoints(Microsoft.AspNetCore.Builder.WebApplication)">
             <summary>Maps every Relay endpoint onto the app.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Endpoints.RendezvousEndpoints">
+            <summary>
+            Rendezvous endpoints (RELAY-FR-03, WEBX-FR-02): remote clients discover which registered school Edge
+            serves a participant and whether it is reachable. Routing is outbound-only (SP-01) — the Relay never dials
+            into the school; message delivery rides the gateway's next sync pull.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Endpoints.RendezvousEndpoints.MapRendezvousEndpoints(Microsoft.AspNetCore.Builder.WebApplication)">
+            <summary>Maps the rendezvous endpoint group onto the app.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Endpoints.RendezvousEndpoints.ListGatewaysAsync(HumanGateway.Relay.Services.RendezvousService,System.Threading.CancellationToken)">
+            <summary>Lists every registered gateway as a rendezvous target.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Endpoints.RendezvousEndpoints.GetGatewayAsync(System.String,HumanGateway.Relay.Services.RendezvousService,System.Threading.CancellationToken)">
+            <summary>Rendezvous info for one registered gateway (404 when absent or not registered — SP-02).</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Endpoints.RendezvousEndpoints.LookupParticipantAsync(System.String,HumanGateway.Relay.Services.RendezvousService,System.Threading.CancellationToken)">
+            <summary>Resolves a participant address to its serving gateway (400 on a malformed address).</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Options.RelayOptions">
+            <summary>
+            Relay behaviour options, read from the <c>Relay</c> configuration section. Sensible defaults keep the
+            service working out of the box; deployments override via environment variables (e.g.
+            <c>Relay__RegistrationTokenTtlDays</c>, <c>Relay__Rendezvous__OnlineWindowMinutes</c>).
+            </summary>
+        </member>
+        <member name="F:HumanGateway.Relay.Options.RelayOptions.SectionName">
+            <summary>The configuration section this options type binds to.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Options.RelayOptions.RegistrationTokenTtlDays">
+            <summary>Lifetime of a freshly issued registration token before the Edge must rotate (AUTH-FR-01).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Options.RelayOptions.Rendezvous">
+            <summary>Rendezvous routing behaviour (WEBX-FR-02).</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Options.RendezvousOptions">
+            <summary>Rendezvous behaviour options, bound from <c>Relay:Rendezvous</c>.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Options.RendezvousOptions.OnlineWindowMinutes">
+            <summary>How recent a gateway's <c>lastSeenAt</c> must be to count as "online" for rendezvous routing.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Security.RegistrationTokens">
+            <summary>
+            Registration-token primitives for gateway identity (AUTH-FR-01, SP-02, SP-07). The Relay generates the
+            high-entropy token (<c>hgrt_</c> + 256 bits of base64url randomness, matching gateway.schema.json
+            <c>$defs.registrationToken</c>), returns it to the Edge exactly once over TLS, and stores only its
+            SHA-256 fingerprint (<c>sha256:&lt;hex&gt;</c>) — the plaintext never persists and is never logged (SP-07).
+            Verification is constant-time so a timing side-channel cannot leak token bytes.
+            </summary>
+        </member>
+        <member name="F:HumanGateway.Relay.Security.RegistrationTokens.TokenPrefix">
+            <summary>Registration-token prefix (gateway.schema.json <c>$defs.registrationToken</c> pattern).</summary>
+        </member>
+        <member name="F:HumanGateway.Relay.Security.RegistrationTokens.TokenRandomBytes">
+            <summary>Random bytes per token — 256 bits of entropy.</summary>
+        </member>
+        <member name="F:HumanGateway.Relay.Security.RegistrationTokens.TokenBodyPattern">
+            <summary>
+            The token body after the prefix: 43..251 chars of base64url. Combined with the 5-char prefix this
+            honours the schema's 48..256 min/maxLength.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Security.RegistrationTokens.TokenShapeRegex">
+            <remarks>
+            Pattern:<br/>
+            <code>^hgrt_[A-Za-z0-9_-]{43,251}$</code><br/>
+            Explanation:<br/>
+            <code>
+            ○ Match if at the beginning of the string.<br/>
+            ○ Match the string "hgrt_".<br/>
+            ○ Match a character in the set [\-0-9A-Z_a-z] atomically at least 43 and at most 251 times.<br/>
+            ○ Match if at the end of the string or if before an ending newline.<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Relay.Security.RegistrationTokens.Generate">
+            <summary>
+            Generates a fresh registration token: <c>hgrt_</c> + 32 bytes of cryptographic randomness encoded as
+            unpadded base64url (43 chars), for a total length of 48 — exactly the schema's minimum.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Security.RegistrationTokens.Fingerprint(System.String)">
+            <summary>
+            Computes the storage fingerprint of a token: <c>sha256:&lt;64 lowercase hex&gt;</c>
+            (gateway.schema.json <c>registrationTokenFingerprint</c> pattern). The fingerprint, never the plaintext,
+            is what the Relay persists (SP-07).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Security.RegistrationTokens.IsWellFormed(System.String)">
+            <summary>True when <paramref name="token"/> matches the <c>hgrt_</c> wire shape (48..256 chars).</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Security.RegistrationTokens.Verify(System.String,System.String)">
+            <summary>
+            Verifies a presented token against the stored fingerprint using a constant-time comparison of the two
+            fingerprint strings (SP-07 — mitigates timing side-channels).
+            </summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Services.GatewayService">
+            <summary>
+            Gateway registration lifecycle (RELAY-FR-03, AUTH-FR-01, SP-02, SP-07): request a registration token,
+            confirm registration by presenting it, and rotate the token before it expires. The Relay persists only the
+            SHA-256 token fingerprint — the plaintext token is returned to the caller exactly once (SP-07) and is
+            never logged. Only REGISTERED gateways are accepted as rendezvous/sync targets; SUSPENDED and REVOKED
+            identities are rejected on every operation (SP-02).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.GatewayService.RequestRegistrationAsync(HumanGateway.Relay.Api.RegisterGatewayRequest,System.Threading.CancellationToken)">
+            <summary>
+            Step 1 of the registration handshake: creates the gateway identity in PENDING and issues a fresh
+            registration token (returned once). Idempotency note: an existing PENDING/UNREGISTERED identity is a
+            409 — the previously issued token is unrecoverable (only its fingerprint is stored), so a re-request
+            must not silently invalidate it (SP-07). Use the issued token, or rotate once registered.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.GatewayService.ConfirmRegistrationAsync(HumanGateway.Relay.Api.ConfirmRegistrationRequest,System.Threading.CancellationToken)">
+            <summary>
+            Step 2 of the registration handshake: presents the issued token and moves the identity to REGISTERED.
+            Rejects unregistered, suspended, and revoked identities (SP-02) and any token mismatch or expiry
+            (REGISTRATION_TOKEN_INVALID / REGISTRATION_TOKEN_EXPIRED).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.GatewayService.RotateTokenAsync(HumanGateway.Relay.Api.ConfirmRegistrationRequest,System.Threading.CancellationToken)">
+            <summary>
+            Rotates the registration token of a REGISTERED gateway: verifies the current token, issues a fresh one,
+            and persists only its fingerprint. The new token replaces the old immediately (the old token stops
+            working) — the caller must persist the returned plaintext token in the Edge secret store.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.GatewayService.RequireRegisteredAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Loads a gateway that must be in the REGISTERED state (SP-02). Used by rendezvous routing and the sync
+            endpoint: unregistered, pending, suspended, and revoked identities are rejected.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.GatewayService.EnsureStatus(HumanGateway.Relay.Storage.Entities.GatewayRecord,HumanGateway.Protocol.Models.GatewayStatus,System.String)">
+            <summary>
+            Ensures the identity is in <paramref name="required"/> state for the given operation, mapping every
+            other state to the SP-02 rejection codes (GATEWAY_SUSPENDED / GATEWAY_REVOKED / GATEWAY_UNREGISTERED).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.GatewayService.VerifyTokenOrThrow(HumanGateway.Relay.Storage.Entities.GatewayRecord,System.String)">
+            <summary>
+            Verifies a presented token against the stored fingerprint (constant-time) and its expiry. Token bytes
+            never reach the logger or any error payload (SP-07).
+            </summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Services.GatewayRecordMapping">
+            <summary>Maps a durable <see cref="T:HumanGateway.Relay.Storage.Entities.GatewayRecord"/> to its protocol <see cref="T:HumanGateway.Protocol.Models.Gateway"/> wire form.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.GatewayRecordMapping.ToProtocol(HumanGateway.Relay.Storage.Entities.GatewayRecord)">
+            <summary>Projects the stored record to the canonical gateway.schema.json shape (status wire token).</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Services.GatewayServiceException">
+            <summary>
+            A domain exception raised by the Relay's gateway/rendezvous services that maps to a stable
+            <see cref="T:HumanGateway.Protocol.Models.ProtocolError"/>-shaped HTTP response (SP-07). Carries the HTTP status, the reserved protocol
+            error <see cref="P:HumanGateway.Relay.Services.GatewayServiceException.Code"/>, and the retryability hint. Endpoint handlers stay thin; the global exception
+            handler in <c>Program.cs</c> translates instances via <see cref="T:HumanGateway.Relay.Api.ApiErrors"/>.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Services.GatewayServiceException.StatusCode">
+            <summary>HTTP status code for the error response.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Services.GatewayServiceException.Code">
+            <summary>Machine-readable, stable error code (ErrorCodes catalog).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Services.GatewayServiceException.Retryable">
+            <summary>Retry hint: true for transient conditions, false for permanent rejections.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.GatewayServiceException.BadRequest(System.String,System.String)">
+            <summary>400 — the request is malformed or fails validation.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.GatewayServiceException.Forbidden(System.String,System.String)">
+            <summary>403 — the gateway failed identity/registration checks (SP-02).</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.GatewayServiceException.NotFound(System.String)">
+            <summary>404 — the referenced identity does not exist.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.GatewayServiceException.Conflict(System.String)">
+            <summary>409 — the request conflicts with an existing durable record.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Services.RendezvousService">
+            <summary>
+            Rendezvous routing for remote web access (RELAY-FR-03, WEBX-FR-02): resolves a remote participant's
+            request to the school Edge that serves them. Because the Edge is strictly outbound-only (SP-01), the
+            rendezvous never dials into the school — it tells remote clients which registered gateway to target and
+            whether it is currently reachable (recent <c>lastSeenAt</c>), and message delivery happens over the
+            gateway's next outbound sync pull. Only REGISTERED gateways are routable (SP-02).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RendezvousService.ListGatewaysAsync(System.Threading.CancellationToken)">
+            <summary>Lists every registered gateway as a rendezvous target (SP-02 filters the rest).</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RendezvousService.GetGatewayAsync(System.String,System.Threading.CancellationToken)">
+            <summary>Rendezvous info for one registered gateway, or null when absent/unregistered.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RendezvousService.LookupParticipantAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Resolves a typed participant address to its serving gateway. <c>system:&lt;gatewayId&gt;</c> maps
+            directly (PROTO-FR-02); <c>human:</c>/<c>agent:</c> addresses resolve through the participant
+            directory's <c>gatewayId</c>. Returns null when the address is unknown or its gateway is not a
+            registered rendezvous target (SP-02).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RendezvousService.IsOnline(System.String,System.DateTimeOffset)">
+            <summary>True when <paramref name="lastSeenAt"/> is within the online window of <paramref name="cutoff"/>.</summary>
         </member>
         <member name="T:HumanGateway.Relay.Storage.Entities.ArtifactBlobRecord">
             <summary>
@@ -423,6 +759,111 @@
         </member>
         <member name="M:HumanGateway.Relay.Storage.RelayJsonConversions.WireToken``1(System.Nullable{``0})">
             <summary>Serialises a nullable enum to its wire token, or null when absent.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.GatewayIdRegex_0">
+            <summary>Custom <see cref="T:System.Text.RegularExpressions.Regex"/>-derived type for the GatewayIdRegex method.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.GatewayIdRegex_0.Instance">
+            <summary>Cached, thread-safe singleton instance.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.GatewayIdRegex_0.#ctor">
+            <summary>Initializes the instance.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.GatewayIdRegex_0.RunnerFactory">
+            <summary>Provides a factory for creating <see cref="T:System.Text.RegularExpressions.RegexRunner"/> instances to be used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.GatewayIdRegex_0.RunnerFactory.CreateInstance">
+            <summary>Creates an instance of a <see cref="T:System.Text.RegularExpressions.RegexRunner"/> used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.GatewayIdRegex_0.RunnerFactory.Runner">
+            <summary>Provides the runner that contains the custom logic implementing the specified regular expression.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.GatewayIdRegex_0.RunnerFactory.Runner.Scan(System.ReadOnlySpan{System.Char})">
+            <summary>Scan the <paramref name="inputSpan"/> starting from base.runtextstart for the next match.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.GatewayIdRegex_0.RunnerFactory.Runner.TryFindNextPossibleStartingPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Search <paramref name="inputSpan"/> starting from base.runtextpos for the next location a match could possibly start.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if a possible match was found; false if no more matches are possible.</returns>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.GatewayIdRegex_0.RunnerFactory.Runner.TryMatchAtCurrentPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Determine whether <paramref name="inputSpan"/> at base.runtextpos is a match for the regular expression.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if the regular expression matches at the current position; otherwise, false.</returns>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.RegistrationTokenRegex_1">
+            <summary>Custom <see cref="T:System.Text.RegularExpressions.Regex"/>-derived type for the RegistrationTokenRegex method.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.RegistrationTokenRegex_1.Instance">
+            <summary>Cached, thread-safe singleton instance.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.RegistrationTokenRegex_1.#ctor">
+            <summary>Initializes the instance.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.RegistrationTokenRegex_1.RunnerFactory">
+            <summary>Provides a factory for creating <see cref="T:System.Text.RegularExpressions.RegexRunner"/> instances to be used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.RegistrationTokenRegex_1.RunnerFactory.CreateInstance">
+            <summary>Creates an instance of a <see cref="T:System.Text.RegularExpressions.RegexRunner"/> used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.RegistrationTokenRegex_1.RunnerFactory.Runner">
+            <summary>Provides the runner that contains the custom logic implementing the specified regular expression.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.RegistrationTokenRegex_1.RunnerFactory.Runner.Scan(System.ReadOnlySpan{System.Char})">
+            <summary>Scan the <paramref name="inputSpan"/> starting from base.runtextstart for the next match.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.RegistrationTokenRegex_1.RunnerFactory.Runner.TryFindNextPossibleStartingPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Search <paramref name="inputSpan"/> starting from base.runtextpos for the next location a match could possibly start.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if a possible match was found; false if no more matches are possible.</returns>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.RegistrationTokenRegex_1.RunnerFactory.Runner.TryMatchAtCurrentPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Determine whether <paramref name="inputSpan"/> at base.runtextpos is a match for the regular expression.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if the regular expression matches at the current position; otherwise, false.</returns>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.ParticipantAddressRegex_2">
+            <summary>Custom <see cref="T:System.Text.RegularExpressions.Regex"/>-derived type for the ParticipantAddressRegex method.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.ParticipantAddressRegex_2.Instance">
+            <summary>Cached, thread-safe singleton instance.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.ParticipantAddressRegex_2.#ctor">
+            <summary>Initializes the instance.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.ParticipantAddressRegex_2.RunnerFactory">
+            <summary>Provides a factory for creating <see cref="T:System.Text.RegularExpressions.RegexRunner"/> instances to be used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.ParticipantAddressRegex_2.RunnerFactory.CreateInstance">
+            <summary>Creates an instance of a <see cref="T:System.Text.RegularExpressions.RegexRunner"/> used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.ParticipantAddressRegex_2.RunnerFactory.Runner">
+            <summary>Provides the runner that contains the custom logic implementing the specified regular expression.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.ParticipantAddressRegex_2.RunnerFactory.Runner.Scan(System.ReadOnlySpan{System.Char})">
+            <summary>Scan the <paramref name="inputSpan"/> starting from base.runtextstart for the next match.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.ParticipantAddressRegex_2.RunnerFactory.Runner.TryFindNextPossibleStartingPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Search <paramref name="inputSpan"/> starting from base.runtextpos for the next location a match could possibly start.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if a possible match was found; false if no more matches are possible.</returns>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.ParticipantAddressRegex_2.RunnerFactory.Runner.TryMatchAtCurrentPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Determine whether <paramref name="inputSpan"/> at base.runtextpos is a match for the regular expression.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if the regular expression matches at the current position; otherwise, false.</returns>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.Utilities">
+            <summary>Helper methods used by generated <see cref="T:System.Text.RegularExpressions.Regex"/>-derived implementations.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.Utilities.s_defaultTimeout">
+            <summary>Default timeout value set in <see cref="T:System.AppContext"/>, or <see cref="F:System.Text.RegularExpressions.Regex.InfiniteMatchTimeout"/> if none was set.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.Utilities.s_hasTimeout">
+            <summary>Whether <see cref="F:System.Text.RegularExpressions.Generated.Utilities.s_defaultTimeout"/> is non-infinite.</summary>
         </member>
     </members>
 </doc>

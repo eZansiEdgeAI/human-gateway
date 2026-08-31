@@ -1,5 +1,7 @@
 using HumanGateway.Relay.Api;
 using HumanGateway.Relay.Endpoints;
+using HumanGateway.Relay.Options;
+using HumanGateway.Relay.Services;
 using HumanGateway.Relay.Storage;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
@@ -9,23 +11,33 @@ var builder = WebApplication.CreateBuilder(args);
 // ---------------------------------------------------------------------------
 // PostgreSQL store (RELAY-FR-01): the durable cloud schema for gateways,
 // conversations, messages, deliveries, artifacts (metadata + BYTEA blobs), and
-// the sync model. The connection string is taken from configuration
-// (ConnectionStrings:Relay — set it from the environment in deployment; the
+// the sync model. The connection string is resolved lazily inside the context
+// factory (below) from the built configuration — set it via configuration
+// (ConnectionStrings:Relay — from the environment in deployment; the
 // development default matches the README's dev PostgreSQL).
 // ---------------------------------------------------------------------------
-var connectionString = builder.Configuration.GetConnectionString("Relay");
-if (string.IsNullOrWhiteSpace(connectionString))
-{
-    connectionString = "Host=localhost;Port=5432;Database=humangateway_relay;Username=humangateway;Password=humangateway";
-}
 
 // Register a pooled-context factory rather than a scoped DbContext: the durable
 // inbox/idempotency/cursor stores are long-lived singletons (driven by the sync
 // endpoint and the background worker) and open a short-lived context per
 // operation.
+//
+// The connection string is resolved lazily from the *built* configuration (via
+// the provider) rather than captured into a local at startup: the test harness
+// (WebApplicationFactory) layers its configuration override in during host
+// construction, and reading `builder.Configuration` there would snapshot the
+// pre-override value. Reading it at context-creation time guarantees the store
+// always uses the final connection string.
 builder.Services.AddDbContextFactory<RelayDbContext>((sp, options) =>
 {
-    options.UseNpgsql(connectionString);
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var relayConnection = configuration.GetConnectionString("Relay");
+    if (string.IsNullOrWhiteSpace(relayConnection))
+    {
+        relayConnection = "Host=localhost;Port=5432;Database=humangateway_relay;Username=humangateway;Password=humangateway";
+    }
+
+    options.UseNpgsql(relayConnection);
 });
 
 // ---------------------------------------------------------------------------
@@ -34,6 +46,14 @@ builder.Services.AddDbContextFactory<RelayDbContext>((sp, options) =>
 // returns are byte-identical to their canonical wire form.
 // ---------------------------------------------------------------------------
 builder.Services.ConfigureHttpJsonOptions(options => RelayJson.Configure(options.SerializerOptions));
+
+// Relay behaviour options (token TTL, rendezvous online window) — bound from the "Relay" section.
+builder.Services.Configure<RelayOptions>(builder.Configuration.GetSection(RelayOptions.SectionName));
+
+// Gateway registration + rendezvous services (RELAY-FR-03, WEBX-FR-02). Scoped: each request opens its own
+// short-lived context via the pooled factory.
+builder.Services.AddScoped<GatewayService>();
+builder.Services.AddScoped<RendezvousService>();
 
 var app = builder.Build();
 

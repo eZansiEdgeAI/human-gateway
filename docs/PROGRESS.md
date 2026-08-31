@@ -3,7 +3,7 @@
 ## Current State
 **Phase**: CLOUD-RELAY-4
 **Status**: In Progress
-**Last Updated**: 2026-08-31T20:11:16.060Z
+**Last Updated**: 2026-08-31T22:55:00.000Z
 **Run ID**: cc1dad89-27a5-4765-8655-91bea28ec9c3
 **Harness**: opencode
 
@@ -41,6 +41,7 @@
 - [x] Phase CLOUD-RELAY-4, Task CLOUD-RELAY-4.1: [ ] Scaffold `src/HumanGateway (@infrastructure-engineer)
   - Files: src/HumanGateway.Relay
 - [x] Phase CLOUD-RELAY-4, Task CLOUD-RELAY-4.2: [ ] PostgreSQL schema (@relay-engineer)
+- [x] Phase CLOUD-RELAY-4, Task CLOUD-RELAY-4.3: [x] Gateway registration + rendezvous endpoints (@relay-engineer)
 
 ## Current Task
 - None currently running

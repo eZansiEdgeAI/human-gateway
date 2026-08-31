@@ -218,3 +218,10 @@
 {"timestamp":"2026-08-31T20:00:40.228Z","action":"task.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.2","phaseId":"CLOUD-RELAY-4","attempt":1}
 {"timestamp":"2026-08-31T20:11:16.057Z","action":"artifact.created","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.2","artifactId":"work-cloud-relay-4-2-001","artifactType":"work.cloud-relay-4.2","inputArtifacts":["work-cloud-relay-4-1-001"]}
 {"timestamp":"2026-08-31T20:11:16.058Z","action":"task.complete","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.2","phaseId":"CLOUD-RELAY-4","outputFiles":[],"durationMs":635770}
+{"timestamp":"2026-08-31T20:11:16.196Z","action":"task.committed","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.2","commitSha":"016fe655d0c13dea86a484a59916d6e9a0459711"}
+{"timestamp":"2026-08-31T20:11:16.196Z","action":"context.projected","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.3","sourceTokenEstimate":258,"projectedTokenEstimate":130,"reductionPercent":49.6,"note":"1 artifact(s) projected for task CLOUD-RELAY-4.3"}
+{"timestamp":"2026-08-31T20:11:16.196Z","action":"task.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.3","phaseId":"CLOUD-RELAY-4","attempt":1}
+{"timestamp":"2026-08-31T20:26:16.263Z","action":"task.retrying","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.3","attempt":2}
+{"timestamp":"2026-08-31T20:41:21.273Z","action":"task.retrying","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.3","attempt":3}
+{"timestamp":"2026-08-31T22:55:00.000Z","action":"artifact.created","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.3","artifactId":"work-cloud-relay-4-3-001","artifactType":"work.cloud-relay-4.3","inputArtifacts":["work-cloud-relay-4-2-001"]}
+{"timestamp":"2026-08-31T22:55:00.000Z","action":"task.complete","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.3","phaseId":"CLOUD-RELAY-4","outputFiles":[],"durationMs":2630000}

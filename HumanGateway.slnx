@@ -9,5 +9,6 @@
     <Project Path="tests/HumanGateway.Core.Tests/HumanGateway.Core.Tests.csproj" />
     <Project Path="tests/HumanGateway.Edge.CrashProbe/HumanGateway.Edge.CrashProbe.csproj" />
     <Project Path="tests/HumanGateway.Edge.Tests/HumanGateway.Edge.Tests.csproj" />
+    <Project Path="tests/HumanGateway.Relay.Tests/HumanGateway.Relay.Tests.csproj" />
   </Folder>
 </Solution>

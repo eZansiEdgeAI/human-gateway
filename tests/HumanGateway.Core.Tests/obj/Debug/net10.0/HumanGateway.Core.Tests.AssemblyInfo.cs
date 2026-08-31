@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HumanGateway.Core.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7c09566a651bb113f0bb1f4833a8da88f228c93d")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+016fe655d0c13dea86a484a59916d6e9a0459711")]
 [assembly: System.Reflection.AssemblyProductAttribute("HumanGateway.Core.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HumanGateway.Core.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
