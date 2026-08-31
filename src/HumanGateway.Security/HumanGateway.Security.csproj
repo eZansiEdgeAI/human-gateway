@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>HumanGateway.Security</RootNamespace>
+    <AssemblyName>HumanGateway.Security</AssemblyName>
+    <Version>1.0.0</Version>
+    <Description>Shared security primitives for HumanGateway (AUTH-FR-02, SP-03, SP-07): PHC password hashing and signed opaque session tokens. Dependency-free so both the Edge and the Relay consume the identical token/verifier semantics (identity-security Open Q #1: signed opaque/session tokens v1; JWT only if a consumer needs it).</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../HumanGateway.Protocol/HumanGateway.Protocol.csproj" />
+  </ItemGroup>
+
+</Project>

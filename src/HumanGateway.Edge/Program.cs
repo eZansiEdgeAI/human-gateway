@@ -10,6 +10,7 @@ using HumanGateway.Edge.Endpoints;
 using HumanGateway.Edge.Security;
 using HumanGateway.Edge.Storage;
 using HumanGateway.Edge.Sync;
+using HumanGateway.Security;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -183,6 +184,19 @@ builder.Services.Configure<GatewayOptions>(builder.Configuration.GetSection(Gate
 builder.Services.AddSingleton<LocalApiService>();
 builder.Services.ConfigureHttpJsonOptions(options => LocalApiJson.Configure(options.SerializerOptions));
 
+// ---------------------------------------------------------------------------
+// User identity + authentication (IDENTITY-SECURITY-5.2, AUTH-FR-02, SP-03): local users
+// authenticate at the Edge with a username + password; successful logins issue signed opaque session
+// tokens (hgsu_ + 256 bits, Open Q #1 default). The bootstrap user is seeded from configuration
+// (env/secret store in deployment — a committed password is a release-blocker, SP-07) so the first
+// login is possible before any account is provisioned through the API. The auth service is a singleton
+// over the pooled SQLite context factory, mirroring the other durable-store ports; the same instance is
+// exposed as the shared IUserSessionService for the bearer-session middleware.
+// ---------------------------------------------------------------------------
+builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
+builder.Services.AddSingleton<LocalAuthService>();
+builder.Services.AddSingleton<IUserSessionService>(sp => sp.GetRequiredService<LocalAuthService>());
+
 var app = builder.Build();
 
 // Translate domain/validation exceptions into ProtocolError-shaped responses so
@@ -202,7 +216,15 @@ using (var scope = app.Services.CreateScope())
     var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<EdgeDbContext>>();
     using var db = factory.CreateDbContext();
     db.Database.Migrate();
+
+    // Seed the configured bootstrap user (AUTH-FR-02, SP-07: credentials from env/secret store).
+    var auth = scope.ServiceProvider.GetRequiredService<LocalAuthService>();
+    await auth.SeedBootstrapUserAsync(CancellationToken.None);
 }
+
+// Bearer-session authentication (AUTH-FR-02, SP-03): resolves the current user from
+// `Authorization: Bearer <token>` for /auth/me and future authorised endpoints.
+app.UseSessionAuthentication();
 
 // Local health probe (EDGE-FR-01): reachable with no Internet. Includes a cheap
 // store round-trip so the probe reflects durable-store availability, not just

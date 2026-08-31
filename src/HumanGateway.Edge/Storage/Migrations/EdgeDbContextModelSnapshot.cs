@@ -385,6 +385,42 @@ namespace HumanGateway.Edge.Storage.Migrations
                     b.ToTable("participants", (string)null);
                 });
 
+            modelBuilder.Entity("HumanGateway.Edge.Storage.Entities.SessionRecord", b =>
+                {
+                    b.Property<string>("TokenFingerprint")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("token_fingerprint");
+
+                    b.Property<string>("ExpiresAt")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("IssuedAt")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("issued_at");
+
+                    b.Property<string>("RevokedAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("TokenFingerprint");
+
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("ix_sessions_expires_at");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_sessions_user_id");
+
+                    b.ToTable("sessions", (string)null);
+                });
+
             modelBuilder.Entity("HumanGateway.Edge.Storage.Entities.SyncCursorRecord", b =>
                 {
                     b.Property<string>("GatewayId")
@@ -414,6 +450,42 @@ namespace HumanGateway.Edge.Storage.Migrations
                     b.HasKey("GatewayId");
 
                     b.ToTable("sync_cursors", (string)null);
+                });
+
+            modelBuilder.Entity("HumanGateway.Edge.Storage.Entities.UserRecord", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Envelope")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("json");
+
+                    b.Property<string>("LastLoginAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("last_login_at");
+
+                    b.Property<string>("Status")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("username");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_users_status");
+
+                    b.HasIndex("Username")
+                        .IsUnique()
+                        .HasDatabaseName("ux_users_username");
+
+                    b.ToTable("users", (string)null);
                 });
 
             modelBuilder.Entity("HumanGateway.Edge.Storage.Entities.ConversationParticipant", b =>

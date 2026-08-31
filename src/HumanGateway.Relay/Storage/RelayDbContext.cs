@@ -58,6 +58,12 @@ public sealed class RelayDbContext : DbContext
     /// <summary>Per-gateway sequence counter backing the pull queue (SYNC-FR-01/03).</summary>
     public DbSet<RelayOutboxSequenceRecord> RelayOutboxSequences => Set<RelayOutboxSequenceRecord>();
 
+    /// <summary>Remote user accounts (user.schema.json, AUTH-FR-02 — the external-web-access login gate).</summary>
+    public DbSet<UserRecord> Users => Set<UserRecord>();
+
+    /// <summary>Remote user sessions (signed opaque session tokens, AUTH-FR-02, SP-03).</summary>
+    public DbSet<SessionRecord> Sessions => Set<SessionRecord>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -282,6 +288,39 @@ public sealed class RelayDbContext : DbContext
             sequence.HasKey(e => e.GatewayId);
             sequence.Property(e => e.GatewayId).HasColumnName("gateway_id").IsRequired();
             sequence.Property(e => e.LastSequence).HasColumnName("last_sequence").IsRequired();
+        });
+
+        modelBuilder.Entity<UserRecord>(user =>
+        {
+            user.ToTable("users");
+            user.HasKey(e => e.Id);
+            user.Property(e => e.Id).HasColumnName("id").IsRequired();
+            user.Property(e => e.Username).HasColumnName("username").IsRequired();
+            user.Property(e => e.Status).HasColumnName("status");
+            user.Property(e => e.LastLoginAt).HasColumnName("last_login_at");
+            user.Property(e => e.Envelope)
+                .HasColumnName("json")
+                .HasColumnType("jsonb")
+                .IsRequired()
+                .HasConversion(RelayJsonConversions.CanonicalJson<User>());
+
+            // Username is the login key (lowercase, case-insensitive matching — AUTH-FR-02).
+            user.HasIndex(e => e.Username).IsUnique().HasDatabaseName("ux_users_username");
+            user.HasIndex(e => e.Status).HasDatabaseName("ix_users_status");
+        });
+
+        modelBuilder.Entity<SessionRecord>(session =>
+        {
+            session.ToTable("sessions");
+            session.HasKey(e => e.TokenFingerprint);
+            session.Property(e => e.TokenFingerprint).HasColumnName("token_fingerprint").IsRequired();
+            session.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
+            session.Property(e => e.IssuedAt).HasColumnName("issued_at").IsRequired();
+            session.Property(e => e.ExpiresAt).HasColumnName("expires_at").IsRequired();
+            session.Property(e => e.RevokedAt).HasColumnName("revoked_at");
+
+            session.HasIndex(e => e.UserId).HasDatabaseName("ix_sessions_user_id");
+            session.HasIndex(e => e.ExpiresAt).HasDatabaseName("ix_sessions_expires_at");
         });
     }
 }

@@ -15,6 +15,8 @@
   <ItemGroup>
     <ProjectReference Include="../HumanGateway.Protocol/HumanGateway.Protocol.csproj" />
     <ProjectReference Include="../HumanGateway.Core/HumanGateway.Core.csproj" />
+    <!-- Shared security primitives (AUTH-FR-02, SP-03): PHC password hashing + signed opaque session tokens. -->
+    <ProjectReference Include="../HumanGateway.Security/HumanGateway.Security.csproj" />
   </ItemGroup>
 
   <ItemGroup>

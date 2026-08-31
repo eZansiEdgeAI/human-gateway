@@ -6,6 +6,7 @@ using HumanGateway.Relay.Health;
 using HumanGateway.Relay.Options;
 using HumanGateway.Relay.Services;
 using HumanGateway.Relay.Storage;
+using HumanGateway.Security;
 using HumanGateway.Core.Artifacts;
 using HumanGateway.Core.Idempotency;
 using HumanGateway.Core.Inbox;
@@ -81,6 +82,19 @@ builder.Services.Configure<RelayOptions>(builder.Configuration.GetSection(RelayO
 // short-lived context via the pooled factory.
 builder.Services.AddScoped<GatewayService>();
 builder.Services.AddScoped<RendezvousService>();
+
+// ---------------------------------------------------------------------------
+// Remote user identity + authentication (IDENTITY-SECURITY-5.2, AUTH-FR-02, SP-03, external-web-access):
+// remote users authenticate at the Relay with a username + password; successful logins issue signed opaque
+// session tokens (hgsu_ + 256 bits, Open Q #1 default) — the same semantics as the Edge via the shared
+// IUserSessionService contract. The bootstrap user is seeded from configuration (env/secret store in
+// deployment — a committed password is a release-blocker, SP-07). Singleton, like the other durable ports
+// (it opens a short-lived context per operation via the pooled factory) — this also lets the bearer-session
+// middleware resolve it from the root provider.
+// ---------------------------------------------------------------------------
+builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
+builder.Services.AddSingleton<RemoteAuthService>();
+builder.Services.AddSingleton<IUserSessionService>(sp => sp.GetRequiredService<RemoteAuthService>());
 
 // ---------------------------------------------------------------------------
 // Sync engine + durable ports (RELAY-FR-02, SYNC-FR-01..07). The Relay consumes the shared SyncEngine
@@ -189,6 +203,10 @@ if (app.Configuration.GetConnectionString("Relay") is { } relayConnectionString)
     }
 }
 
+// Bearer-session authentication (AUTH-FR-02, SP-03): resolves the current remote user from
+// `Authorization: Bearer <token>` for /auth/me and future authorised endpoints.
+app.UseSessionAuthentication();
+
 // Apply pending EF Core migrations so the schema exists before the Relay begins
 // accepting sync traffic (RELAY-FR-01).
 using (var scope = app.Services.CreateScope())
@@ -196,6 +214,11 @@ using (var scope = app.Services.CreateScope())
     var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<RelayDbContext>>();
     using var db = factory.CreateDbContext();
     db.Database.Migrate();
+
+    // Seed the configured bootstrap remote user (AUTH-FR-02, SP-07: credentials from env/secret store; no-op
+    // when none is configured). Runs after the schema exists so the first remote login has an account.
+    await scope.ServiceProvider.GetRequiredService<RemoteAuthService>()
+        .SeedBootstrapUserAsync(CancellationToken.None);
 }
 
 // Health probe endpoints (NF-09, RELAY-FR-05).
@@ -232,7 +255,8 @@ app.MapHealthChecks("/health", new HealthCheckOptions
     },
 });
 
-// The Relay API: gateway registration + rendezvous, sync, service info.
+// The Relay API: gateway registration + rendezvous, sync, remote auth, service info.
+app.MapRemoteAuthEndpoints();
 app.MapRelayEndpoints();
 
 app.Run();

@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>HumanGateway.Security.Tests</RootNamespace>
+    <AssemblyName>HumanGateway.Security.Tests</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
+    <PackageReference Include="xunit" Version="2.6.5" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.6">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Unit tests for the shared security primitives (identity-security §6: token signing, authn rules):
+         PHC password hashing and signed opaque session tokens — the identical semantics both the Edge and
+         the Relay consume (AUTH-FR-02, SP-03). -->
+    <ProjectReference Include="../../src/HumanGateway.Security/HumanGateway.Security.csproj" />
+  </ItemGroup>
+
+</Project>

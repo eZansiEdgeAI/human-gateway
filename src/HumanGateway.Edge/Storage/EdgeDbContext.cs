@@ -39,6 +39,12 @@ public sealed class EdgeDbContext : DbContext
     /// <summary>Local participant directory.</summary>
     public DbSet<ParticipantRecord> Participants => Set<ParticipantRecord>();
 
+    /// <summary>Local user accounts (user.schema.json, AUTH-FR-02).</summary>
+    public DbSet<UserRecord> Users => Set<UserRecord>();
+
+    /// <summary>Local user sessions (signed opaque session tokens, AUTH-FR-02, SP-03).</summary>
+    public DbSet<SessionRecord> Sessions => Set<SessionRecord>();
+
     /// <summary>Durable outbox entries (EDGE-FR-04).</summary>
     public DbSet<OutboxEntryRecord> Outbox => Set<OutboxEntryRecord>();
 
@@ -258,6 +264,38 @@ public sealed class EdgeDbContext : DbContext
             cursor.Property(e => e.InFlightBatchId).HasColumnName("in_flight_batch_id");
             cursor.Property(e => e.InFlightIdempotencyKey).HasColumnName("in_flight_idempotency_key");
             cursor.Property(e => e.InFlightAfterSequence).HasColumnName("in_flight_after_sequence");
+        });
+
+        modelBuilder.Entity<UserRecord>(user =>
+        {
+            user.ToTable("users");
+            user.HasKey(e => e.Id);
+            user.Property(e => e.Id).HasColumnName("id").IsRequired();
+            user.Property(e => e.Username).HasColumnName("username").IsRequired();
+            user.Property(e => e.Status).HasColumnName("status");
+            user.Property(e => e.LastLoginAt).HasColumnName("last_login_at");
+            user.Property(e => e.Envelope)
+                .HasColumnName("json")
+                .IsRequired()
+                .HasConversion(ProtocolJsonConversions.CanonicalJson<User>());
+
+            // Username is the login key (lowercase, case-insensitive matching — AUTH-FR-02).
+            user.HasIndex(e => e.Username).IsUnique().HasDatabaseName("ux_users_username");
+            user.HasIndex(e => e.Status).HasDatabaseName("ix_users_status");
+        });
+
+        modelBuilder.Entity<SessionRecord>(session =>
+        {
+            session.ToTable("sessions");
+            session.HasKey(e => e.TokenFingerprint);
+            session.Property(e => e.TokenFingerprint).HasColumnName("token_fingerprint").IsRequired();
+            session.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
+            session.Property(e => e.IssuedAt).HasColumnName("issued_at").IsRequired();
+            session.Property(e => e.ExpiresAt).HasColumnName("expires_at").IsRequired();
+            session.Property(e => e.RevokedAt).HasColumnName("revoked_at");
+
+            session.HasIndex(e => e.UserId).HasDatabaseName("ix_sessions_user_id");
+            session.HasIndex(e => e.ExpiresAt).HasDatabaseName("ix_sessions_expires_at");
         });
     }
 }

@@ -3,6 +3,7 @@
     <Project Path="src/HumanGateway.Core/HumanGateway.Core.csproj" />
     <Project Path="src/HumanGateway.Edge/HumanGateway.Edge.csproj" />
     <Project Path="src/HumanGateway.Relay/HumanGateway.Relay.csproj" />
+    <Project Path="src/HumanGateway.Security/HumanGateway.Security.csproj" />
     <Project Path="src/HumanGateway.Protocol/HumanGateway.Protocol.csproj" />
   </Folder>
   <Folder Name="/tests/">
@@ -10,5 +11,6 @@
     <Project Path="tests/HumanGateway.Edge.CrashProbe/HumanGateway.Edge.CrashProbe.csproj" />
     <Project Path="tests/HumanGateway.Edge.Tests/HumanGateway.Edge.Tests.csproj" />
     <Project Path="tests/HumanGateway.Relay.Tests/HumanGateway.Relay.Tests.csproj" />
+    <Project Path="tests/HumanGateway.Security.Tests/HumanGateway.Security.Tests.csproj" />
   </Folder>
 </Solution>

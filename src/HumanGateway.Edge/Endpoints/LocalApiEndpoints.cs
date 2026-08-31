@@ -13,6 +13,7 @@ public static class LocalApiEndpoints
     /// <summary>Maps every local API endpoint onto the app.</summary>
     public static void MapLocalApiEndpoints(this WebApplication app)
     {
+        app.MapAuthEndpoints();
         app.MapConversationEndpoints();
         app.MapMessageEndpoints();
         app.MapTaskEndpoints();
