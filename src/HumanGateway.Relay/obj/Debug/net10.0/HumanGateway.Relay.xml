@@ -1,0 +1,428 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>HumanGateway.Relay</name>
+    </assembly>
+    <members>
+        <member name="T:HumanGateway.Relay.Api.ApiErrors">
+            <summary>
+            Builds consistent <see cref="T:HumanGateway.Protocol.Models.ProtocolError"/>-shaped HTTP error responses for the Relay API. Error codes use
+            the reserved protocol catalog (<see cref="T:HumanGateway.Protocol.Models.ErrorCodes"/>); messages are human-safe (SP-07).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Api.ApiErrors.BadRequest(System.String,System.String)">
+            <summary>400 — a request body/query is malformed.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Api.ApiErrors.Forbidden(System.String,System.String)">
+            <summary>401/403 — the gateway failed identity/authorisation (SP-02, SP-07).</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Api.ApiErrors.NotFound(System.String)">
+            <summary>404 — the requested resource does not exist.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Api.ApiErrors.Conflict(System.String)">
+            <summary>409 — the request conflicts with an existing durable record.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Api.ApiErrors.InternalError">
+            <summary>500 — an unexpected internal failure (message kept generic for SP-07).</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Api.ApiErrors.FromException(System.Exception)">
+            <summary>Maps an arbitrary exception to a response; the default is a generic 500 (SP-07).</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Api.RelayJson">
+            <summary>
+            JSON configuration for the Relay's HTTP API. Mirrors <c>ProtocolJson.Options</c> (exact enum tokens,
+            omit-null, disallow unmapped members) and additionally applies a camelCase naming policy so plain
+            request/response records share the protocol's wire convention without each needing an explicit
+            <c>[JsonPropertyName]</c>. Protocol entities are unaffected: their explicit <c>[JsonPropertyName]</c>
+            attributes override the policy, so an entity response is byte-identical to the protocol wire form.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Api.RelayJson.Configure(System.Text.Json.JsonSerializerOptions)">
+            <summary>Applies the Relay API JSON contract to a serializer options instance.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Endpoints.RelayEndpoints">
+            <summary>
+            Maps the Cloud Relay HTTP API (RELAY-FR-02..04). The scaffold carries the service-info probe; the
+            gateway registration + rendezvous endpoints (RELAY-FR-03, task CLOUD-RELAY-4.3) and the sync endpoint
+            (push/pull cursors + delivery ack, SYNC-FR-03/05, task CLOUD-RELAY-4.4) land here as their own groups.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Endpoints.RelayEndpoints.MapRelayEndpoints(Microsoft.AspNetCore.Builder.WebApplication)">
+            <summary>Maps every Relay endpoint onto the app.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.Entities.ArtifactBlobRecord">
+            <summary>
+            The Relay's content-addressed artifact bytes (RELAY-FR-01): a BYTEA row per unique content hash. Equal
+            content yields an equal hash, so one row serves every artifact ID referencing those bytes (dedup,
+            ARTF-FR-01). Streaming reads are supported by returning <see cref="P:HumanGateway.Relay.Storage.Entities.ArtifactBlobRecord.Data"/> in chunks (task CLOUD-RELAY-4.5).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.ArtifactBlobRecord.Hash">
+            <summary>Content hash (<c>sha256:&lt;hex&gt;</c>) — the primary key (dedup key).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.ArtifactBlobRecord.Data">
+            <summary>The artifact bytes.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.ArtifactBlobRecord.SizeBytes">
+            <summary>Byte size of <see cref="P:HumanGateway.Relay.Storage.Entities.ArtifactBlobRecord.Data"/> for quota/progress reporting.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.ArtifactBlobRecord.CreatedAt">
+            <summary>RFC 3339 UTC when the blob was first recorded.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.Entities.ArtifactRecord">
+            <summary>
+            Durable Relay storage of an <see cref="T:HumanGateway.Protocol.Models.Artifact"/> metadata record (RELAY-FR-01). Only the metadata is
+            stored here; the bytes live in the content-addressed BYTEA table <see cref="T:HumanGateway.Relay.Storage.Entities.ArtifactBlobRecord"/>
+            (PROTO-FR-04). The hash column is indexed for deduplication lookups (multiple artifact IDs may reference
+            the same bytes).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.ArtifactRecord.Id">
+            <summary>Durable artifact ID — the primary key (the storage key).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.ArtifactRecord.Hash">
+            <summary>Content hash (<c>sha256:&lt;hex&gt;</c>) used for dedup and tamper detection (SP-06).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.ArtifactRecord.SizeBytes">
+            <summary>Byte size for progress reporting and quota enforcement.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.ArtifactRecord.MimeType">
+            <summary>Media type for rendering/interpretation.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.ArtifactRecord.Envelope">
+            <summary>The full protocol artifact record, stored as canonical wire JSON.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.Entities.ArtifactRecord.FromEnvelope(HumanGateway.Protocol.Models.Artifact)">
+            <summary>Creates a storage record from a protocol artifact, deriving the query columns.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.Entities.Conversation">
+            <summary>
+            A conversation as stored by the Relay — the shared grouping record that <see cref="T:HumanGateway.Relay.Storage.Entities.MessageRecord"/>
+            envelopes reference by <see cref="P:HumanGateway.Relay.Storage.Entities.MessageRecord.ConversationId"/>. Conversations are the rendezvous point
+            for cross-school exchange (RELAY-FR-04): messages from different gateways share a conversation through the
+            cloud. Membership (<see cref="P:HumanGateway.Relay.Storage.Entities.Conversation.Participants"/>) governs per-conversation authorisation (SP-04, AUTH-FR-03)
+            once identity lands in Phase 5.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.Conversation.Id">
+            <summary>Durable conversation ID — the primary key.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.Conversation.Title">
+            <summary>Optional human-readable title.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.Conversation.CreatedAt">
+            <summary>RFC 3339 UTC creation timestamp.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.Conversation.UpdatedAt">
+            <summary>RFC 3339 UTC last-modified timestamp.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.Conversation.Participants">
+            <summary>Membership rows linking participants to this conversation.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.Entities.ConversationParticipant">
+            <summary>
+            Join row for conversation membership at the Relay (a participant's presence in a conversation). Membership
+            governs per-conversation authorisation (SP-04, AUTH-FR-03): a participant may only read/write conversations
+            they are a member of.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.ConversationParticipant.ConversationId">
+            <summary>The conversation this membership applies to.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.ConversationParticipant.ParticipantAddress">
+            <summary>The participant's typed address (e.g. <c>human:teacher@school.example</c>).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.ConversationParticipant.JoinedAt">
+            <summary>RFC 3339 UTC timestamp when the participant joined.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.ConversationParticipant.Conversation">
+            <summary>Navigation to the owning conversation.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.ConversationParticipant.Participant">
+            <summary>Navigation to the participant directory record.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.Entities.DeliveryRecord">
+            <summary>
+            Durable Relay storage of a per-recipient <see cref="T:HumanGateway.Protocol.Models.Delivery"/> lifecycle record (RELAY-FR-01,
+            PROTO-FR-05). One row per (message, recipient); the state column is denormalised for indexed status
+            queries and the sync worker's retry scan.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.DeliveryRecord.Id">
+            <summary>Durable delivery record ID — the primary key.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.DeliveryRecord.MessageId">
+            <summary>The message this delivery tracks (indexed).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.DeliveryRecord.RecipientAddress">
+            <summary>The recipient's typed address (indexed).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.DeliveryRecord.State">
+            <summary>Wire-token delivery state (<c>QUEUED</c>, <c>SYNCING</c>, ...) for indexed status queries.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.DeliveryRecord.Envelope">
+            <summary>The full protocol delivery record, stored as canonical wire JSON.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.Entities.DeliveryRecord.FromEnvelope(HumanGateway.Protocol.Models.Delivery)">
+            <summary>Creates a storage record from a protocol delivery, deriving the query columns.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.Entities.GatewayRecord">
+            <summary>
+            Durable Relay record of an Edge Gateway identity (gateway.schema.json, AUTH-FR-01, RELAY-FR-03). The Relay
+            stores only the SHA-256 fingerprint of the registration token — never the plaintext token (SP-07) — along
+            with the registration lifecycle status. Only REGISTERED gateways may exchange sync batches; SUSPENDED and
+            REVOKED gateways are rejected (SP-02). One row per gateway.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.GatewayRecord.GatewayId">
+            <summary>Unique durable gateway identity — the primary key (SP-02). Referenced by syncbatch.gatewayId.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.GatewayRecord.DisplayName">
+            <summary>Human-readable gateway name (e.g. the school or site name).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.GatewayRecord.Status">
+            <summary>Wire-token registration lifecycle (UNREGISTERED | PENDING | REGISTERED | SUSPENDED | REVOKED).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.GatewayRecord.RegistrationTokenFingerprint">
+            <summary>SHA-256 of the current registration token (<c>sha256:&lt;hex&gt;</c>); never the plaintext (SP-07).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.GatewayRecord.TokenIssuedAt">
+            <summary>RFC 3339 UTC when the current registration token was issued.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.GatewayRecord.TokenExpiresAt">
+            <summary>RFC 3339 UTC when the current token expires; the Edge must rotate before this time.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.GatewayRecord.RegisteredAt">
+            <summary>RFC 3339 UTC when the gateway first registered successfully.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.GatewayRecord.SuspendedAt">
+            <summary>RFC 3339 UTC when the gateway was suspended (required when status is SUSPENDED).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.GatewayRecord.RevokedAt">
+            <summary>RFC 3339 UTC when the gateway identity was revoked (required when status is REVOKED).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.GatewayRecord.LastSeenAt">
+            <summary>RFC 3339 UTC of the last successful authenticated Edge↔Relay exchange.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.GatewayRecord.CreatedAt">
+            <summary>RFC 3339 UTC when the identity record was created.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.GatewayRecord.UpdatedAt">
+            <summary>RFC 3339 UTC when the identity record last changed.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.Entities.IdempotencyRecord">
+            <summary>
+            Durable idempotency record at the Relay (SYNC-FR-02, NF-05): proves a sync batch has already been applied.
+            The composite primary key <c>(batchId, idempotencyKey)</c> is unique, so recording the same logical batch
+            twice is a no-op and a replayed batch is detected before any item is re-applied.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.IdempotencyRecord.BatchId">
+            <summary>Durable batch identity (part of the composite primary key).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.IdempotencyRecord.IdempotencyKey">
+            <summary>Stable per-batch key (part of the composite primary key).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.IdempotencyRecord.AppliedAtUtc">
+            <summary>When the batch was recorded as applied.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.Entities.InboxEntryRecord">
+            <summary>
+            Durable inbox entry at the Relay (SYNC-FR-01): a unit of sync work received from a gateway and committed to
+            PostgreSQL. Messages are deduplicated by the denormalised <see cref="P:HumanGateway.Relay.Storage.Entities.InboxEntryRecord.MessageId"/> column (unique index), so a
+            replayed batch has exactly one effect (SYNC-FR-02, NF-05). Entries are ordered by (gateway, sequence) for
+            deterministic reordering (SYNC-FR-07) and cursor computation (SYNC-FR-03).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.InboxEntryRecord.Id">
+            <summary>Durable inbox record ID — the primary key.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.InboxEntryRecord.GatewayId">
+            <summary>The gateway this entry originated from.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.InboxEntryRecord.Sequence">
+            <summary>Per-gateway monotonic sequence number (≥ 1).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.InboxEntryRecord.MessageId">
+            <summary>The durable message ID when this entry carries a message (null for delivery/artifact/ack items).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.InboxEntryRecord.Item">
+            <summary>The received sync operation, stored as canonical wire JSON.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.InboxEntryRecord.ReceivedAtUtc">
+            <summary>When the entry was received.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.Entities.MessageRecord">
+            <summary>
+            Durable Relay storage of a protocol <see cref="T:HumanGateway.Protocol.Models.Message"/> envelope (RELAY-FR-01). Messages from every
+            registered gateway land here (message IDs are globally unique, SYNC-FR-01); the full envelope is kept as
+            canonical JSON in <see cref="P:HumanGateway.Relay.Storage.Entities.MessageRecord.Envelope"/> and the scalar columns are denormalised for indexed querying and
+            ordering (by conversation, by sender, chronologically).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.MessageRecord.Id">
+            <summary>Durable message ID — the primary key (SYNC-FR-01).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.MessageRecord.ConversationId">
+            <summary>The conversation this message belongs to (indexed for listing).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.MessageRecord.SenderAddress">
+            <summary>The sender participant's typed address (indexed).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.MessageRecord.CreatedAt">
+            <summary>RFC 3339 UTC creation timestamp (indexed for chronological ordering).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.MessageRecord.ContentHash">
+            <summary>The envelope content hash (SYNC-FR-02) for integrity verification.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.MessageRecord.Envelope">
+            <summary>The full protocol envelope, stored as canonical wire JSON.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.Entities.MessageRecord.FromEnvelope(HumanGateway.Protocol.Models.Message)">
+            <summary>Creates a storage record from a protocol envelope, deriving the query columns.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.Entities.ParticipantRecord">
+            <summary>
+            Durable participant directory at the Relay (RELAY-FR-03, remote web access). Resolves a typed address
+            (<c>human:</c>/<c>agent:</c>/<c>system:</c>) to its display metadata. The address is the primary key; the
+            full envelope is kept as canonical JSON, with denormalised columns for lookups and display.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.ParticipantRecord.Address">
+            <summary>Typed address (e.g. <c>human:reviewer@remote.example</c>) — the primary key.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.ParticipantRecord.Kind">
+            <summary>Wire-token participant kind (<c>human</c>, <c>agent</c>, <c>system</c>) for filtering.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.ParticipantRecord.DisplayName">
+            <summary>Human-readable display name.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.ParticipantRecord.UserId">
+            <summary>Optional local user identifier for human participants (AUTH-FR-02).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.ParticipantRecord.GatewayId">
+            <summary>Optional gateway identity for system participants (AUTH-FR-01).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.ParticipantRecord.Envelope">
+            <summary>The full protocol participant record, stored as canonical wire JSON.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.Entities.ParticipantRecord.FromParticipant(HumanGateway.Protocol.Models.Participant)">
+            <summary>Creates a storage record from a protocol participant, deriving the query columns.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.Entities.SyncCursorRecord">
+            <summary>
+            Durable per-gateway sync-cursor state at the Relay (SYNC-FR-03). <see cref="P:HumanGateway.Relay.Storage.Entities.SyncCursorRecord.PushCursor"/> is the opaque
+            cursor the Relay issues after applying a gateway's PUSH batch — the Edge echoes it back as
+            <c>sinceCursor</c> on the next push. <see cref="P:HumanGateway.Relay.Storage.Entities.SyncCursorRecord.PullCursor"/> is the Relay-side cursor for the inbound
+            (Relay → gateway) direction: it marks how far the gateway has pulled, so the Relay returns only newer
+            batches. Cursors are opaque tokens — the Relay stores and echoes them without interpreting them. One row
+            per gateway.
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.SyncCursorRecord.GatewayId">
+            <summary>The gateway whose sync state this is — the primary key.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.SyncCursorRecord.PushCursor">
+            <summary>The cursor covering the gateway's last applied PUSH batch, issued to the Edge.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.SyncCursorRecord.PullCursor">
+            <summary>The cursor covering what the gateway has pulled, updated on each PULL response.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.Migrations.InitialCreate">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.Migrations.InitialCreate.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.Migrations.InitialCreate.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.Migrations.InitialCreate.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.RelayDbContext">
+            <summary>
+            The Cloud Relay's durable PostgreSQL store (RELAY-FR-01): gateways, conversations, messages, deliveries,
+            artifacts (metadata + BYTEA blobs), participants, and the sync model (inbox, idempotency, cursors).
+            Protocol envelopes are stored as canonical wire JSON in jsonb columns with denormalised scalar columns for
+            indexed querying. Column names follow snake_case (PostgreSQL convention); the design-time factory in
+            <see cref="T:HumanGateway.Relay.Storage.RelayDbContextFactory"/> keeps the EF tooling able to build the model without a live database.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayDbContext.#ctor(Microsoft.EntityFrameworkCore.DbContextOptions{HumanGateway.Relay.Storage.RelayDbContext})">
+            <summary>Creates the context over the supplied options (connection string).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.RelayDbContext.Gateways">
+            <summary>Registered Edge Gateways (gateway.schema.json, RELAY-FR-03).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.RelayDbContext.Conversations">
+            <summary>Conversations (shared grouping for cross-school exchange).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.RelayDbContext.ConversationParticipants">
+            <summary>Conversation membership join rows.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.RelayDbContext.Messages">
+            <summary>Stored message envelopes from all registered gateways.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.RelayDbContext.Deliveries">
+            <summary>Stored per-recipient delivery records.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.RelayDbContext.Artifacts">
+            <summary>Stored artifact metadata (bytes live in <see cref="P:HumanGateway.Relay.Storage.RelayDbContext.ArtifactBlobs"/>).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.RelayDbContext.ArtifactBlobs">
+            <summary>Content-addressed artifact bytes (RELAY-FR-01, BYTEA).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.RelayDbContext.Participants">
+            <summary>Participant directory.</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.RelayDbContext.SyncCursors">
+            <summary>Durable per-gateway sync-cursor state (SYNC-FR-03).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.RelayDbContext.Inbox">
+            <summary>Durable inbox entries (applied PUSH items, SYNC-FR-01).</summary>
+        </member>
+        <member name="P:HumanGateway.Relay.Storage.RelayDbContext.Idempotency">
+            <summary>Durable applied-batch records (SYNC-FR-02, NF-05).</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayDbContext.OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.RelayDbContextFactory">
+            <summary>
+            Design-time factory used by the EF Core tooling (<c>dotnet ef migrations add</c>) to construct a
+            <see cref="T:HumanGateway.Relay.Storage.RelayDbContext"/> without hosting the web application. The connection string is taken from the
+            first argument (for scripting) or defaults to the local development PostgreSQL described in the README.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayDbContextFactory.CreateDbContext(System.String[])">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.RelayJsonConversions">
+            <summary>
+            Value-converter helpers that map protocol records to their canonical wire JSON for PostgreSQL jsonb storage
+            (RELAY-FR-01).
+            </summary>
+            <remarks>
+            Each stored record keeps its full protocol envelope as the canonical JSON produced by
+            <see cref="F:HumanGateway.Protocol.Models.ProtocolJson.Options"/> (exact wire names, <c>additionalProperties: false</c>, enum tokens) so a
+            round-trip is byte-identical. Denormalised scalar columns alongside the JSON exist only for indexed
+            querying/ordering; the JSON column is the authoritative record.
+            </remarks>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayJsonConversions.CanonicalJson``1">
+            <summary>
+            A value converter that stores a protocol record as its canonical JSON and materialises it back.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayJsonConversions.WireToken``1(``0)">
+            <summary>
+            Serialises an enum to its exact wire token (e.g. <c>REGISTERED</c>, <c>DELIVERED</c>) for use in a
+            denormalised scalar query column. Mirrors <see cref="F:HumanGateway.Protocol.Models.ProtocolJson.Options"/>' enum converter.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.RelayJsonConversions.WireToken``1(System.Nullable{``0})">
+            <summary>Serialises a nullable enum to its wire token, or null when absent.</summary>
+        </member>
+    </members>
+</doc>

@@ -1,9 +1,9 @@
 # Project Progress
 
 ## Current State
-**Phase**: SYNCHRONISATION-3
+**Phase**: CLOUD-RELAY-4
 **Status**: In Progress
-**Last Updated**: 2026-08-31T19:48:49.215Z
+**Last Updated**: 2026-08-31T20:00:39.853Z
 **Run ID**: cc1dad89-27a5-4765-8655-91bea28ec9c3
 **Harness**: opencode
 
@@ -38,6 +38,8 @@
 - [x] Phase SYNCHRONISATION-3, Task SYNCHRONISATION-3.4: [ ] Deterministic ordering/reordering by sequence number (@sync-engineer)
 - [x] Phase SYNCHRONISATION-3, Task SYNCHRONISATION-3.5: [ ] Convergence logic after long disconnects and partial failures (@sync-engineer)
 - [x] Phase SYNCHRONISATION-3, Task SYNCHRONISATION-3.6: [ ] Property/chaos tests (@sync-engineer)
+- [x] Phase CLOUD-RELAY-4, Task CLOUD-RELAY-4.1: [ ] Scaffold `src/HumanGateway (@infrastructure-engineer)
+  - Files: src/HumanGateway.Relay
 
 ## Current Task
 - None currently running

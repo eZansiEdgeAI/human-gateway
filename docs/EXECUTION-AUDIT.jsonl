@@ -206,3 +206,10 @@
 {"timestamp":"2026-08-31T19:43:35.757Z","action":"task.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"SYNCHRONISATION-3.6","phaseId":"SYNCHRONISATION-3","attempt":1}
 {"timestamp":"2026-08-31T19:48:49.212Z","action":"artifact.created","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"SYNCHRONISATION-3.6","artifactId":"work-synchronisation-3-6-001","artifactType":"work.synchronisation-3.6","inputArtifacts":["work-synchronisation-3-5-002"]}
 {"timestamp":"2026-08-31T19:48:49.212Z","action":"task.complete","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"SYNCHRONISATION-3.6","phaseId":"SYNCHRONISATION-3","outputFiles":[],"durationMs":313400}
+{"timestamp":"2026-08-31T19:48:49.342Z","action":"task.committed","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"SYNCHRONISATION-3.6","commitSha":"1f183c297490eee2efc28db048b01a8c8f38aa09"}
+{"timestamp":"2026-08-31T19:48:49.342Z","action":"run.paused","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","note":"Stop/pause requested (control file or signal)"}
+{"timestamp":"2026-08-31T19:50:49.769Z","action":"run.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","note":"harness=opencode"}
+{"timestamp":"2026-08-31T19:50:49.835Z","action":"phase.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","phaseId":"CLOUD-RELAY-4"}
+{"timestamp":"2026-08-31T19:50:49.835Z","action":"task.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.1","phaseId":"CLOUD-RELAY-4","attempt":1}
+{"timestamp":"2026-08-31T20:00:39.849Z","action":"artifact.created","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.1","artifactId":"work-cloud-relay-4-1-001","artifactType":"work.cloud-relay-4.1","inputArtifacts":[]}
+{"timestamp":"2026-08-31T20:00:39.850Z","action":"task.complete","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"CLOUD-RELAY-4.1","phaseId":"CLOUD-RELAY-4","outputFiles":["src/HumanGateway.Relay"],"durationMs":589994}

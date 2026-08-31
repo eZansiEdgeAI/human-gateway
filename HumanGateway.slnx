@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/HumanGateway.Core/HumanGateway.Core.csproj" />
     <Project Path="src/HumanGateway.Edge/HumanGateway.Edge.csproj" />
+    <Project Path="src/HumanGateway.Relay/HumanGateway.Relay.csproj" />
     <Project Path="src/HumanGateway.Protocol/HumanGateway.Protocol.csproj" />
   </Folder>
   <Folder Name="/tests/">
