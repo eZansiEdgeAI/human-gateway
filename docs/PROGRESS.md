@@ -3,7 +3,7 @@
 ## Current State
 **Phase**: IDENTITY-SECURITY-5
 **Status**: In Progress
-**Last Updated**: 2026-09-01T00:27:06.466Z
+**Last Updated**: 2026-09-01T00:27:10.888Z
 **Run ID**: cc1dad89-27a5-4765-8655-91bea28ec9c3
 **Harness**: opencode
 
@@ -51,6 +51,7 @@
 - [x] Phase IDENTITY-SECURITY-5, Task IDENTITY-SECURITY-5.2: [ ] User identity + authentication at the Edge (local) and Relay (remote) with signed tokens/sessions (@security-engineer)
 - [x] Phase IDENTITY-SECURITY-5, Task IDENTITY-SECURITY-5.3: [ ] Authorisation middleware (@security-engineer)
 - [x] Phase IDENTITY-SECURITY-5, Task IDENTITY-SECURITY-5.4: [ ] TLS everywhere; signed request tokens for Edge↔Relay traffic (@security-engineer)
+- [x] Phase IDENTITY-SECURITY-5, Task IDENTITY-SECURITY-5.5: [ ] Secure artifact access control; content-hash verification on download (@security-engineer)
 
 ## Current Task
 - None currently running

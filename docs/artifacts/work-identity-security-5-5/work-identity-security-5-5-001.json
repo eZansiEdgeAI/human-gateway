@@ -1,0 +1,18 @@
+{
+  "type": "work.identity-security-5.5",
+  "category": "work",
+  "taskId": "IDENTITY-SECURITY-5.5",
+  "producedBy": "security-engineer",
+  "status": "complete",
+  "summary": "Task IDENTITY-SECURITY-5.5 completed successfully.",
+  "inputs": [
+    "work-identity-security-5-4-001"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": ""
+  },
+  "nextActions": [],
+  "artifactId": "work-identity-security-5-5-001",
+  "createdAt": "2026-09-01T00:27:10.881Z"
+}
