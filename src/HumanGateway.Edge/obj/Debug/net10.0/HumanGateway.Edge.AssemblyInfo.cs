@@ -17,7 +17,7 @@ using System.Reflection;
     "ithout Internet and queuing everything for later sync (product vision §6.2, EDGE" +
     "-FR-01..07)."))]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d066467e8c40cbccbc720d0e594a7082c5112eeb")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+08eaf7ba328bbf5a1ef897761a9283b8cb72e180")]
 [assembly: System.Reflection.AssemblyProductAttribute("HumanGateway.Edge")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HumanGateway.Edge")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -1,8 +1,41 @@
 node_modules/
 docs/engine-run.log
 
+# .NET build and test outputs
+**/bin/
+**/obj/
+TestResults/
+*.coverage
+*.coveragexml
+
+# Frontend build output
+src/HumanGateway.Client/dist/
+src/HumanGateway.Client/.vite/
+coverage/
+
+# Local runtime state and SQLite data
 # Edge runtime SQLite store (WAL) — created at runtime, never committed (EDGE-FR-02).
 src/HumanGateway.Edge/data/
-*.db
-*.db-wal
-*.db-shm
+**/*.db
+**/*.db-wal
+**/*.db-shm
+**/*.sqlite
+**/*.sqlite3
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+secrets/
+*.secret
+
+# Editor and OS junk
+.vscode/
+.idea/
+*.swp
+*.suo
+*.user
+*.userosscache

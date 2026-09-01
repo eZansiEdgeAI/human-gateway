@@ -4,58 +4,95 @@
   <img src="src/HumanGateway.Client/public/favicon.svg" alt="HumanGateway logo" width="96" height="96" />
 </p>
 
-HumanGateway is an offline-first communication fabric for human-in-the-loop workflows. It lets a local Edge Gateway queue messages and tasks when connectivity is poor, keep them durable on-site, and reconcile them later when an outbound connection is available.
-
-> [!NOTE]
-> This repository is the current implementation foundation for the Edge Gateway, durable sync engine, protocol contracts, and the offline-capable client. The cloud Relay layer is planned as the next major deployment surface, while the local-first behavior is already implemented in the codebase.
+HumanGateway is an offline-first communication fabric for human-in-the-loop workflows. It keeps human tasks, messages, and artifacts durable at the edge, allows local work to continue without connectivity, and reconciles changes when an outbound connection becomes available again.
 
 ## Why this project exists
 
-Modern distributed and agentic workflows often fail at the last mile: the human is available, but the network is not. HumanGateway addresses that gap by treating communication like durable email rather than real-time chat.
+Modern agentic and distributed workflows often fail at the last mile: the task is ready, the human is available, but the network is not. HumanGateway treats communication like durable store-and-forward mail rather than real-time chat.
 
-- Messages, tasks, and artifacts are stored locally first.
-- The Edge remains functional without Internet access.
-- Outbound-only synchronization keeps the school or site network boundary simple and secure.
-- Workflows can continue asynchronously even when humans are offline for hours or days.
+The core idea is simple:
 
-## Architecture at a glance
+- local work continues even when the internet is unavailable
+- message delivery is durable and retried automatically
+- the edge gateway remains the trust boundary for site operations
+- sync happens outbound-only, keeping the local network simple and secure
 
-HumanGateway is designed around three layers:
+## Architecture overview
+
+The repository is organized around a few clear layers:
 
 1. Edge Gateway
-   - Runs on inexpensive local hardware.
-   - Stores messages, tasks, artifacts, and sync state in SQLite.
-   - Exposes a local REST API for the PWA and local clients.
-   - Keeps outbound-only sync running when connectivity comes back.
+   - ASP.NET Core service running on local infrastructure
+   - SQLite-backed durable storage for messages, artifacts, deliveries, and tasks
+   - local REST API used by the PWA and local clients
+   - background sync worker responsible for outbound reconciliation
 
-2. Durable sync core
-   - Shared protocol and synchronization logic live in the Core project.
-   - Handles durable outbox/inbox behavior, idempotency, ordering, and cursor-based sync.
+2. Shared sync engine and protocol core
+   - durable outbox/inbox and idempotency logic
+   - cursor-based sync semantics and ordering rules
+   - common protocol models that define message, task, artifact, delivery, and participant behavior
 
-3. Offline-capable client
-   - React + TypeScript PWA, designed to be installable and usable offline.
-   - Manages local queueing and user-facing task flows for schools, field staff, and remote reviewers.
+3. Client experience
+   - React + TypeScript PWA designed for offline-first operation
+   - service worker and app-shell caching for installable use
+   - local-first UI semantics for task and message flows
 
-## Current repository status
+4. Relay and security
+   - cloud-facing relay and security components for authenticated outbound sync and gateway identity
+   - transport-level protections and registration flow for the site edge
 
-This repo already includes the foundational pieces for the local-first system:
+## Current implementation status
 
-- SQLite-backed Edge Gateway service with local REST API endpoints
-- Durable outbox/inbox/idempotency state in the Core library
-- Protocol models and validation for messages, tasks, delivery records, synchronization batches, and artifacts
-- Offline-first React + TypeScript client shell and PWA setup
-- Background sync worker skeleton with outbound-only sync hooks
+This repository already contains a substantial working foundation rather than a purely design-only prototype.
 
-The cloud Relay service and full HTTPS synchronization transport are still part of the broader feature roadmap rather than a completed implementation in this workspace.
+Implemented today:
 
-## How the flow works
+- SQLite-backed Edge Gateway service with local API endpoints
+- durable inbox/outbox and idempotency stores in the core engine
+- protocol and schema definitions for messages, participants, artifacts, delivery states, and sync batches
+- local artifact storage with content-addressed handling and hash verification
+- background sync worker skeleton and gateway registration/security wiring
+- React + TypeScript PWA scaffold with service worker and offline detection
+- .NET test projects covering core behavior and edge crash-safety paths
+
+The project is intentionally incremental. The durable local-first system and protocol backbone are in place; the relay sync transport and broader deployment layer continue as part of the planned extension path.
+
+## Repository layout
 
 ```text
-Human workflow request
+.
+├── deployment/                  # docker and runtime deployment assets
+├── docs/                        # PRD, vision, execution state, research, and workflow notes
+├── schemas/                     # JSON schemas for protocol and sync contracts
+├── src/
+│   ├── HumanGateway.Protocol/   # protocol models, validation, and shared contracts
+│   ├── HumanGateway.Core/       # sync engine, outbox, inbox, cursor, idempotency logic
+│   ├── HumanGateway.Edge/       # local edge gateway service and SQLite-backed API
+│   ├── HumanGateway.Relay/      # cloud relay service and sync endpoints
+│   ├── HumanGateway.Security/   # identity, auth, and security primitives
+│   └── HumanGateway.Client/     # React + TypeScript offline PWA
+├── tests/
+│   ├── HumanGateway.Core.Tests/
+│   ├── HumanGateway.Edge.Tests/
+│   ├── HumanGateway.Relay.Tests/
+│   ├── HumanGateway.Security.Tests/
+│   └── HumanGateway.Edge.CrashProbe/
+├── HumanGateway.slnx
+├── docker-compose.yml
+├── dotnet-tools.json
+├── LICENSE
+├── README.md
+└── docs/PRD.md
+```
+
+## Core workflow
+
+```text
+Human request or task
         ↓
 Local Edge Gateway
         ↓
-SQLite + durable artifacts + tasks
+SQLite + durable artifacts + task records
         ↓
 Queue / retry / reconcile
         ↓
@@ -64,38 +101,17 @@ When connectivity returns: outbound sync to Relay
 Remote delivery / acknowledgements / convergence
 ```
 
-This is not a real-time messenger. It is a store-and-forward system designed for eventual consistency, reliable recovery, and offline resilience.
+This is not a real-time messenger. It is designed for eventual consistency, durable recovery, and resilient offline operation.
 
-## Repository layout
+## Features
 
-```text
-.
-├── deployment/              # container and runtime packaging
-├── docs/                    # PRD, vision, execution state, research notes
-├── schemas/                 # protocol JSON schemas
-├── src/
-│   ├── HumanGateway.Protocol/   # protocol models and validation
-│   ├── HumanGateway.Core/       # sync engine, outbox, inbox, idempotency
-│   ├── HumanGateway.Edge/       # local Edge Gateway service
-│   └── HumanGateway.Client/     # offline-capable React + TypeScript PWA
-├── tests/
-│   ├── HumanGateway.Core.Tests/
-│   ├── HumanGateway.Edge.Tests/
-│   └── HumanGateway.Edge.CrashProbe/
-├── HumanGateway.slnx
-├── LICENSE
-├── README.md
-└── dotnet-tools.json
-```
-
-## Key capabilities
-
-- Durable local-first storage for messages and tasks
-- Local artifact handling with content-addressed storage
-- Background sync lifecycle with retry and recovery semantics
-- Cursor-based sync model for eventual convergence
-- Message and task protocol structures aligned with workflow integration
-- Offline-capable client PWA shell with service worker support
+- durable local-first message and task storage
+- edge-operated queueing with retry and backoff behavior
+- outbox/inbox synchronization semantics with idempotency protection
+- artifact-first handling with hash-based deduplication and content validation
+- protocol-driven interoperability rather than custom app-only assumptions
+- installable, offline-capable PWA client experience
+- security-aware registration and signed request handling for outbound edge-to-relay traffic
 
 ## Getting started
 
@@ -103,7 +119,7 @@ This is not a real-time messenger. It is a store-and-forward system designed for
 
 - .NET 10 SDK
 - Node.js 20+ and npm
-- Docker or Podman (optional, for containerized deployment)
+- Docker or Podman for containerized deployment
 
 ### Run the Edge service
 
@@ -113,7 +129,14 @@ From the repository root:
 dotnet run --project src/HumanGateway.Edge
 ```
 
-The service exposes the local API and health endpoints, including `/healthz` and `/sync/status`.
+The service exposes local endpoints for health and sync status, including:
+
+- `/healthz`
+- `/sync/status`
+- `/conversations`
+- `/messages`
+- `/tasks`
+- `/artifacts`
 
 ### Run the client app
 
@@ -130,7 +153,13 @@ cd src/HumanGateway.Client
 npm run build
 ```
 
-### Containerized Edge deployment
+### Run the .NET solution
+
+```bash
+dotnet build HumanGateway.slnx
+```
+
+### Container deployment
 
 ```bash
 ./deployment/docker/run-edge.sh
@@ -138,11 +167,12 @@ npm run build
 
 ## Documentation
 
-The project documentation suite is already in the repo and is the best source for requirements and architecture decisions:
+The most relevant project documentation lives in the repository and is the best source for product intent and implementation details:
 
 - [docs/PRD.md](docs/PRD.md)
 - [docs/product-vision.md](docs/product-vision.md)
 - [docs/IDEA.md](docs/IDEA.md)
+- [docs/WORKFLOW-STATE.json](docs/WORKFLOW-STATE.json)
 - [deployment/README.md](deployment/README.md)
 - [src/HumanGateway.Edge/README.md](src/HumanGateway.Edge/README.md)
 - [src/HumanGateway.Core/README.md](src/HumanGateway.Core/README.md)
@@ -151,18 +181,30 @@ The project documentation suite is already in the repo and is the best source fo
 ## Design principles
 
 > [!IMPORTANT]
-> HumanGateway is intentionally not a real-time chat system. It is designed for durable, asynchronous communication when the network is unreliable but the task still matters.
+> HumanGateway is intentionally not a real-time chat system. It is built for durable, asynchronous communication when the network is unreliable but the task still matters.
 
-The implementation follows a few clear principles:
+The implementation follows a few guiding principles:
 
-- Offline-first by default
-- Local durability before any remote sync
-- Outbound-only connectivity at the Edge boundary
-- Idempotent message and task handling for recovery
-- Explicit protocol contracts rather than implicit application behavior
+- offline-first by default
+- local durability before any remote sync
+- outbound-only connectivity at the edge boundary
+- idempotent handling for replay, retries, and reconciliation
+- explicit protocol contracts instead of implicit or brittle app behavior
 
 ## Project direction
 
-The project is positioned as a reusable communication fabric for human-in-the-loop automation, with FlowForge as the first concrete consumer reference. The long-term goal is a robust system that works across intermittent networks without forcing humans or workloads to depend on continuous connectivity.
+HumanGateway is positioned as a reusable communication fabric for human-in-the-loop automation. The initial design focus is a school or site edge gateway that works offline-first and remains operational even when connectivity is intermittent or unavailable.
 
-This repository is intentionally practical and incremental: it establishes the durable protocol, the local Edge runtime, and the PWA client foundation before the remote cloud synchronization layer is added in the next implementation stages.
+FlowForge is the first concrete consumer reference, but the system is designed to be reusable beyond a single workflow product. The repository is intentionally practical and incremental: it establishes the durable protocol, local edge runtime, and client foundation before broad cloud synchronization and deployment expansions are layered on top.
+
+## Contributing
+
+The repository is organized around a few high-signal areas:
+
+- protocol and schema changes: [schemas/](schemas/)
+- edge runtime and SQLite storage: [src/HumanGateway.Edge/](src/HumanGateway.Edge/)
+- sync, idempotency, and ordering logic: [src/HumanGateway.Core/](src/HumanGateway.Core/)
+- relay and security behavior: [src/HumanGateway.Relay/](src/HumanGateway.Relay/), [src/HumanGateway.Security/](src/HumanGateway.Security/)
+- client behavior and UI shell: [src/HumanGateway.Client/](src/HumanGateway.Client/)
+
+When changing behavior, prefer the existing domain-specific README files and design documents as the grounding source for intent and constraints.
