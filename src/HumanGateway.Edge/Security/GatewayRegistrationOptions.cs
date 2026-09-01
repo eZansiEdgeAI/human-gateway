@@ -17,6 +17,13 @@ public sealed class GatewayRegistrationOptions
     /// </summary>
     public string? BaseUrl { get; init; }
 
+    /// <summary>
+    /// When true, plain <c>http://</c> Relay base URLs are accepted for any host (development/compose only —
+    /// SP-01 requires https for all Edge↔Relay traffic). Loopback <c>http://</c> hosts are always accepted for
+    /// local development without this flag.
+    /// </summary>
+    public bool AllowInsecureHttp { get; init; }
+
     /// <summary>Human-readable gateway name presented to the Relay during registration (e.g. the school name).</summary>
     public string? DisplayName { get; init; }
 

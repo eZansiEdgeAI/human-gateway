@@ -48,6 +48,9 @@ services:
       context: .
       dockerfile: deployment/docker/Dockerfile.relay
     environment:
+      # Dev/test environment: HTTPS redirect + HSTS stay off (SP-01 enforced in Production deployments,
+      # where TLS terminates at a proxy or Kestrel with a certificate).
+      ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Relay: Host=postgres;Port=5432;Database=humangateway_relay;Username=humangateway;Password=humangateway
       # Remote login gate bootstrap user (AUTH-FR-02, SP-07): credentials via env/secret store.
       Auth__BootstrapUser__Username: ${HG_RELAY_AUTH_BOOTSTRAP_USERNAME:-}
@@ -75,10 +78,14 @@ services:
       context: .
       dockerfile: deployment/docker/Dockerfile.edge
     environment:
+      ASPNETCORE_ENVIRONMENT: Development
       Edge__GatewayId: ${HG_GATEWAY_ID:-edge:compose}
       Edge__RelayBaseUrl: http://relay:8080
       # Artifact-byte channel (ARTF-FR-01/02): same Relay, outbound-only (SP-01).
       Relay__BaseUrl: http://relay:8080
+      # Local dev topology only — SP-01 requires https for all Edge↔Relay traffic in Production. The compose
+      # network is not TLS-terminated, so plain http is explicitly permitted here (and nowhere else).
+      Relay__AllowInsecureHttp: "true"
       # Local login bootstrap user (AUTH-FR-02, SP-07): credentials via env/secret store.
       Auth__BootstrapUser__Username: ${HG_EDGE_AUTH_BOOTSTRAP_USERNAME:-}
       Auth__BootstrapUser__Password: ${HG_EDGE_AUTH_BOOTSTRAP_PASSWORD:-}

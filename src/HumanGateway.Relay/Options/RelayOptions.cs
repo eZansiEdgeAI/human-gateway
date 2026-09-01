@@ -15,6 +15,13 @@ public sealed class RelayOptions
     /// <summary>Lifetime of a freshly issued registration token before the Edge must rotate (AUTH-FR-01).</summary>
     public int RegistrationTokenTtlDays { get; set; } = 30;
 
+    /// <summary>
+    /// Maximum clock skew (minutes) the Relay tolerates for the request-signature timestamp (AUTH-FR-04).
+    /// A signed request whose <c>X-Hg-Timestamp</c> is older (or further ahead) than this window is rejected as
+    /// stale, bounding the replay window for a captured signed request. Default 5 minutes.
+    /// </summary>
+    public int RequestSignatureSkewMinutes { get; set; } = 5;
+
     /// <summary>Rendezvous routing behaviour (WEBX-FR-02).</summary>
     public RendezvousOptions Rendezvous { get; set; } = new();
 

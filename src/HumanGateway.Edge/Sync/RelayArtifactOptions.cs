@@ -18,6 +18,13 @@ public sealed class RelayArtifactOptions
     public string? BaseUrl { get; init; }
 
     /// <summary>
+    /// When true, plain <c>http://</c> Relay base URLs are accepted for any host (development/compose only —
+    /// SP-01 requires https for all Edge↔Relay traffic). Loopback <c>http://</c> hosts are always accepted for
+    /// local development without this flag.
+    /// </summary>
+    public bool AllowInsecureHttp { get; init; }
+
+    /// <summary>
     /// Chunk size framing resumable uploads to the Relay (ARTF-FR-02, artifacts Open Q #1). Default 4 MiB.
     /// </summary>
     public int ChunkSizeBytes { get; init; } = ArtifactLimits.DefaultChunkSizeBytes;

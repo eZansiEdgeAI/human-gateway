@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute(@"Shared security primitives for HumanGateway (AUTH-FR-02, SP-03, SP-07): PHC password hashing and signed opaque session tokens. Dependency-free so both the Edge and the Relay consume the identical token/verifier semantics (identity-security Open Q #1: signed opaque/session tokens v1; JWT only if a consumer needs it).")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+66310ff56833a8efdd9d83384d00216ea35d37b0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+62520903cb3fbc6eee2de8567ea6e3540f3fcca9")]
 [assembly: System.Reflection.AssemblyProductAttribute("HumanGateway.Security")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HumanGateway.Security")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -189,6 +189,100 @@
         <member name="M:HumanGateway.Security.UnauthenticatedRequestException.#ctor">
             <summary>Creates the exception.</summary>
         </member>
+        <member name="T:HumanGateway.Security.GatewayRequestSigning">
+             <summary>
+             Request-signing primitives for Edge↔Relay traffic (AUTH-FR-04, SP-01): every outbound request from an Edge
+             Gateway to the Cloud Relay carries an HMAC-SHA256 signature over a canonical representation of the request,
+             keyed with a per-gateway request-signing key derived from the gateway's registration token. The Relay
+             recomputes the same canonical form from the incoming request and verifies it in constant time, so a request
+             cannot be forged, replayed beyond the timestamp skew window, or rebound to a different gateway or endpoint
+             without holding the gateway's secret.
+            
+             <para><b>Design notes (identity-security Open Q #1: signed opaque tokens v1, no JWT).</b> The request-signing
+             key is <c>HMAC-SHA256(key = "humangateway:request-signing:v1", message = registrationToken)</c> — a
+             purpose-separated derivation of the registration token. The Edge derives it from its plaintext token; the
+             Relay derives it at token-issue/rotate time and stores the derived key (not the token, SP-07). This keeps the
+             Relay's "fingerprint only" posture: it never holds the registration token, and the derived key is useless for
+             the registration handshake itself.</para>
+            
+             <para><b>Canonical form.</b> The signature covers the request method, path, raw query string, an RFC 3339 UTC
+             timestamp, a random nonce, and the gateway id — everything that identifies the endpoint and the caller, plus
+             freshness and replay binding. The body is <em>not</em> hashed: transport integrity is provided by TLS (SP-01)
+             and artifact integrity by content-hash verification (SP-06), while keeping the Relay middleware streaming-safe
+             for large artifact chunks.</para>
+             </summary>
+        </member>
+        <member name="F:HumanGateway.Security.GatewayRequestSigning.SchemePrefix">
+            <summary>Signature scheme version prefix on the wire: <c>v1=&lt;hex&gt;</c>.</summary>
+        </member>
+        <member name="F:HumanGateway.Security.GatewayRequestSigning.GatewayIdHeader">
+            <summary>Header carrying the gateway identity the signature is bound to.</summary>
+        </member>
+        <member name="F:HumanGateway.Security.GatewayRequestSigning.TimestampHeader">
+            <summary>Header carrying the RFC 3339 UTC request timestamp.</summary>
+        </member>
+        <member name="F:HumanGateway.Security.GatewayRequestSigning.NonceHeader">
+            <summary>Header carrying the per-request random nonce (replay binding).</summary>
+        </member>
+        <member name="F:HumanGateway.Security.GatewayRequestSigning.SignatureHeader">
+            <summary>Header carrying the request signature (<c>v1=&lt;hex&gt;</c>).</summary>
+        </member>
+        <member name="F:HumanGateway.Security.GatewayRequestSigning.KeyDerivationLabel">
+            <summary>Label that purpose-separates the request-signing key from the registration token.</summary>
+        </member>
+        <member name="F:HumanGateway.Security.GatewayRequestSigning.TimestampFormat">
+            <summary>RFC 3339 format with millisecond precision, matching the protocol timestamp style.</summary>
+        </member>
+        <member name="M:HumanGateway.Security.GatewayRequestSigning.DeriveKey(System.String)">
+            <summary>
+            Derives the per-gateway request-signing key from the registration token:
+            <c>HMAC-SHA256(key = "humangateway:request-signing:v1", message = token)</c>, base64url-encoded. The Edge
+            and the Relay compute the identical value from the same token, so the Relay only ever stores the derived
+            key (set when the token is issued or rotated) — never the token itself (SP-07).
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Security.GatewayRequestSigning.Canonicalize(System.String,System.String,System.String,System.String,System.String,System.String)">
+            <summary>
+            Builds the canonical request string the signature covers: method, path, raw query (with leading '?', or
+            empty), timestamp, nonce, and gateway id — each on its own line. Both peers construct it from the exact
+            wire values so any byte difference (including a query-string reorder) invalidates the signature.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Security.GatewayRequestSigning.Sign(System.String,System.String)">
+            <summary>Signs a canonical request string: <c>v1=&lt;lowercase hex HMAC-SHA256&gt;</c>.</summary>
+        </member>
+        <member name="M:HumanGateway.Security.GatewayRequestSigning.Verify(System.String,System.String,System.String)">
+            <summary>
+            Verifies a presented signature against the expected value in constant time. Accepts the
+            <c>v1=&lt;hex&gt;</c> wire form only; anything else (including an empty or non-v1 value) is invalid.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Security.GatewayRequestSigning.IsFresh(System.String,System.DateTimeOffset,System.TimeSpan)">
+            <summary>
+            True when <paramref name="timestamp"/> parses as an RFC 3339 UTC instant within
+            <paramref name="maxSkew"/> of <paramref name="now"/>. Bounds the replay window: a captured signed request
+            cannot be replayed indefinitely, and an unsigned re-sign with a shifted clock is rejected.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Security.GatewayRequestSigning.FormatTimestamp(System.DateTimeOffset)">
+            <summary>Formats a UTC instant as an RFC 3339 timestamp (same style as the protocol's timestamps).</summary>
+        </member>
+        <member name="M:HumanGateway.Security.GatewayRequestSigning.GenerateNonce">
+            <summary>Generates a fresh random nonce (16 bytes of entropy, base64url) for replay binding.</summary>
+        </member>
+        <member name="M:HumanGateway.Security.GatewayRequestSigning.SignRequest(System.Net.Http.HttpRequestMessage,System.String,System.String,System.TimeProvider)">
+            <summary>
+            Signs an outbound <see cref="T:System.Net.Http.HttpRequestMessage"/> in place: computes the canonical form from the actual
+            request (method, decoded absolute path, raw query), a fresh timestamp and nonce, and the gateway id, then
+            sets the <c>X-Hg-*</c> headers. The path is unescaped to match the Relay's <c>HttpRequest.Path</c>
+            (ASP.NET serves the decoded path), while the query stays raw — exactly the wire values the middleware
+            recomputes. The body is intentionally not hashed (transport integrity comes from TLS, SP-01). Used by the
+            Edge's <c>SignedGatewayRequestHandler</c> and by tests driving the real Relay.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Security.GatewayRequestSigning.Base64UrlPad(System.String)">
+            <summary>Reconstitutes padded base64 from an unpadded base64url string (both sides use the same key).</summary>
+        </member>
         <member name="T:HumanGateway.Security.IUserSessionService">
             <summary>
             Shared contract for user session services at the Edge and Relay (AUTH-FR-02, SP-03). Both services issue
@@ -293,6 +387,28 @@
         </member>
         <member name="M:HumanGateway.Security.PasswordHasher.IsPhcVerifier(System.String)">
             <summary>True when <paramref name="value"/> is a syntactically-valid PHC verifier (schema pattern).</summary>
+        </member>
+        <member name="T:HumanGateway.Security.RelayTlsPolicy">
+            <summary>
+            TLS scheme enforcement for Edge↔Relay traffic (AUTH-FR-04, SP-01): the Edge may only dial out to the Relay
+            over <c>https</c>. Plain <c>http</c> is accepted only for explicitly whitelisted development scenarios
+            (loopback hosts, or an explicit insecure-dev opt-in) so the LAN-only PoC and the local dev compose keep
+            working without weakening the production posture.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Security.RelayTlsPolicy.RequireAllowed(System.String,System.Boolean)">
+            <summary>
+            Validates a Relay base URL's scheme. Returns the parsed absolute URI when the scheme is permitted,
+            otherwise throws <see cref="T:System.ArgumentException"/> (configuration error — fail fast at startup, SP-01).
+            </summary>
+            <param name="baseUrl">The configured Relay base URL.</param>
+            <param name="allowInsecureHttp">
+            When true, plain <c>http://</c> is accepted for any host (dev/test only). When false (the default),
+            only <c>https://</c> and loopback <c>http://</c> hosts are accepted.
+            </param>
+            <exception cref="T:System.ArgumentException">
+            The base URL is missing, unparsable, or uses a scheme that is not permitted by SP-01.
+            </exception>
         </member>
         <member name="T:HumanGateway.Security.SessionAuthenticationMiddleware">
             <summary>

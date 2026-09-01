@@ -321,6 +321,8 @@
             Applies a gateway's PUSH batch (syncbatch.schema.json) and responds with the result batch carrying the
             new push cursor. The request body is the canonical wire SyncBatch; the response is a keepalive result
             batch (empty items) whose <c>cursor</c> is the durable acknowledgement the Edge flushes its outbox on.
+            The gateway identity was verified by the request-authentication middleware (AUTH-FR-04), which resolves
+            and signs the same gatewayId the batch carries.
             </summary>
         </member>
         <member name="M:HumanGateway.Relay.Endpoints.SyncEndpoints.PullAsync(HumanGateway.Relay.Api.SyncPullRequest,HumanGateway.Relay.Services.RelaySyncService,System.Threading.CancellationToken)">
@@ -390,6 +392,13 @@
         <member name="P:HumanGateway.Relay.Options.RelayOptions.RegistrationTokenTtlDays">
             <summary>Lifetime of a freshly issued registration token before the Edge must rotate (AUTH-FR-01).</summary>
         </member>
+        <member name="P:HumanGateway.Relay.Options.RelayOptions.RequestSignatureSkewMinutes">
+            <summary>
+            Maximum clock skew (minutes) the Relay tolerates for the request-signature timestamp (AUTH-FR-04).
+            A signed request whose <c>X-Hg-Timestamp</c> is older (or further ahead) than this window is rejected as
+            stale, bounding the replay window for a captured signed request. Default 5 minutes.
+            </summary>
+        </member>
         <member name="P:HumanGateway.Relay.Options.RelayOptions.Rendezvous">
             <summary>Rendezvous routing behaviour (WEBX-FR-02).</summary>
         </member>
@@ -431,6 +440,57 @@
         </member>
         <member name="P:HumanGateway.Relay.Options.RelayArtifactOptions.ChunkSizeBytes">
             <summary>Chunk size framing resumable transfers (artifacts Open Q #1: 4 MiB default).</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Security.GatewayRequestAuthenticationMiddleware">
+             <summary>
+             Request-authentication middleware for Edge↔Relay traffic (AUTH-FR-04, SP-01): every request under
+             <c>/sync/*</c> (the sync push/pull endpoints and the artifact byte channel) must be signed with the
+             gateway's request-signing key. The signature covers the request method, path, raw query string, an RFC 3339
+             UTC timestamp, a random nonce, and the gateway id (see <see cref="T:HumanGateway.Security.GatewayRequestSigning"/>), so it cannot be
+             forged, replayed beyond the timestamp skew window, or rebound to a different gateway or endpoint.
+            
+             <para><b>Order of checks (defence-in-depth, SP-02).</b> The request's claimed gateway identity is resolved
+             from the <c>gatewayId</c> query parameter, or from the <c>gatewayId</c> field of a JSON body (sync batches,
+             pull requests, the artifact dedup-state check). An unknown identity is rejected 404 and a non-REGISTERED
+             identity is rejected 403 with the reserved state codes — <em>before</em> any signature work, so the Relay
+             never reveals signing material for identities it does not trust. Only a REGISTERED gateway's request is
+             then required to carry a valid signature; any missing, stale, or mismatched signature is rejected 401
+             <c>SIGNATURE_INVALID</c>.</para>
+            
+             <para>On success the authenticated gateway id is exposed under <see cref="F:HumanGateway.Relay.Security.GatewayRequestAuthenticationMiddleware.GatewayIdentityKey"/> so endpoint
+             handlers can trust it without re-deriving it from the body.</para>
+             </summary>
+        </member>
+        <member name="F:HumanGateway.Relay.Security.GatewayRequestAuthenticationMiddleware.GatewayIdentityKey">
+            <summary><see cref="P:Microsoft.AspNetCore.Http.HttpContext.Items"/> key holding the authenticated gateway id for a signed request.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Security.GatewayRequestAuthenticationMiddleware.#ctor(Microsoft.AspNetCore.Http.RequestDelegate,Microsoft.Extensions.Options.IOptions{HumanGateway.Relay.Options.RelayOptions})">
+            <summary>Creates the middleware over the next delegate and the configured signature skew window.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Security.GatewayRequestAuthenticationMiddleware.InvokeAsync(Microsoft.AspNetCore.Http.HttpContext)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Security.GatewayRequestAuthenticationMiddleware.ResolveClaimedGatewayIdAsync(Microsoft.AspNetCore.Http.HttpRequest,System.Threading.CancellationToken)">
+            <summary>
+            Resolves the gateway id the request claims: the <c>gatewayId</c> query parameter when present, otherwise
+            the top-level <c>gatewayId</c> of a JSON request body. Returns null when neither carries one.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Security.GatewayRequestAuthenticationMiddleware.TryVerifySignature(Microsoft.AspNetCore.Http.HttpRequest,System.String,System.String)">
+            <summary>
+            Verifies the request signature against the stored request-signing key. The canonical string is rebuilt
+            from the actual request (method, decoded path, raw query) plus the presented timestamp, nonce, and the
+            claimed gateway id — byte-identical to what the Edge signed (AUTH-FR-04).
+            </summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Security.GatewayRequestAuthenticationExtensions">
+            <summary>Convenience extension for wiring <see cref="T:HumanGateway.Relay.Security.GatewayRequestAuthenticationMiddleware"/>.</summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Security.GatewayRequestAuthenticationExtensions.UseGatewayRequestAuthentication(Microsoft.AspNetCore.Builder.IApplicationBuilder)">
+            <summary>
+            Adds signed-request authentication for Edge↔Relay traffic (AUTH-FR-04). Must be added before the endpoint
+            map so <c>/sync/*</c> requests are verified before any handler runs.
+            </summary>
         </member>
         <member name="T:HumanGateway.Relay.Security.RegistrationTokens">
             <summary>
@@ -523,6 +583,13 @@
             <summary>
             Loads a gateway that must be in the REGISTERED state (SP-02). Used by rendezvous routing and the sync
             endpoint: unregistered, pending, suspended, and revoked identities are rejected.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.GatewayService.FindAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Loads a gateway record without throwing (AUTH-FR-04). Used by the request-authentication middleware to
+            attribute a signed request and to map the identity's lifecycle state to the SP-02 rejection codes.
+            Returns null when no such gateway exists.
             </summary>
         </member>
         <member name="M:HumanGateway.Relay.Services.GatewayService.IsRegisteredAsync(System.String,System.Threading.CancellationToken)">
@@ -978,6 +1045,14 @@
         <member name="P:HumanGateway.Relay.Storage.Entities.GatewayRecord.RegistrationTokenFingerprint">
             <summary>SHA-256 of the current registration token (<c>sha256:&lt;hex&gt;</c>); never the plaintext (SP-07).</summary>
         </member>
+        <member name="P:HumanGateway.Relay.Storage.Entities.GatewayRecord.RequestSigningKey">
+            <summary>
+            The gateway's request-signing key (AUTH-FR-04): the purpose-separated HMAC key derived from the
+            registration token (<c>humangateway:request-signing:v1</c>), base64url. The Relay stores this derived key
+            (not the token, SP-07) so it can verify the HMAC signature on every Edge↔Relay request. Set when the
+            token is issued or rotated; null only for identities registered before the field existed.
+            </summary>
+        </member>
         <member name="P:HumanGateway.Relay.Storage.Entities.GatewayRecord.TokenIssuedAt">
             <summary>RFC 3339 UTC when the current registration token was issued.</summary>
         </member>
@@ -1259,6 +1334,18 @@
             <inheritdoc />
         </member>
         <member name="M:HumanGateway.Relay.Storage.Migrations.AddUsersAndSessions.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="T:HumanGateway.Relay.Storage.Migrations.AddGatewayRequestSigningKey">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.Migrations.AddGatewayRequestSigningKey.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.Migrations.AddGatewayRequestSigningKey.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:HumanGateway.Relay.Storage.Migrations.AddGatewayRequestSigningKey.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
             <inheritdoc />
         </member>
         <member name="T:HumanGateway.Relay.Storage.PostgresArtifactStore">

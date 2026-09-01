@@ -615,6 +615,13 @@
             does not register and stays LAN-only (SP-01).
             </summary>
         </member>
+        <member name="P:HumanGateway.Edge.Security.GatewayRegistrationOptions.AllowInsecureHttp">
+            <summary>
+            When true, plain <c>http://</c> Relay base URLs are accepted for any host (development/compose only —
+            SP-01 requires https for all Edge↔Relay traffic). Loopback <c>http://</c> hosts are always accepted for
+            local development without this flag.
+            </summary>
+        </member>
         <member name="P:HumanGateway.Edge.Security.GatewayRegistrationOptions.DisplayName">
             <summary>Human-readable gateway name presented to the Relay during registration (e.g. the school name).</summary>
         </member>
@@ -848,6 +855,38 @@
         </member>
         <member name="M:HumanGateway.Edge.Security.LocalAuthService.ToView(HumanGateway.Protocol.Models.User)">
             <summary>Builds the public user view (no verifier — SP-07).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Security.SignedGatewayRequestHandler">
+             <summary>
+             Outbound request-signing handler for Edge↔Relay traffic (AUTH-FR-04, SP-01): signs every request it
+             processes with the gateway's request-signing key (derived from the current registration token) so the Relay
+             can verify that the request genuinely came from this registered gateway. Attach it as the outermost
+             <see cref="T:System.Net.Http.HttpMessageHandler"/> on the Edge's Relay-bound <see cref="T:System.Net.Http.HttpClient"/> instances (artifact
+             transport, and the future sync transport).
+            
+             <para>The signature covers the request method, path, raw query string, an RFC 3339 UTC timestamp, a random
+             nonce, and the gateway id (see <see cref="T:HumanGateway.Security.GatewayRequestSigning"/>). The body is intentionally not hashed —
+             transport integrity comes from TLS (SP-01) and artifact integrity from content hashes (SP-06) — keeping the
+             channel streaming-safe for large artifact chunks.</para>
+            
+             <para>The handler sets the <see cref="F:HumanGateway.Security.GatewayRequestSigning.GatewayIdHeader"/>, timestamp, nonce, and
+             signature headers itself, so the Relay can attribute and verify every request without parsing the body or
+             trusting a caller-supplied gateway id.</para>
+            
+             <para>When no registration token is available yet (before the registration handshake completes) the request
+             passes through <b>unsigned</b>: the Relay's sync endpoints reject unregistered identities regardless (SP-02),
+             and the handshake itself is not signed (it is how the token is first obtained).</para>
+             </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.SignedGatewayRequestHandler.#ctor(System.String,System.Func{System.String},Microsoft.Extensions.Logging.ILogger{HumanGateway.Edge.Security.SignedGatewayRequestHandler},System.TimeProvider)">
+            <summary>
+            Creates the handler over the gateway's durable id and a provider of its current plaintext registration
+            token (e.g. a closure over <see cref="T:HumanGateway.Edge.Security.GatewayIdentityManager"/>). A <see langword="null"/> token means
+            "not registered yet" and the request is passed through unsigned.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Edge.Security.SignedGatewayRequestHandler.SendAsync(System.Net.Http.HttpRequestMessage,System.Threading.CancellationToken)">
+            <inheritdoc />
         </member>
         <member name="T:HumanGateway.Edge.Storage.EdgeDbContext">
             <summary>
@@ -1651,6 +1690,13 @@
             <summary>
             Base URL of the Relay's HTTP API (e.g. <c>https://relay.example.com</c>). When null/empty the channel
             is disabled and the Edge stays offline-first for artifact bytes (NF-01).
+            </summary>
+        </member>
+        <member name="P:HumanGateway.Edge.Sync.RelayArtifactOptions.AllowInsecureHttp">
+            <summary>
+            When true, plain <c>http://</c> Relay base URLs are accepted for any host (development/compose only —
+            SP-01 requires https for all Edge↔Relay traffic). Loopback <c>http://</c> hosts are always accepted for
+            local development without this flag.
             </summary>
         </member>
         <member name="P:HumanGateway.Edge.Sync.RelayArtifactOptions.ChunkSizeBytes">

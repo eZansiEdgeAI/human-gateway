@@ -20,6 +20,14 @@ public sealed class GatewayRecord
     /// <summary>SHA-256 of the current registration token (<c>sha256:&lt;hex&gt;</c>); never the plaintext (SP-07).</summary>
     public string? RegistrationTokenFingerprint { get; set; }
 
+    /// <summary>
+    /// The gateway's request-signing key (AUTH-FR-04): the purpose-separated HMAC key derived from the
+    /// registration token (<c>humangateway:request-signing:v1</c>), base64url. The Relay stores this derived key
+    /// (not the token, SP-07) so it can verify the HMAC signature on every Edge↔Relay request. Set when the
+    /// token is issued or rotated; null only for identities registered before the field existed.
+    /// </summary>
+    public string? RequestSigningKey { get; set; }
+
     /// <summary>RFC 3339 UTC when the current registration token was issued.</summary>
     public string? TokenIssuedAt { get; set; }
 

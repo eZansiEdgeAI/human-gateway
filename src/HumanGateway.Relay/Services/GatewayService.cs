@@ -5,6 +5,7 @@ using HumanGateway.Relay.Options;
 using HumanGateway.Relay.Security;
 using HumanGateway.Relay.Storage;
 using HumanGateway.Relay.Storage.Entities;
+using HumanGateway.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -70,6 +71,9 @@ public sealed class GatewayService
             DisplayName = request.DisplayName,
             Status = RelayJsonConversions.WireToken(GatewayStatus.Pending),
             RegistrationTokenFingerprint = RegistrationTokens.Fingerprint(token),
+            // AUTH-FR-04: the Relay stores the derived request-signing key (never the token, SP-07) so it can
+            // verify the HMAC signature on every subsequent Edge↔Relay request.
+            RequestSigningKey = GatewayRequestSigning.DeriveKey(token),
             TokenIssuedAt = now,
             TokenExpiresAt = expiresAt,
             CreatedAt = now,
@@ -129,6 +133,9 @@ public sealed class GatewayService
         var token = RegistrationTokens.Generate();
         var now = ProtocolTime.Now();
         record.RegistrationTokenFingerprint = RegistrationTokens.Fingerprint(token);
+        // AUTH-FR-04: rotation also rotates the derived request-signing key (the old key stops working
+        // immediately — the caller must persist the new token in the Edge secret store).
+        record.RequestSigningKey = GatewayRequestSigning.DeriveKey(token);
         record.TokenIssuedAt = now;
         record.TokenExpiresAt = ProtocolTime.Format(DateTimeOffset.UtcNow.AddDays(_options.RegistrationTokenTtlDays));
         record.LastSeenAt = now;
@@ -150,6 +157,17 @@ public sealed class GatewayService
             ?? throw GatewayServiceException.NotFound($"Gateway '{gatewayId}' is not registered (SP-02).");
         EnsureStatus(record, GatewayStatus.Registered, "perform this operation");
         return record;
+    }
+
+    /// <summary>
+    /// Loads a gateway record without throwing (AUTH-FR-04). Used by the request-authentication middleware to
+    /// attribute a signed request and to map the identity's lifecycle state to the SP-02 rejection codes.
+    /// Returns null when no such gateway exists.
+    /// </summary>
+    public async Task<GatewayRecord?> FindAsync(string gatewayId, CancellationToken ct)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.Gateways.AsNoTracking().FirstOrDefaultAsync(g => g.GatewayId == gatewayId, ct);
     }
 
     /// <summary>

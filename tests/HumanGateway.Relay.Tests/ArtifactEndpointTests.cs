@@ -5,6 +5,7 @@ using System.Text.Json;
 using HumanGateway.Core.Hashing;
 using HumanGateway.Protocol.Models;
 using HumanGateway.Relay.Api;
+using HumanGateway.Security;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,8 +18,9 @@ namespace HumanGateway.Relay.Tests;
 /// dedup state check, the offset-addressed resumable upload, the hash-verified completion, and the streaming
 /// (Range-capable) download. Boots the real Relay <c>Program</c> over Testcontainers PostgreSQL and proves the
 /// acceptance scenarios: upload → download intact with the hash verified, an interrupted upload resuming from
-/// its accepted offset, duplicate content deduplicated (no second store row), unregistered gateways rejected
-/// (SP-02), and over-limit uploads rejected with a clear error.
+/// its accepted offset, duplicate content deduplicated (no second store row), unsigned/unregistered gateways
+/// rejected (AUTH-FR-04, SP-02), and over-limit uploads rejected with a clear error. Requests are signed exactly
+/// as the production Edge signs them.
 /// </summary>
 public sealed class ArtifactEndpointTests : IClassFixture<PostgresRelayFixture>
 {
@@ -26,18 +28,26 @@ public sealed class ArtifactEndpointTests : IClassFixture<PostgresRelayFixture>
 
     private readonly PostgresRelayFixture _fixture;
 
+    /// <summary>Signing ring shared by every client a test creates (registration stores the derived keys).</summary>
+    private readonly TestSigningHandler _signing = new();
+
     public ArtifactEndpointTests(PostgresRelayFixture fixture) => _fixture = fixture;
 
+    /// <summary>Creates a client whose outbound requests are signed via the shared test signing ring.</summary>
+    private (HttpClient Client, TestSigningHandler Signing) CreateClient(WebApplicationFactory<Program> factory)
+        => (factory.CreateDefaultClient(_signing), _signing);
+
     // -----------------------------------------------------------------------------------------------
-    // Identity gate (SP-02)
+    // Identity gate (AUTH-FR-04, SP-02)
     // -----------------------------------------------------------------------------------------------
 
     [Fact]
     public async Task StateCheck_UnregisteredGateway_IsRejected()
     {
         using var factory = new RelayApiFactory(_fixture);
-        using var client = factory.CreateClient();
+        var (client, _) = CreateClient(factory);
 
+        // Never registered → the authentication middleware rejects the unknown identity (SP-02).
         var response = await client.PostAsJsonAsync("/sync/artifacts/state", new
         {
             gatewayId = "gateway:ghost-artifacts",
@@ -57,8 +67,8 @@ public sealed class ArtifactEndpointTests : IClassFixture<PostgresRelayFixture>
     public async Task Upload_ThenDownload_ReturnsTheExactBytes()
     {
         using var factory = new RelayApiFactory(_fixture);
-        using var client = factory.CreateClient();
-        var gatewayId = await RegisterGatewayAsync(client, UniqueGatewayId("gateway:art-a"));
+        var (client, signing) = CreateClient(factory);
+        var gatewayId = await RegisterGatewayAsync(client, signing, UniqueGatewayId("gateway:art-a"));
 
         var content = Encoding.UTF8.GetBytes("teacher-photo-evidence-from-edge");
         var hash = HashOf(content);
@@ -97,8 +107,8 @@ public sealed class ArtifactEndpointTests : IClassFixture<PostgresRelayFixture>
     public async Task Upload_InterruptedMidWay_ResumesFromTheAcceptedOffset_AndCompletes()
     {
         using var factory = new RelayApiFactory(_fixture);
-        using var client = factory.CreateClient();
-        var gatewayId = await RegisterGatewayAsync(client, UniqueGatewayId("gateway:art-b"));
+        var (client, signing) = CreateClient(factory);
+        var gatewayId = await RegisterGatewayAsync(client, signing, UniqueGatewayId("gateway:art-b"));
 
         var content = Encoding.UTF8.GetBytes("a-large-evidence-file-that-is-split-into-two-chunks");
         var hash = HashOf(content);
@@ -128,8 +138,8 @@ public sealed class ArtifactEndpointTests : IClassFixture<PostgresRelayFixture>
     public async Task Upload_ChunkAtWrongOffset_IsRejectedWithConflict()
     {
         using var factory = new RelayApiFactory(_fixture);
-        using var client = factory.CreateClient();
-        var gatewayId = await RegisterGatewayAsync(client, UniqueGatewayId("gateway:art-c"));
+        var (client, signing) = CreateClient(factory);
+        var gatewayId = await RegisterGatewayAsync(client, signing, UniqueGatewayId("gateway:art-c"));
 
         var content = Encoding.UTF8.GetBytes("offset-mismatch-evidence");
         var hash = HashOf(content);
@@ -153,8 +163,8 @@ public sealed class ArtifactEndpointTests : IClassFixture<PostgresRelayFixture>
     public async Task Upload_IdenticalContentTwice_IsDeduplicated_NoSecondBlobRow()
     {
         using var factory = new RelayApiFactory(_fixture);
-        using var client = factory.CreateClient();
-        var gatewayId = await RegisterGatewayAsync(client, UniqueGatewayId("gateway:art-d"));
+        var (client, signing) = CreateClient(factory);
+        var gatewayId = await RegisterGatewayAsync(client, signing, UniqueGatewayId("gateway:art-d"));
 
         var content = Encoding.UTF8.GetBytes("deduplicated-evidence");
         var hash = HashOf(content);
@@ -164,7 +174,7 @@ public sealed class ArtifactEndpointTests : IClassFixture<PostgresRelayFixture>
         Assert.True(first.Stored);
 
         // A second gateway uploading the same bytes deduplicates: Stored=false, no new blob row.
-        var secondGateway = await RegisterGatewayAsync(client, UniqueGatewayId("gateway:art-e"));
+        var secondGateway = await RegisterGatewayAsync(client, signing, UniqueGatewayId("gateway:art-e"));
         var offset = await GetOffsetAsync(client, secondGateway, hash);
         Assert.True(offset.Complete);
         var complete = await PostCompleteAsync(client, secondGateway, hash);
@@ -179,8 +189,8 @@ public sealed class ArtifactEndpointTests : IClassFixture<PostgresRelayFixture>
     public async Task Complete_HashMismatch_IsRejectedWithHashMismatch()
     {
         using var factory = new RelayApiFactory(_fixture);
-        using var client = factory.CreateClient();
-        var gatewayId = await RegisterGatewayAsync(client, UniqueGatewayId("gateway:art-f"));
+        var (client, signing) = CreateClient(factory);
+        var gatewayId = await RegisterGatewayAsync(client, signing, UniqueGatewayId("gateway:art-f"));
 
         var content = Encoding.UTF8.GetBytes("declared-hash-is-this-file");
         var hash = HashOf("something-else"); // declared hash does not match the uploaded bytes
@@ -199,8 +209,8 @@ public sealed class ArtifactEndpointTests : IClassFixture<PostgresRelayFixture>
     public async Task Upload_OverSizeLimit_IsRejectedWithSizeExceeded()
     {
         using var factory = new LimitedArtifactRelayFactory(_fixture);
-        using var client = factory.CreateClient();
-        var gatewayId = await RegisterGatewayAsync(client, UniqueGatewayId("gateway:art-g"));
+        var (client, signing) = CreateClient(factory);
+        var gatewayId = await RegisterGatewayAsync(client, signing, UniqueGatewayId("gateway:art-g"));
 
         // 80 bytes — clearly over the limited factory's 64-byte per-artifact ceiling.
         var content = Encoding.UTF8.GetBytes(new string('x', 80));
@@ -224,8 +234,8 @@ public sealed class ArtifactEndpointTests : IClassFixture<PostgresRelayFixture>
     public async Task Download_WithRangeHeader_ReturnsPartialContent()
     {
         using var factory = new RelayApiFactory(_fixture);
-        using var client = factory.CreateClient();
-        var gatewayId = await RegisterGatewayAsync(client, UniqueGatewayId("gateway:art-h"));
+        var (client, signing) = CreateClient(factory);
+        var gatewayId = await RegisterGatewayAsync(client, signing, UniqueGatewayId("gateway:art-h"));
 
         var content = Encoding.UTF8.GetBytes("range-downloadable-evidence");
         var hash = HashOf(content);
@@ -286,11 +296,15 @@ public sealed class ArtifactEndpointTests : IClassFixture<PostgresRelayFixture>
     private static string UniqueGatewayId(string prefix)
         => $"{prefix}-{Guid.NewGuid().ToString("N")[..8]}";
 
-    private static async Task<string> RegisterGatewayAsync(HttpClient client, string gatewayId)
+    private static async Task<string> RegisterGatewayAsync(
+        HttpClient client, TestSigningHandler signing, string gatewayId)
     {
         var issued = await client.PostAsJsonAsync("/gateways", new { gatewayId }, ApiJson);
         Assert.Equal(HttpStatusCode.Created, issued.StatusCode);
         var token = (await issued.Content.ReadFromJsonAsync<RegistrationIssued>(ApiJson))!.RegistrationToken;
+
+        // AUTH-FR-04: register the derived request-signing key so artifact requests sign as this gateway.
+        signing.Keys[gatewayId] = GatewayRequestSigning.DeriveKey(token);
 
         var confirm = await client.PostAsJsonAsync($"/gateways/{gatewayId}/register",
             new { gatewayId, registrationToken = token }, ApiJson);

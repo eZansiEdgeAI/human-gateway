@@ -51,23 +51,34 @@ public sealed class EdgeRegistrationIntegrationTests : IClassFixture<PostgresRel
     public async Task EdgeClient_FullHandshake_RegistersGateway_AndSyncIsAccepted()
     {
         using var factory = new RelayApiFactory(_fixture);
-        using var http = factory.CreateClient();
+        var gatewayId = UniqueGatewayId("gateway:edge-e2e");
+        string? registrationToken = null;
+
+        // The REAL production signing path: the Edge's SignedGatewayRequestHandler derives the request-signing
+        // key from the current registration token and signs every outbound request (AUTH-FR-04). Before the
+        // handshake completes the token is null and requests pass unsigned — exactly like a fresh Edge boot.
+        using var http = factory.CreateDefaultClient(
+            new edge::HumanGateway.Edge.Security.SignedGatewayRequestHandler(
+                gatewayId,
+                () => registrationToken,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<edge::HumanGateway.Edge.Security.SignedGatewayRequestHandler>.Instance));
         var relayBaseUrl = http.BaseAddress!.ToString();
 
         var edgeClient = NewEdgeClient(http, relayBaseUrl);
-        var gatewayId = UniqueGatewayId("gateway:edge-e2e");
 
         // Step 1 — request the registration token (the Edge client's own wire format).
         var issued = await edgeClient.RequestRegistrationAsync(gatewayId, "Integration School", default);
         Assert.NotNull(issued.RegistrationToken);
         Assert.StartsWith("hgrt_", issued.RegistrationToken, StringComparison.Ordinal);
+        registrationToken = issued.RegistrationToken;
 
-        // Step 2 — present it to confirm.
+        // Step 2 — present it to confirm (the request is now signed with the derived key).
         var gateway = await edgeClient.ConfirmRegistrationAsync(gatewayId, issued.RegistrationToken, default);
         Assert.Equal(GatewayStatus.Registered, gateway.Status);
         Assert.Equal(gatewayId, gateway.GatewayId);
 
-        // Now the registered gateway can push a keepalive sync batch (SP-02 accepted).
+        // Now the registered gateway can push a keepalive sync batch (SP-02 accepted) — signed by the real
+        // Edge handler and verified by the Relay's request-authentication middleware.
         var batch = new SyncBatch
         {
             BatchId = HumanGateway.Core.Ids.IdGenerator.NewId(),

@@ -77,6 +77,7 @@ public sealed class RelayDbContext : DbContext
             gateway.Property(e => e.DisplayName).HasColumnName("display_name");
             gateway.Property(e => e.Status).HasColumnName("status");
             gateway.Property(e => e.RegistrationTokenFingerprint).HasColumnName("registration_token_fingerprint");
+            gateway.Property(e => e.RequestSigningKey).HasColumnName("request_signing_key");
             gateway.Property(e => e.TokenIssuedAt).HasColumnName("token_issued_at");
             gateway.Property(e => e.TokenExpiresAt).HasColumnName("token_expires_at");
             gateway.Property(e => e.RegisteredAt).HasColumnName("registered_at");

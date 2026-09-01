@@ -4,6 +4,7 @@ using HumanGateway.Relay.Api;
 using HumanGateway.Relay.Endpoints;
 using HumanGateway.Relay.Health;
 using HumanGateway.Relay.Options;
+using HumanGateway.Relay.Security;
 using HumanGateway.Relay.Services;
 using HumanGateway.Relay.Storage;
 using HumanGateway.Security;
@@ -165,6 +166,16 @@ app.Use(async (context, next) =>
     }
 });
 
+// TLS everywhere (AUTH-FR-04, SP-01): outside Development, the Relay only serves HTTPS — HTTP requests are
+// redirected to HTTPS and responses advertise HSTS. Local development (tests, `dotnet run`) keeps plain HTTP
+// so the loopback/dev flow needs no certificate. Deployments terminating TLS at a proxy must forward the
+// original scheme (ForwardedHeaders) so the redirect/HSTS behave correctly.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
+
 // Translate unexpected exceptions into ProtocolError-shaped responses so Edge
 // Gateways always receive the stable, machine-readable error contract (SP-07).
 // Unhandled exceptions are logged at Error with the request path for diagnosis.
@@ -206,6 +217,13 @@ if (app.Configuration.GetConnectionString("Relay") is { } relayConnectionString)
 // Bearer-session authentication (AUTH-FR-02, SP-03): resolves the current remote user from
 // `Authorization: Bearer <token>` for /auth/me and future authorised endpoints.
 app.UseSessionAuthentication();
+
+// Signed-request authentication for Edge↔Relay traffic (IDENTITY-SECURITY-5.4, AUTH-FR-04): every /sync/*
+// request (sync push/pull + artifact byte channel) must be signed with the gateway's request-signing key.
+// Runs after the exception handler so ProtocolError-shaped rejections are emitted directly (SP-07), and
+// before the endpoints. Registration (/gateways) and remote-auth (/auth) endpoints authenticate by their own
+// token/session mechanisms.
+app.UseGatewayRequestAuthentication();
 
 // Apply pending EF Core migrations so the schema exists before the Relay begins
 // accepting sync traffic (RELAY-FR-01).

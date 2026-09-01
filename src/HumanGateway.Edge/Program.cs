@@ -83,6 +83,15 @@ builder.Services.AddSingleton<ISyncEngine, SyncEngine>();
 // registration worker runs before the sync worker and re-confirms/rotates as
 // needed. When no Relay is configured the client is disabled and the Edge stays
 // LAN-only (SP-01).
+//
+// Request signing (IDENTITY-SECURITY-5.4, AUTH-FR-04): every outbound
+// Edge↔Relay request carries an HMAC signature keyed with the key derived from
+// the current registration token (SignedGatewayRequestHandler). The token
+// provider reads the identity manager's cached identity, so the very first
+// registration request (which obtains the token) passes unsigned — the Relay's
+// sync endpoints reject unregistered identities regardless (SP-02). The base URL
+// scheme is enforced at startup via RelayTlsPolicy (SP-01): https only, with an
+// explicit AllowInsecureHttp opt-out for the local dev compose.
 // ---------------------------------------------------------------------------
 builder.Services.Configure<GatewayRegistrationOptions>(
     builder.Configuration.GetSection(GatewayRegistrationOptions.SectionName));
@@ -90,6 +99,7 @@ builder.Services.Configure<GatewayRegistrationWorkerOptions>(
     builder.Configuration.GetSection(GatewayRegistrationWorkerOptions.SectionName));
 builder.Services.AddSingleton<IGatewaySecretStore>(new FileGatewaySecretStore(dataDir));
 builder.Services.AddSingleton<GatewayRegistrationClientGate>();
+builder.Services.AddSingleton<GatewayIdentityManager>();
 builder.Services.AddSingleton<IGatewayRegistrationClient>(sp =>
 {
     var options = sp.GetRequiredService<IOptions<GatewayRegistrationOptions>>().Value;
@@ -98,9 +108,20 @@ builder.Services.AddSingleton<IGatewayRegistrationClient>(sp =>
         return new DisabledGatewayRegistrationClient();
     }
 
-    var http = new HttpClient
+    // Resolved lazily (Lazy<T>) so the identity manager — which itself depends on this client — can be
+    // shared without a DI construction cycle (AUTH-FR-04).
+    var manager = new Lazy<GatewayIdentityManager>(sp.GetRequiredService<GatewayIdentityManager>);
+    var gateway = sp.GetRequiredService<IOptions<GatewayOptions>>().Value;
+
+    // SP-01: the Relay must be dialed over TLS (https). Fail fast at startup when misconfigured.
+    var relayUri = RelayTlsPolicy.RequireAllowed(options.BaseUrl, options.AllowInsecureHttp);
+
+    var http = new HttpClient(new SignedGatewayRequestHandler(
+        gateway.GatewayId,
+        () => manager.Value.Current?.RegistrationToken,
+        sp.GetRequiredService<ILogger<SignedGatewayRequestHandler>>()))
     {
-        BaseAddress = new Uri(options.BaseUrl!.TrimEnd('/') + "/", UriKind.Absolute),
+        BaseAddress = new Uri(relayUri.AbsoluteUri.TrimEnd('/') + "/", UriKind.Absolute),
         Timeout = options.Timeout,
     };
     return new HttpGatewayRegistrationClient(
@@ -108,7 +129,6 @@ builder.Services.AddSingleton<IGatewayRegistrationClient>(sp =>
         options,
         sp.GetRequiredService<ILogger<HttpGatewayRegistrationClient>>());
 });
-builder.Services.AddSingleton<GatewayIdentityManager>();
 builder.Services.AddHostedService<GatewayRegistrationWorker>();
 
 // ---------------------------------------------------------------------------
@@ -143,9 +163,18 @@ builder.Services.AddSingleton<IArtifactTransfer>(sp =>
         return new DisabledArtifactTransfer();
     }
 
-    var http = new HttpClient
+    // SP-01: https for the byte channel too; same AllowInsecureHttp opt-out for local dev compose.
+    var relayUri = RelayTlsPolicy.RequireAllowed(options.BaseUrl, options.AllowInsecureHttp);
+
+    var manager = new Lazy<GatewayIdentityManager>(sp.GetRequiredService<GatewayIdentityManager>);
+    var gateway = sp.GetRequiredService<IOptions<GatewayOptions>>().Value;
+
+    var http = new HttpClient(new SignedGatewayRequestHandler(
+        gateway.GatewayId,
+        () => manager.Value.Current?.RegistrationToken,
+        sp.GetRequiredService<ILogger<SignedGatewayRequestHandler>>()))
     {
-        BaseAddress = new Uri(options.BaseUrl!.TrimEnd('/') + "/", UriKind.Absolute),
+        BaseAddress = new Uri(relayUri.AbsoluteUri.TrimEnd('/') + "/", UriKind.Absolute),
         Timeout = TimeSpan.FromMinutes(15),
     };
     return new HttpArtifactTransport(
@@ -216,6 +245,11 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
     var result = exception is null ? ApiErrors.InternalError() : ApiErrors.FromException(exception);
     await result.ExecuteAsync(context);
 }));
+
+// TLS everywhere (AUTH-FR-04, SP-01): when an HTTPS endpoint is configured the local API redirects
+// plain HTTP; without one this is a no-op (a LAN-only PoC can run over http, but production and any
+// internet-exposed surface must terminate TLS).
+app.UseHttpsRedirection();
 
 // Apply pending EF Core migrations so the schema exists before the Edge begins
 // serving the LAN (lifecycle STARTING -> STARTED, product vision §10).

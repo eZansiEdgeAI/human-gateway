@@ -197,6 +197,10 @@ namespace HumanGateway.Relay.Storage.Migrations
                         .HasColumnType("text")
                         .HasColumnName("registration_token_fingerprint");
 
+                    b.Property<string>("RequestSigningKey")
+                        .HasColumnType("text")
+                        .HasColumnName("request_signing_key");
+
                     b.Property<string>("RevokedAt")
                         .HasColumnType("text")
                         .HasColumnName("revoked_at");

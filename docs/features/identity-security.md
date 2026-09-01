@@ -60,7 +60,7 @@
 - [x] Gateway identity: unique ID + registration token; Relay rejects unregistered gateways
 - [x] User identity + authentication at the Edge (local) and Relay (remote) with signed tokens/sessions
 - [x] Authorisation middleware: per-conversation/task/artifact access control
-- [ ] TLS everywhere; signed request tokens for Edge↔Relay traffic
+- [x] TLS everywhere; signed request tokens for Edge↔Relay traffic
 - [ ] Secure artifact access control; content-hash verification on download
 - [ ] Secret management (env/secret store, no secrets in repo)
 - [ ] Correlation-token passthrough so consumers (FlowForge) enforce role checks and audit

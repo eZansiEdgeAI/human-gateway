@@ -1,0 +1,46 @@
+{
+  "type": "work.identity-security-5.4",
+  "category": "work",
+  "taskId": "IDENTITY-SECURITY-5.4",
+  "producedBy": "security-engineer",
+  "status": "complete",
+  "summary": "TLS everywhere and signed request tokens for all Edge↔Relay traffic (AUTH-FR-04, SP-01): every outbound Edge request is HMAC-SHA256-signed over a canonical request form (method, path, raw query, RFC3339 timestamp, nonce, gateway id) with a purpose-separated key derived from the gateway's registration token; the Relay derives and stores that key at token issue/rotate time (never the token, SP-07) and verifies every /sync/* request, rejecting unsigned requests (401 SIGNATURE_INVALID), unknown identities (404), non-REGISTERED identities (403), stale timestamps, and tampered/rebound requests. TLS is enforced at the Edge (Relay base URL must be https unless an explicit dev opt-in) and at the Relay (HSTS + HTTPS redirection outside Development).",
+  "inputs": [
+    "work-identity-security-5-3-001"
+  ],
+  "filesChanged": [
+    "src/HumanGateway.Security/GatewayRequestSigning.cs",
+    "src/HumanGateway.Security/RelayTlsPolicy.cs",
+    "src/HumanGateway.Edge/Security/SignedGatewayRequestHandler.cs",
+    "src/HumanGateway.Edge/Program.cs",
+    "src/HumanGateway.Edge/Security/GatewayRegistrationOptions.cs",
+    "src/HumanGateway.Edge/Sync/RelayArtifactOptions.cs",
+    "src/HumanGateway.Relay/Security/GatewayRequestAuthenticationMiddleware.cs",
+    "src/HumanGateway.Relay/Program.cs",
+    "src/HumanGateway.Relay/Options/RelayOptions.cs",
+    "src/HumanGateway.Relay/Services/GatewayService.cs",
+    "src/HumanGateway.Relay/Storage/Entities/GatewayRecord.cs",
+    "src/HumanGateway.Relay/Storage/RelayDbContext.cs",
+    "src/HumanGateway.Relay/Storage/Migrations/20260901000620_AddGatewayRequestSigningKey.cs",
+    "tests/HumanGateway.Security.Tests/GatewayRequestSigningTests.cs",
+    "tests/HumanGateway.Security.Tests/RelayTlsPolicyTests.cs",
+    "tests/HumanGateway.Relay.Tests/TestSigningHandler.cs",
+    "tests/HumanGateway.Relay.Tests/GatewayRequestSigningTests.cs",
+    "tests/HumanGateway.Relay.Tests/SyncEndpointTests.cs",
+    "tests/HumanGateway.Relay.Tests/ArtifactEndpointTests.cs",
+    "tests/HumanGateway.Relay.Tests/EdgeRegistrationIntegrationTests.cs",
+    "docker-compose.yml",
+    ".env.example",
+    "docs/features/identity-security.md",
+    "docs/PROGRESS.md"
+  ],
+  "payload": {
+    "agentOutputExcerpt": "TLS everywhere and signed request tokens for Edge↔Relay traffic (AUTH-FR-04, SP-01). The Edge signs every outbound request with an HMAC-SHA256 key derived from its current registration token (purpose label 'humangateway:request-signing:v1'); the Relay derives the same key at token issue/rotate time and stores only that derived key (never the plaintext token, SP-07). GatewayRequestSigningMiddleware verifies every /sync/* request: unknown identities 404, non-REGISTERED 403, missing/stale/invalid signatures 401 SIGNATURE_INVALID, and query/body gateway ids that disagree with the verified identity are rejected. TLS is enforced at the Edge (RelayTlsPolicy.RequireAllowed — https only, loopback/dev opt-in) and the Relay (HSTS + HTTPS redirection outside Development).",
+    "tests": "Security.Tests 33, Relay.Tests 93 (Testcontainers PostgreSQL), Edge.Tests 143, Core.Tests 123 — all green."
+  },
+  "nextActions": [
+    "IDENTITY-SECURITY-5.5: Secure artifact access control; content-hash verification on download"
+  ],
+  "artifactId": "work-identity-security-5-4-001",
+  "createdAt": "2026-09-01T02:25:00.000Z"
+}

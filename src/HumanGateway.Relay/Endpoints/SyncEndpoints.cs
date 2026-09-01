@@ -159,6 +159,8 @@ public static class SyncEndpoints
     /// Applies a gateway's PUSH batch (syncbatch.schema.json) and responds with the result batch carrying the
     /// new push cursor. The request body is the canonical wire SyncBatch; the response is a keepalive result
     /// batch (empty items) whose <c>cursor</c> is the durable acknowledgement the Edge flushes its outbox on.
+    /// The gateway identity was verified by the request-authentication middleware (AUTH-FR-04), which resolves
+    /// and signs the same gatewayId the batch carries.
     /// </summary>
     private static async Task<IResult> PushAsync(RelaySyncService service, SyncBatch batch, CancellationToken ct)
     {

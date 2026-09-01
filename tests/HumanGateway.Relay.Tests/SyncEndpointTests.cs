@@ -5,6 +5,7 @@ using HumanGateway.Core.Ids;
 using HumanGateway.Protocol.Models;
 using HumanGateway.Relay.Api;
 using HumanGateway.Relay.Storage;
+using HumanGateway.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -17,14 +18,22 @@ namespace HumanGateway.Relay.Tests;
 /// acknowledgements (SYNC-FR-05). Boots the real Relay <c>Program</c> over a Testcontainers PostgreSQL and
 /// exercises the full loop over the wire, proving the acceptance criteria: a registered Edge pushes and pulls
 /// cursors and messages converge (cloud-relay §6 #1); two schools exchange messages through the Relay without
-/// inbound connectivity at either site (§6 #2); unregistered gateways are rejected (SP-02, §7 #3); and a
-/// Relay restart resumes from durable state with no duplication (§6 #3).
+/// inbound connectivity at either site (§6 #2); unregistered/unsigned gateways are rejected (AUTH-FR-04, SP-02,
+/// §7 #3); and a Relay restart resumes from durable state with no duplication (§6 #3). Requests are signed
+/// exactly as the production Edge signs them (AUTH-FR-04).
 /// </summary>
 public sealed class SyncEndpointTests : IClassFixture<PostgresRelayFixture>
 {
     private static readonly JsonSerializerOptions ApiJson = CreateApiJson();
 
     private readonly PostgresRelayFixture _fixture;
+
+    /// <summary>
+    /// Shared across the two "relay instances" in the restart test: derived signing keys survive the restart
+    /// (they are a deterministic function of the registration tokens issued on the first instance), so the
+    /// reconnected Edge can keep signing its traffic.
+    /// </summary>
+    private readonly TestSigningHandler _signing = new();
 
     public SyncEndpointTests(PostgresRelayFixture fixture)
     {
@@ -39,15 +48,17 @@ public sealed class SyncEndpointTests : IClassFixture<PostgresRelayFixture>
     }
 
     // -----------------------------------------------------------------------------------------------
-    // Identity gate (SP-02, RELAY-FR-03 §7 #3)
+    // Identity gate (AUTH-FR-04, SP-02, RELAY-FR-03 §7 #3)
     // -----------------------------------------------------------------------------------------------
 
     [Fact]
     public async Task Push_UnregisteredGateway_IsRejectedWithNotFound()
     {
         using var factory = _factory();
-        using var client = factory.CreateClient();
+        var (client, _) = CreateClient(factory);
 
+        // A never-registered gateway claims no signing key (the request goes out unsigned), so the
+        // authentication middleware rejects the unknown identity before any signature work (SP-02).
         var response = await PushAsync(client, BuildPushBatch("gateway:ghost-sync", new List<SyncItem>()));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -60,10 +71,11 @@ public sealed class SyncEndpointTests : IClassFixture<PostgresRelayFixture>
     public async Task Push_PendingGateway_IsRejectedWithGatewayUnregistered()
     {
         using var factory = _factory();
-        using var client = factory.CreateClient();
+        var (client, signing) = CreateClient(factory);
         var pendingId = UniqueGatewayId("gateway:sync-pending");
-        await IssueTokenAsync(client, pendingId); // PENDING, never confirmed
+        await IssueTokenAsync(client, signing, pendingId); // PENDING, never confirmed
 
+        // The pending identity holds a token (so its request signs fine) but is not REGISTERED (SP-02).
         var response = await PushAsync(client, BuildPushBatch(pendingId, new List<SyncItem>()));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -75,7 +87,7 @@ public sealed class SyncEndpointTests : IClassFixture<PostgresRelayFixture>
     public async Task Pull_UnregisteredGateway_IsRejected()
     {
         using var factory = _factory();
-        using var client = factory.CreateClient();
+        var (client, _) = CreateClient(factory);
 
         var response = await client.PostAsJsonAsync("/sync/pull",
             new { gatewayId = "gateway:ghost-sync", sinceCursor = (string?)null }, ApiJson);
@@ -91,8 +103,8 @@ public sealed class SyncEndpointTests : IClassFixture<PostgresRelayFixture>
     public async Task Push_AppliesMessage_RoutesToRecipientGateway_AndReturnsCursor()
     {
         using var factory = _factory();
-        using var client = factory.CreateClient();
-        var (schoolA, schoolB) = await RegisterPairAsync(client);
+        var (client, signing) = CreateClient(factory);
+        var (schoolA, schoolB) = await RegisterPairAsync(client, signing);
 
         var message = BuildMessage("msg-00000001", schoolA, schoolB);
         var batch = BuildPushBatch(schoolA, new List<SyncItem>
@@ -128,8 +140,8 @@ public sealed class SyncEndpointTests : IClassFixture<PostgresRelayFixture>
     public async Task Push_KeepaliveBatch_IsAccepted_WithoutCursorAtStart()
     {
         using var factory = _factory();
-        using var client = factory.CreateClient();
-        var schoolA = await RegisterGatewayAsync(client, UniqueGatewayId("gateway:sync-a"));
+        var (client, signing) = CreateClient(factory);
+        var schoolA = await RegisterGatewayAsync(client, signing, UniqueGatewayId("gateway:sync-a"));
 
         var response = await PushAsync(client, BuildPushBatch(schoolA, new List<SyncItem>()));
 
@@ -146,8 +158,8 @@ public sealed class SyncEndpointTests : IClassFixture<PostgresRelayFixture>
     public async Task Push_ReplayedBatch_IsIdempotent_NoDuplicateDelivery()
     {
         using var factory = _factory();
-        using var client = factory.CreateClient();
-        var (schoolA, schoolB) = await RegisterPairAsync(client);
+        var (client, signing) = CreateClient(factory);
+        var (schoolA, schoolB) = await RegisterPairAsync(client, signing);
 
         var message = BuildMessage("msg-00000002", schoolA, schoolB);
         var batch = BuildPushBatch(schoolA, new List<SyncItem>
@@ -180,8 +192,8 @@ public sealed class SyncEndpointTests : IClassFixture<PostgresRelayFixture>
     public async Task Push_MultipleRecipientsAtOneGateway_AreRoutedOnce()
     {
         using var factory = _factory();
-        using var client = factory.CreateClient();
-        var (schoolA, schoolB) = await RegisterPairAsync(client);
+        var (client, signing) = CreateClient(factory);
+        var (schoolA, schoolB) = await RegisterPairAsync(client, signing);
 
         var message = BuildMessage("msg-00000003", schoolA, schoolB)
             with
@@ -213,8 +225,8 @@ public sealed class SyncEndpointTests : IClassFixture<PostgresRelayFixture>
     public async Task Pull_ReturnsRoutedMessage_ThenKeepaliveAfterCursorAdvance()
     {
         using var factory = _factory();
-        using var client = factory.CreateClient();
-        var (schoolA, schoolB) = await RegisterPairAsync(client);
+        var (client, signing) = CreateClient(factory);
+        var (schoolA, schoolB) = await RegisterPairAsync(client, signing);
 
         var message = BuildMessage("msg-00000004", schoolA, schoolB);
         var response = await PushAsync(client, BuildPushBatch(schoolA, new List<SyncItem>
@@ -252,8 +264,8 @@ public sealed class SyncEndpointTests : IClassFixture<PostgresRelayFixture>
     public async Task Pull_WithStaleCursor_ReDeliversUnacknowledgedItems()
     {
         using var factory = _factory();
-        using var client = factory.CreateClient();
-        var (schoolA, schoolB) = await RegisterPairAsync(client);
+        var (client, signing) = CreateClient(factory);
+        var (schoolA, schoolB) = await RegisterPairAsync(client, signing);
 
         var message = BuildMessage("msg-00000005", schoolA, schoolB);
         await PushAsync(client, BuildPushBatch(schoolA, new List<SyncItem>
@@ -280,8 +292,8 @@ public sealed class SyncEndpointTests : IClassFixture<PostgresRelayFixture>
     public async Task Pull_InvalidCursor_IsRejectedWithCursorInvalid()
     {
         using var factory = _factory();
-        using var client = factory.CreateClient();
-        var schoolB = await RegisterGatewayAsync(client, UniqueGatewayId("gateway:sync-b"));
+        var (client, signing) = CreateClient(factory);
+        var schoolB = await RegisterGatewayAsync(client, signing, UniqueGatewayId("gateway:sync-b"));
 
         var response = await client.PostAsJsonAsync("/sync/pull",
             new { gatewayId = schoolB, sinceCursor = "not-a-relay-cursor" }, ApiJson);
@@ -293,17 +305,19 @@ public sealed class SyncEndpointTests : IClassFixture<PostgresRelayFixture>
     }
 
     [Fact]
-    public async Task Pull_MalformedGatewayId_IsRejected()
+    public async Task Pull_MalformedGatewayId_IsRejectedAtTheAuthBoundary()
     {
         using var factory = _factory();
-        using var client = factory.CreateClient();
+        var (client, _) = CreateClient(factory);
 
+        // A gateway id that could never be registered is unknown to the Relay — the authentication middleware
+        // rejects it before body validation ever runs (SP-02, AUTH-FR-04).
         var response = await client.PostAsJsonAsync("/sync/pull",
             new { gatewayId = "bad gateway!", sinceCursor = (string?)null }, ApiJson);
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         var error = await response.Content.ReadFromJsonAsync<ProtocolError>(ApiJson);
-        Assert.Equal(ErrorCodes.ValidationFailed, error?.Code);
+        Assert.Equal(ErrorCodes.NotFound, error?.Code);
     }
 
     // -----------------------------------------------------------------------------------------------
@@ -314,8 +328,8 @@ public sealed class SyncEndpointTests : IClassFixture<PostgresRelayFixture>
     public async Task Ack_RoundTripsToSenderPullQueue_AndTransitionsDeliveryRecord()
     {
         using var factory = _factory();
-        using var client = factory.CreateClient();
-        var (schoolA, schoolB) = await RegisterPairAsync(client);
+        var (client, signing) = CreateClient(factory);
+        var (schoolA, schoolB) = await RegisterPairAsync(client, signing);
 
         // School A pushes a message for school B.
         var message = BuildMessage("msg-00000006", schoolA, schoolB);
@@ -376,9 +390,9 @@ public sealed class SyncEndpointTests : IClassFixture<PostgresRelayFixture>
         // First "relay instance": register both schools and push the message.
         using (var first = new RelayApiFactory(_fixture))
         {
-            var client = first.CreateClient();
-            await RegisterGatewayAsync(client, schoolA);
-            await RegisterGatewayAsync(client, schoolB);
+            var (client, signing) = CreateClient(first);
+            await RegisterGatewayAsync(client, signing, schoolA);
+            await RegisterGatewayAsync(client, signing, schoolB);
             var response = await PushAsync(client, BuildPushBatch(schoolA, new List<SyncItem>
             {
                 new() { Kind = SyncItemKind.Message, Sequence = 1, Message = message },
@@ -386,9 +400,17 @@ public sealed class SyncEndpointTests : IClassFixture<PostgresRelayFixture>
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
 
-        // "Relay restart": a fresh host over the same durable PostgreSQL container.
+        // "Relay restart": a fresh host over the same durable PostgreSQL container. The signing keys (derived
+        // from the registration tokens issued on the first instance) survive in a fresh handler ring, exactly
+        // as a real Edge's secret store survives a Relay outage.
         using var restarted = new RelayApiFactory(_fixture);
-        var client2 = restarted.CreateClient();
+        var restartedSigning = new TestSigningHandler();
+        foreach (var key in _signing.Keys)
+        {
+            restartedSigning.Keys[key.Key] = key.Value;
+        }
+
+        var (client2, _) = CreateClient(restarted, restartedSigning);
 
         // Registered gateways survive the restart and reconnect (SP-02 still enforced).
         var keepalive = await PushAsync(client2, BuildPushBatch(schoolA, new List<SyncItem>()));
@@ -416,8 +438,8 @@ public sealed class SyncEndpointTests : IClassFixture<PostgresRelayFixture>
     public async Task Push_WrongDirection_IsRejected()
     {
         using var factory = _factory();
-        using var client = factory.CreateClient();
-        var schoolA = await RegisterGatewayAsync(client, UniqueGatewayId("gateway:sync-c"));
+        var (client, signing) = CreateClient(factory);
+        var schoolA = await RegisterGatewayAsync(client, signing, UniqueGatewayId("gateway:sync-c"));
 
         var batch = BuildPushBatch(schoolA, new List<SyncItem>()) with { Direction = BatchDirection.Pull };
         var response = await PushAsync(client, batch);
@@ -431,8 +453,8 @@ public sealed class SyncEndpointTests : IClassFixture<PostgresRelayFixture>
     public async Task Push_MalformedMessageItem_IsRejected()
     {
         using var factory = _factory();
-        using var client = factory.CreateClient();
-        var (schoolA, schoolB) = await RegisterPairAsync(client);
+        var (client, signing) = CreateClient(factory);
+        var (schoolA, schoolB) = await RegisterPairAsync(client, signing);
 
         // A message item whose payload violates message.schema.json (missing payload body).
         var message = BuildMessage("msg-00000008", schoolA, schoolB)
@@ -453,8 +475,8 @@ public sealed class SyncEndpointTests : IClassFixture<PostgresRelayFixture>
     public async Task Push_ItemKindPayloadMismatch_IsRejected()
     {
         using var factory = _factory();
-        using var client = factory.CreateClient();
-        var (schoolA, schoolB) = await RegisterPairAsync(client);
+        var (client, signing) = CreateClient(factory);
+        var (schoolA, schoolB) = await RegisterPairAsync(client, signing);
 
         // kind=message but the payload is a Delivery — violates the syncItem oneOf.
         var delivery = new Delivery
@@ -484,6 +506,13 @@ public sealed class SyncEndpointTests : IClassFixture<PostgresRelayFixture>
 
     private RelayApiFactory _factory() => new(_fixture);
 
+    /// <summary>Creates a client whose outbound requests are signed via the shared test signing ring.</summary>
+    private (HttpClient Client, TestSigningHandler Signing) CreateClient(RelayApiFactory factory, TestSigningHandler? signing = null)
+    {
+        var handler = signing ?? _signing;
+        return (factory.CreateDefaultClient(handler), handler);
+    }
+
     private static RelayDbContext NewDbContext(RelayApiFactory factory)
         => factory.Services.GetRequiredService<IDbContextFactory<RelayDbContext>>().CreateDbContext();
 
@@ -491,24 +520,30 @@ public sealed class SyncEndpointTests : IClassFixture<PostgresRelayFixture>
     private static string UniqueGatewayId(string prefix)
         => $"{prefix}-{Guid.NewGuid().ToString("N")[..8]}";
 
-    private static async Task<(string SchoolA, string SchoolB)> RegisterPairAsync(HttpClient client)
+    private static async Task<(string SchoolA, string SchoolB)> RegisterPairAsync(
+        HttpClient client, TestSigningHandler signing)
     {
-        var schoolA = await RegisterGatewayAsync(client, UniqueGatewayId("gateway:sync-a"));
-        var schoolB = await RegisterGatewayAsync(client, UniqueGatewayId("gateway:sync-b"));
+        var schoolA = await RegisterGatewayAsync(client, signing, UniqueGatewayId("gateway:sync-a"));
+        var schoolB = await RegisterGatewayAsync(client, signing, UniqueGatewayId("gateway:sync-b"));
         return (schoolA, schoolB);
     }
 
-    private static async Task<string> IssueTokenAsync(HttpClient client, string gatewayId)
+    private static async Task<string> IssueTokenAsync(
+        HttpClient client, TestSigningHandler signing, string gatewayId)
     {
         var response = await client.PostAsJsonAsync("/gateways", new { gatewayId }, ApiJson);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var issued = await response.Content.ReadFromJsonAsync<RegistrationIssued>(ApiJson);
-        return issued!.RegistrationToken;
+
+        // AUTH-FR-04: register the derived request-signing key so subsequent /sync requests sign as this gateway.
+        signing.Keys[gatewayId] = GatewayRequestSigning.DeriveKey(issued!.RegistrationToken);
+        return issued.RegistrationToken;
     }
 
-    private static async Task<string> RegisterGatewayAsync(HttpClient client, string gatewayId)
+    private static async Task<string> RegisterGatewayAsync(
+        HttpClient client, TestSigningHandler signing, string gatewayId)
     {
-        var token = await IssueTokenAsync(client, gatewayId);
+        var token = await IssueTokenAsync(client, signing, gatewayId);
         var confirm = await client.PostAsJsonAsync($"/gateways/{gatewayId}/register",
             new { gatewayId, registrationToken = token }, ApiJson);
         Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
