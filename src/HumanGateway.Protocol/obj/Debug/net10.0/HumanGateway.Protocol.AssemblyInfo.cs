@@ -16,7 +16,7 @@ using System.Reflection;
     "the versioned JSON Schemas under schemas/ (JSON Schema Draft 2020-12, release v1" +
     ".0.0); the schemas remain the single source of truth (NF-06, PROTO-FR-06)."))]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4299deeeff13ccd973084e852f95bb11a9e7c18f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0b25094a80441f55736f3ad7198faa1a0cb5789b")]
 [assembly: System.Reflection.AssemblyProductAttribute("HumanGateway.Protocol")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HumanGateway.Protocol")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
