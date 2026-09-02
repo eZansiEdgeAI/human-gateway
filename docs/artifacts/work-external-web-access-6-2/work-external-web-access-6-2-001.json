@@ -1,0 +1,18 @@
+{
+  "type": "work.external-web-access-6.2",
+  "category": "work",
+  "taskId": "EXTERNAL-WEB-ACCESS-6.2",
+  "producedBy": "relay-engineer",
+  "status": "complete",
+  "summary": "Implemented rendezvous routing for remote message submission.",
+  "inputs": [
+    "work-external-web-access-6-1-001"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "Implemented rendezvous routing for remote message submission.\n\n### Files created\n- `src/HumanGateway.Relay/Api/RemoteMessageModels.cs`\n- `src/HumanGateway.Relay/Endpoints/RemoteMessageEndpoints.cs`\n\n### Files changed\n- `src/HumanGateway.Relay/Endpoints/RelayEndpoints.cs`\n  - Registers the `/remote/messages` endpoint.\n- `src/HumanGateway.Relay/Endpoints/WebAppEndpoints.cs`\n  - Prevents unknown `/remote/*` API routes from falling through to the PWA shell.\n- `src/HumanGateway.Relay/Services/RelaySy"
+  },
+  "nextActions": [],
+  "artifactId": "work-external-web-access-6-2-001",
+  "createdAt": "2026-09-02T20:33:01.256Z"
+}

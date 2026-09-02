@@ -9,5 +9,8 @@
   "keepAlive": false,
   "attach": "",
   "executionMode": "manual",
-  "selectedTaskIds": []
+  "selectionScope": "single",
+  "selectedTaskIds": [
+    "EXTERNAL-WEB-ACCESS-6.2"
+  ]
 }

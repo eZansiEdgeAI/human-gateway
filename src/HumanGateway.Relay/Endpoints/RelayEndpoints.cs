@@ -14,6 +14,7 @@ public static class RelayEndpoints
         app.MapGatewayEndpoints();
         app.MapRendezvousEndpoints();
         app.MapSyncEndpoints();
+        app.MapRemoteMessageEndpoints();
     }
 
     private static void MapRelayInfoEndpoint(this WebApplication app)

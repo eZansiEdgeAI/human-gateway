@@ -32,6 +32,7 @@ public static class WebAppEndpoints
         return value.Equals("/relay", StringComparison.OrdinalIgnoreCase)
             || IsPathOrChildOf(value, "/auth")
             || IsPathOrChildOf(value, "/gateways")
+            || IsPathOrChildOf(value, "/remote")
             || IsPathOrChildOf(value, "/sync")
             || IsPathOrChildOf(value, "/artifacts")
             || value.StartsWith("/health", StringComparison.OrdinalIgnoreCase);

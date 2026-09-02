@@ -2,6 +2,7 @@ using HumanGateway.Core.Cursor;
 using HumanGateway.Core.Delivery;
 using HumanGateway.Core.Idempotency;
 using HumanGateway.Core.Ids;
+using HumanGateway.Core.Hashing;
 using HumanGateway.Core.Outbox;
 using HumanGateway.Core.Sync;
 using HumanGateway.Core.Time;
@@ -11,6 +12,7 @@ using HumanGateway.Relay.Api;
 using HumanGateway.Relay.Options;
 using HumanGateway.Relay.Storage;
 using HumanGateway.Relay.Storage.Entities;
+using HumanGateway.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Npgsql;
@@ -154,6 +156,45 @@ public sealed class RelaySyncService
             Items = new List<SyncItem>(),
             CreatedAt = ProtocolTime.Format(now),
         };
+    }
+
+    /// <summary>
+    /// Publishes a message submitted by an authenticated remote user. The message is persisted before its
+    /// recipient gateway queues are populated, so an Edge that is offline is handled by the same durable
+    /// store-and-forward path as an Edge-originated message (WEBX-FR-02, RELAY-FR-04).
+    /// </summary>
+    public async Task PublishRemoteMessageAsync(Message message, AuthenticatedUser user, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        ArgumentNullException.ThrowIfNull(user);
+
+        if (message.Sender.Kind != ParticipantKind.Human
+            || !string.Equals(message.Sender.UserId, user.UserId, StringComparison.Ordinal))
+        {
+            throw GatewayServiceException.Forbidden(ErrorCodes.Forbidden,
+                "The remote sender must be the authenticated user's participant.");
+        }
+
+        var validation = ProtocolValidator.Default.Message.Validate(message);
+        if (!validation.IsValid)
+        {
+            throw GatewayServiceException.BadRequest(ErrorCodes.ValidationFailed,
+                string.Join("; ", validation.Errors.Select(e => e.ToString())));
+        }
+
+        if (!ContentHasher.VerifyMessageHash(message))
+        {
+            throw GatewayServiceException.BadRequest(ErrorCodes.HashMismatch,
+                "The message contentHash does not match its canonical envelope.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        await UpsertMessageAsync(message, ct).ConfigureAwait(false);
+        await UpsertParticipantsAsync(message, ct).ConfigureAwait(false);
+        await RouteMessagesAsync("system:relay", new[]
+        {
+            new SyncItem { Kind = SyncItemKind.Message, Sequence = 1, Message = message },
+        }, now, ct).ConfigureAwait(false);
     }
 
     // -----------------------------------------------------------------------------------------------
