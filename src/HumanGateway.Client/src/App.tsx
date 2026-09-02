@@ -7,6 +7,9 @@ import { MessageThread } from './components/MessageThread'
 import { ComposeMessage } from './components/ComposeMessage'
 import { TaskList } from './components/TaskList'
 import { TaskView } from './components/TaskView'
+import { AuthProvider } from './auth/context'
+import { useAuth } from './auth/useAuth'
+import { LoginForm } from './components/LoginForm'
 
 type View =
   | { name: 'inbox' }
@@ -17,8 +20,20 @@ type View =
 
 export default function App() {
   return (
+    <AuthProvider>
+      <AuthenticatedApp />
+    </AuthProvider>
+  )
+}
+
+function AuthenticatedApp() {
+  const { session, signOut } = useAuth()
+  if (!session) {
+    return <AppShell><LoginForm /></AppShell>
+  }
+  return (
     <AppStoreProvider>
-      <Workspace />
+      <Workspace userName={session.user.displayName} onSignOut={() => void signOut()} />
     </AppStoreProvider>
   )
 }
@@ -28,7 +43,7 @@ export default function App() {
  * Compose, Tasks, and Task detail (no router dependency — offline-pwa Open
  * Q #1). Data and actions come from the app store.
  */
-function Workspace() {
+function Workspace({ userName, onSignOut }: { userName: string; onSignOut: () => void }) {
   const store = useAppStore()
   const [view, setView] = useState<View>({ name: 'inbox' })
 
@@ -98,6 +113,8 @@ function Workspace() {
   return (
     <AppShell>
       <nav className="app-nav" aria-label="Primary">
+        <span className="app-nav__user">Signed in as {userName}</span>
+        <button type="button" className="app-nav__tab" onClick={onSignOut}>Sign out</button>
         <button
           type="button"
           className="app-nav__tab"

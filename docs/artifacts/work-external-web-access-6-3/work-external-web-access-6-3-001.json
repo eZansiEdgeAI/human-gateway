@@ -1,0 +1,18 @@
+{
+  "type": "work.external-web-access-6.3",
+  "category": "work",
+  "taskId": "EXTERNAL-WEB-ACCESS-6.3",
+  "producedBy": "pwa-engineer",
+  "status": "complete",
+  "summary": "Implemented remote Relay/Edge login integration for the PWA.",
+  "inputs": [
+    "work-external-web-access-6-2-001"
+  ],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "Implemented remote Relay/Edge login integration for the PWA.\n\n### Changed files\n\n- `src/HumanGateway.Client/src/App.tsx`\n  - Added authentication gating.\n  - Displays the login screen when no valid session exists.\n  - Shows the signed-in user and sign-out action.\n\n- `src/HumanGateway.Client/src/api/http.ts`\n  - Automatically adds the persisted bearer token to API requests.\n\n- `src/HumanGateway.Client/src/api/index.ts`\n  - Exported authentication APIs and session types.\n\n- `src/HumanGateway.Clien"
+  },
+  "nextActions": [],
+  "artifactId": "work-external-web-access-6-3-001",
+  "createdAt": "2026-09-02T20:35:51.384Z"
+}

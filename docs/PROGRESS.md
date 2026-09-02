@@ -3,7 +3,7 @@
 ## Current State
 **Phase**: EXTERNAL-WEB-ACCESS-6
 **Status**: In Progress
-**Last Updated**: 2026-09-02T20:33:01.259Z
+**Last Updated**: 2026-09-02T20:35:51.389Z
 **Run ID**: cc1dad89-27a5-4765-8655-91bea28ec9c3
 **Harness**: opencode
 
@@ -56,6 +56,7 @@
 - [x] Phase IDENTITY-SECURITY-5, Task IDENTITY-SECURITY-5.7: [ ] Correlation-token passthrough so consumers (FlowForge) enforce role checks and audit (@security-engineer)
 - [x] Phase EXTERNAL-WEB-ACCESS-6, Task EXTERNAL-WEB-ACCESS-6.1: [ ] Relay-hosted web entry point for the PWA (@pwa-engineer)
 - [x] Phase EXTERNAL-WEB-ACCESS-6, Task EXTERNAL-WEB-ACCESS-6.2: [ ] Rendezvous routing (@relay-engineer)
+- [x] Phase EXTERNAL-WEB-ACCESS-6, Task EXTERNAL-WEB-ACCESS-6.3: [ ] Remote login integration (uses identity-security) (@pwa-engineer)
 
 ## Current Task
 - None currently running

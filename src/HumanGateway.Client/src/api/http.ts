@@ -13,6 +13,7 @@
  */
 
 import type { ProtocolError } from '../types/protocol'
+import { getAuthSession } from '../auth/session'
 
 /** Default request timeout before a request is treated as unreachable. */
 export const DEFAULT_TIMEOUT_MS = 10_000
@@ -81,7 +82,10 @@ export async function httpRequest<T>(init: HttpRequestInit): Promise<T> {
   try {
     response = await fetch(url, {
       method,
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      headers: {
+        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        ...(getAuthSession()?.token ? { Authorization: `Bearer ${getAuthSession()!.token}` } : {}),
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal,
     })
