@@ -319,3 +319,5 @@
 {"timestamp":"2026-09-02T20:33:01.306Z","action":"task.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"EXTERNAL-WEB-ACCESS-6.3","phaseId":"EXTERNAL-WEB-ACCESS-6","attempt":1}
 {"timestamp":"2026-09-02T20:35:51.385Z","action":"artifact.created","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"EXTERNAL-WEB-ACCESS-6.3","artifactId":"work-external-web-access-6-3-001","artifactType":"work.external-web-access-6.3","inputArtifacts":["work-external-web-access-6-2-001"]}
 {"timestamp":"2026-09-02T20:35:51.385Z","action":"task.complete","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"EXTERNAL-WEB-ACCESS-6.3","phaseId":"EXTERNAL-WEB-ACCESS-6","outputFiles":[],"durationMs":170050}
+{"timestamp":"2026-09-02T20:35:51.448Z","action":"task.committed","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"EXTERNAL-WEB-ACCESS-6.3","commitSha":"e8e76fde9c377aa5de184d605bd0297f9cbdde18"}
+{"timestamp":"2026-09-02T20:35:51.448Z","action":"run.paused","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","note":"Stop/pause requested (control file or signal)"}

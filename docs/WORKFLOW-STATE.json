@@ -5,7 +5,7 @@
   "manifestPath": "/home/mcfuzzysquirrel/Projects/human-gateway/docs/EXECUTION-MANIFEST.json",
   "manifestVersion": "1.0",
   "harness": "opencode",
-  "status": "running",
+  "status": "paused",
   "currentPhase": "EXTERNAL-WEB-ACCESS-6",
   "tasks": {
     "PROTOCOL-0.1": {
