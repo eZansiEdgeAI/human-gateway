@@ -331,6 +331,17 @@
             items array is a valid keepalive — there is nothing new after the echoed cursor (SYNC-FR-03).
             </summary>
         </member>
+        <member name="T:HumanGateway.Relay.Endpoints.WebAppEndpoints">
+            <summary>
+            Hosts the same offline-first PWA as the public Relay (WEBX-FR-01). The
+            static-file middleware is configured in <c>Program.cs</c>; this endpoint
+            supplies the client-side route fallback without turning API failures into
+            HTML responses.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Endpoints.WebAppEndpoints.MapWebAppEndpoints(Microsoft.AspNetCore.Builder.WebApplication)">
+            <summary>Maps the client-side route fallback after all API endpoints.</summary>
+        </member>
         <member name="T:HumanGateway.Relay.Health.HealthReportJson">
             <summary>
             Writes the ASP.NET Core <see cref="T:Microsoft.Extensions.Diagnostics.HealthChecks.HealthReport"/> as a compact, machine-readable JSON document for the

@@ -10,7 +10,9 @@
  *      school's Edge from a settings screen (`setEdgeBaseUrl` persists to
  *      `localStorage`). Survives a reload and works offline.
  *   2. **Build-time env** — `VITE_EDGE_BASE_URL` baked in at build time.
- *   3. **Default** — the documented localhost dev URL (`dotnet run` from the
+ *   3. **Relay-hosted build** — same-origin API calls when the PWA is built for
+ *      the public Relay.
+ *   4. **Default** — the documented localhost dev URL (`dotnet run` from the
  *      Edge README).
  *
  * The value is always normalised to a trailing-slash-free origin, so callers
@@ -23,6 +25,9 @@ export const EDGE_BASE_URL_STORAGE_KEY = 'humangateway.edgeBaseUrl'
 /** Build-time override via `VITE_EDGE_BASE_URL` (import.meta.env). */
 const ENV_EDGE_BASE_URL = import.meta.env.VITE_EDGE_BASE_URL as string | undefined
 
+/** Set to `same-origin` by the Relay container build. */
+const RELAY_HOSTED = ENV_EDGE_BASE_URL === 'same-origin'
+
 /** Documented localhost dev URL (see `HumanGateway.Edge/README.md`). */
 export const DEFAULT_EDGE_BASE_URL = 'http://localhost:5187'
 
@@ -30,6 +35,8 @@ export const DEFAULT_EDGE_BASE_URL = 'http://localhost:5187'
 export function getEdgeBaseUrl(): string {
   const runtime = readStorage()
   if (runtime) return normalize(runtime)
+
+  if (RELAY_HOSTED) return ''
 
   if (ENV_EDGE_BASE_URL) return normalize(ENV_EDGE_BASE_URL)
 

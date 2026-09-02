@@ -7,5 +7,7 @@
   "viz": false,
   "vizPort": "",
   "keepAlive": false,
-  "attach": ""
+  "attach": "",
+  "executionMode": "manual",
+  "selectedTaskIds": []
 }

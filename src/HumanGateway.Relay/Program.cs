@@ -176,6 +176,13 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
+// Public PWA entry point (WEBX-FR-01): the Relay serves the exact build used on
+// the Edge. Static files are deliberately installed before endpoint mapping;
+// the fallback is added below, after the API endpoints, so an API typo cannot
+// silently receive index.html.
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 // Translate unexpected exceptions into ProtocolError-shaped responses so Edge
 // Gateways always receive the stable, machine-readable error contract (SP-07).
 // Unhandled exceptions are logged at Error with the request path for diagnosis.
@@ -276,6 +283,7 @@ app.MapHealthChecks("/health", new HealthCheckOptions
 // The Relay API: gateway registration + rendezvous, sync, remote auth, service info.
 app.MapRemoteAuthEndpoints();
 app.MapRelayEndpoints();
+app.MapWebAppEndpoints();
 
 app.Run();
 

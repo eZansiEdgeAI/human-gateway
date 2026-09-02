@@ -2,8 +2,8 @@
 
 ## Current State
 **Phase**: EXTERNAL-WEB-ACCESS-6
-**Status**: Failed
-**Last Updated**: 2026-09-01T00:27:45.963Z
+**Status**: In Progress
+**Last Updated**: 2026-09-02T20:24:25.080Z
 **Run ID**: cc1dad89-27a5-4765-8655-91bea28ec9c3
 **Harness**: opencode
 
@@ -54,6 +54,7 @@
 - [x] Phase IDENTITY-SECURITY-5, Task IDENTITY-SECURITY-5.5: [ ] Secure artifact access control; content-hash verification on download (@security-engineer)
 - [x] Phase IDENTITY-SECURITY-5, Task IDENTITY-SECURITY-5.6: [ ] Secret management (env/secret store, no secrets in repo) (@security-engineer)
 - [x] Phase IDENTITY-SECURITY-5, Task IDENTITY-SECURITY-5.7: [ ] Correlation-token passthrough so consumers (FlowForge) enforce role checks and audit (@security-engineer)
+- [x] Phase EXTERNAL-WEB-ACCESS-6, Task EXTERNAL-WEB-ACCESS-6.1: [ ] Relay-hosted web entry point for the PWA (@pwa-engineer)
 
 ## Current Task
 - None currently running

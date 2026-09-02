@@ -1,0 +1,16 @@
+{
+  "type": "work.external-web-access-6.1",
+  "category": "work",
+  "taskId": "EXTERNAL-WEB-ACCESS-6.1",
+  "producedBy": "pwa-engineer",
+  "status": "complete",
+  "summary": "Implemented the Relay-hosted PWA entry point for WEBX-FR-01.",
+  "inputs": [],
+  "filesChanged": [],
+  "payload": {
+    "agentOutputExcerpt": "Implemented the Relay-hosted PWA entry point for WEBX-FR-01.\n\n### Changes\n\n- Added ASP.NET Core static-file hosting and client-side route fallback on the Relay.\n- Preserved JSON/404 behavior for Relay API paths instead of returning the SPA shell.\n- Updated the Relay Docker image to:\n  - Build the React PWA in a Node build stage.\n  - Build the .NET Relay.\n  - Copy the PWA output into the Relay’s `wwwroot`.\n- Configured the Relay-hosted PWA to use same-origin API requests.\n- Updated Workbox naviga"
+  },
+  "nextActions": [],
+  "artifactId": "work-external-web-access-6-1-001",
+  "createdAt": "2026-09-02T20:24:25.077Z"
+}

@@ -65,9 +65,9 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         navigateFallback: 'index.html',
         // Safety: never fall back to the app shell for same-origin API routes.
-        // The Edge REST API lives on a different origin, but the Relay may serve
-        // both the PWA and a same-origin proxy in a later task (WEBX-FR-01).
-        navigateFallbackDenylist: [/^\/api\//],
+        // The Relay serves the PWA and API from one origin (WEBX-FR-01). Never
+        // turn an API navigation into an HTML app-shell response.
+        navigateFallbackDenylist: [/^\/(?:api|auth|relay|gateways|sync|artifacts|health)(?:\/|$)/],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,

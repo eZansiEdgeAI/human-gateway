@@ -1,11 +1,11 @@
 {
   "runId": "cc1dad89-27a5-4765-8655-91bea28ec9c3",
   "startedAt": "2026-08-28T21:20:12.360Z",
-  "lastUpdatedAt": "2026-09-01T00:27:45.956Z",
+  "lastUpdatedAt": "2026-09-02T20:24:25.077Z",
   "manifestPath": "/home/mcfuzzysquirrel/Projects/human-gateway/docs/EXECUTION-MANIFEST.json",
   "manifestVersion": "1.0",
   "harness": "opencode",
-  "status": "failed",
+  "status": "running",
   "currentPhase": "EXTERNAL-WEB-ACCESS-6",
   "tasks": {
     "PROTOCOL-0.1": {
@@ -574,13 +574,14 @@
     },
     "EXTERNAL-WEB-ACCESS-6.1": {
       "taskId": "EXTERNAL-WEB-ACCESS-6.1",
-      "status": "failed",
+      "status": "complete",
       "ownerAgent": "pwa-engineer",
-      "attempt": 1,
+      "attempt": 2,
       "outputFiles": [],
-      "startedAt": "2026-09-01T00:27:23.294Z",
-      "completedAt": "2026-09-01T00:27:45.956Z",
-      "errorMessage": "task produced no changes and no substantive output"
+      "startedAt": "2026-09-02T20:20:53.556Z",
+      "completedAt": "2026-09-02T20:24:25.077Z",
+      "agentOutput": "Implemented the Relay-hosted PWA entry point for WEBX-FR-01.\n\n### Changes\n\n- Added ASP.NET Core static-file hosting and client-side route fallback on the Relay.\n- Preserved JSON/404 behavior for Relay API paths instead of returning the SPA shell.\n- Updated the Relay Docker image to:\n  - Build the React PWA in a Node build stage.\n  - Build the .NET Relay.\n  - Copy the PWA output into the Relay’s `wwwroot`.\n- Configured the Relay-hosted PWA to use same-origin API requests.\n- Updated Workbox navigation fallback denylisting for Relay API routes.\n- Added Relay hosting documentation.\n\n### Files created or changed\n\n- `deployment/docker/Dockerfile.relay`\n- `src/HumanGateway.Client/src/api/config.ts`\n- `src/HumanGateway.Client/vite.config.ts`\n- `src/HumanGateway.Relay/Program.cs`\n- `src/HumanGateway.Relay/Endpoints/WebAppEndpoints.cs`\n\n### Validation\n\n- `npm run build` — passed\n- `npm run lint` — passed\n- `npm test` — passed: 154 tests\n- `dotnet build src/HumanGateway.Relay/HumanGateway.Relay.csproj --no-restore` — passed with 0 warnings/errors\n- `git diff --check` — passed\n- Relay integration test execution was blocked because Docker is unavailable at `/var/run/docker.sock`.\n",
+      "artifactId": "work-external-web-access-6-1-001"
     },
     "EXTERNAL-WEB-ACCESS-6.2": {
       "taskId": "EXTERNAL-WEB-ACCESS-6.2",

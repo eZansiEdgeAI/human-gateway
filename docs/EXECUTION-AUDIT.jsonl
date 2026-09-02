@@ -304,3 +304,6 @@
 {"timestamp":"2026-09-01T00:27:37.858Z","action":"task.retrying","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"EXTERNAL-WEB-ACCESS-6.1","attempt":3}
 {"timestamp":"2026-09-01T00:27:45.956Z","action":"task.failed","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"EXTERNAL-WEB-ACCESS-6.1","phaseId":"EXTERNAL-WEB-ACCESS-6","durationMs":3079,"note":"task produced no changes and no substantive output"}
 {"timestamp":"2026-09-01T00:27:45.961Z","action":"run.failed","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","note":"One or more tasks failed"}
+{"timestamp":"2026-09-02T20:20:53.556Z","action":"task.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"EXTERNAL-WEB-ACCESS-6.1","phaseId":"EXTERNAL-WEB-ACCESS-6","attempt":2}
+{"timestamp":"2026-09-02T20:24:25.077Z","action":"artifact.created","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"EXTERNAL-WEB-ACCESS-6.1","artifactId":"work-external-web-access-6-1-001","artifactType":"work.external-web-access-6.1","inputArtifacts":[]}
+{"timestamp":"2026-09-02T20:24:25.077Z","action":"task.complete","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"EXTERNAL-WEB-ACCESS-6.1","phaseId":"EXTERNAL-WEB-ACCESS-6","outputFiles":[],"durationMs":211487}
