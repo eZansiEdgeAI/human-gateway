@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HumanGateway.Relay.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9c1e7bff09e47e6d5adaf3ed6a7078d3ca519551")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d9e017c41664de71bcf4756eae8ea1eef19de59f")]
 [assembly: System.Reflection.AssemblyProductAttribute("HumanGateway.Relay.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HumanGateway.Relay.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
