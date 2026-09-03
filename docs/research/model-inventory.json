@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "last_verified": "2026-09-03T21:01:17Z",
+  "normalization": "provider/model",
+  "ollama": {
+    "available": true,
+    "endpoint": "http://localhost:11434",
+    "models": [
+      {
+        "id": "ollama/gemma4:latest",
+        "name": "gemma4:latest",
+        "parameter_size": "8B",
+        "context_length": 131072,
+        "quantization": "Q4_K_M",
+        "size_bytes": 9608350718,
+        "tool_calling": true,
+        "capabilities": ["completion", "tools", "thinking"],
+        "eval_notes": "Ollama reports tools and thinking capabilities; no project-specific benchmark was found."
+      },
+      {
+        "id": "ollama/qwen3.5:4b",
+        "name": "qwen3.5:4b",
+        "parameter_size": "4.7B",
+        "context_length": 262144,
+        "quantization": "Q4_K_M",
+        "size_bytes": 3389983735,
+        "tool_calling": true,
+        "capabilities": ["vision", "completion", "tools", "thinking"],
+        "eval_notes": "Ollama reports tools and thinking capabilities; no project-specific benchmark was found."
+      },
+      {
+        "id": "ollama/granite4:3b",
+        "name": "granite4:3b",
+        "parameter_size": "3.4B",
+        "context_length": 131072,
+        "quantization": "Q4_K_M",
+        "size_bytes": 2099521385,
+        "tool_calling": true,
+        "capabilities": ["completion", "tools"],
+        "eval_notes": "Ollama reports tool capability; no project-specific benchmark was found."
+      },
+      {
+        "id": "ollama/neural-chat:7b",
+        "name": "neural-chat:7b",
+        "parameter_size": "7B",
+        "context_length": 32768,
+        "quantization": "Q4_0",
+        "size_bytes": 4109853239,
+        "tool_calling": false,
+        "capabilities": ["completion"],
+        "excluded": "no tool calling"
+      }
+    ]
+  },
+  "opencode": {
+    "available": true,
+    "source": "opencode models",
+    "models": [
+      {"id":"opencode/big-pickle","context_length":200000,"tool_calling":true,"reasoning":true},
+      {"id":"opencode/ling-3.0-flash-fin-free","context_length":262144,"tool_calling":true,"reasoning":true},
+      {"id":"opencode/mimo-v2.5-free","context_length":200000,"tool_calling":true,"reasoning":true},
+      {"id":"opencode/muse-spark-1.2-contributor-free","context_length":1048576,"tool_calling":true,"reasoning":true,"benchlm":{"overall_score":76.8,"evidence_status":"estimated","category_scores":{"agentic":56.39,"coding":63.07,"knowledge":60.3}}},
+      {"id":"opencode/muse-spark-1.3-contributor-free","context_length":1048576,"tool_calling":true,"reasoning":true},
+      {"id":"opencode/nemotron-3-ultra-free","context_length":1000000,"tool_calling":true,"reasoning":true},
+      {"id":"opencode/nemotron-3.5-lightning-free","context_length":262144,"tool_calling":true,"reasoning":true},
+      {"id":"deepseek/deepseek-v4-flash","context_length":1000000,"tool_calling":true,"reasoning":true},
+      {"id":"deepseek/deepseek-v4-flash-vision-exp","context_length":1000000,"tool_calling":true,"reasoning":true},
+      {"id":"deepseek/deepseek-v4-pro","context_length":1000000,"tool_calling":true,"reasoning":true}
+    ]
+  },
+  "copilot_subscription": {
+    "available": true,
+    "plan": "detected via OpenCode provider catalog; verify in current Copilot model picker",
+    "source": "opencode models github-copilot",
+    "models": [
+      {"id":"github-copilot/claude-fable-5","context_length":1000000,"tool_calling":true,"reasoning":true,"benchlm":{"overall_score":82.6,"evidence_status":"supported","category_scores":{"agentic":75.09,"coding":81.26,"multimodal_grounded":61.3,"knowledge":66.6}}},
+      {"id":"github-copilot/claude-fable-5.1","context_length":1000000,"tool_calling":true,"reasoning":true,"benchlm":{"overall_score":82.95,"evidence_status":"estimated","category_scores":{"agentic":76.78,"coding":79.55,"reasoning":83.1,"knowledge":97}}},
+      {"id":"github-copilot/claude-haiku-4.5","context_length":144000,"tool_calling":true,"reasoning":true},
+      {"id":"github-copilot/claude-opus-4.7","context_length":1000000,"tool_calling":true,"reasoning":true,"benchlm":{"overall_score":72.45,"evidence_status":"supported","category_scores":{"agentic":58.93,"coding":68.76,"knowledge":63.5,"math":61.8}}},
+      {"id":"github-copilot/claude-opus-4.7-fast","context_length":1000000,"tool_calling":true,"reasoning":true},
+      {"id":"github-copilot/claude-opus-4.8","context_length":1000000,"tool_calling":true,"reasoning":true,"benchlm":{"overall_score":76.14,"evidence_status":"supported","category_scores":{"agentic":61.97,"coding":72.25,"reasoning":68.3,"multimodal_grounded":88.4,"knowledge":86.5,"math":66.8}}},
+      {"id":"github-copilot/claude-opus-4.8-fast","context_length":1000000,"tool_calling":true,"reasoning":true},
+      {"id":"github-copilot/claude-opus-5","context_length":1000000,"tool_calling":true,"reasoning":true,"benchlm":{"overall_score":82.43,"evidence_status":"supported","category_scores":{"agentic":79.37,"coding":78.39,"reasoning":83.5,"multimodal_grounded":86.4,"knowledge":97}}},
+      {"id":"github-copilot/claude-sonnet-5","context_length":1000000,"tool_calling":true,"reasoning":true,"benchlm":{"overall_score":64.9,"evidence_status":"estimated","category_scores":{"agentic":66.95,"coding":70.68,"multimodal_grounded":76.5,"knowledge":84.3}}},
+      {"id":"github-copilot/gemini-3.5-flash","context_length":1000000,"tool_calling":true,"reasoning":true},
+       {"id":"github-copilot/gemini-3.6-flash","context_length":1000000,"tool_calling":true,"reasoning":true,"benchlm":{"overall_score":75.17,"evidence_status":"supported","category_scores":{"agentic":39.89,"coding":65.67,"knowledge":68.6}}},
+      {"id":"github-copilot/gemini-3.7-flash","context_length":1000000,"tool_calling":true,"reasoning":true,"benchlm":{"overall_score":75.27,"evidence_status":"estimated","category_scores":{"agentic":54.83,"coding":66.49,"multimodal_grounded":77.6,"knowledge":64.6}}},
+      {"id":"github-copilot/gemini-3.8-flash","context_length":1048576,"tool_calling":true,"reasoning":true,"benchlm":{"overall_score":75.37,"evidence_status":"estimated","category_scores":{"agentic":58.6,"coding":61.54,"multimodal_grounded":64.7,"knowledge":66.5}}},
+      {"id":"github-copilot/gpt-5-mini","context_length":264000,"tool_calling":true,"reasoning":true},
+       {"id":"github-copilot/gpt-5.3-codex","context_length":400000,"tool_calling":true,"reasoning":true,"benchlm":{"overall_score":65.72,"evidence_status":"supported","category_scores":{"agentic":61.22,"coding":63.67}}},
+      {"id":"github-copilot/gpt-5.4","context_length":1050000,"tool_calling":true,"reasoning":true,"benchlm":{"overall_score":73.17,"evidence_status":"supported","category_scores":{"agentic":57.06,"coding":59.25,"reasoning":69.8,"multimodal_grounded":64.8,"knowledge":75.1,"math":65.7}}},
+      {"id":"github-copilot/gpt-5.4-mini","context_length":400000,"tool_calling":true,"reasoning":true},
+      {"id":"github-copilot/gpt-5.5","context_length":1050000,"tool_calling":true,"reasoning":true,"benchlm":{"overall_score":73.27,"evidence_status":"estimated","category_scores":{"agentic":65.1,"coding":72.26,"reasoning":79,"multimodal_grounded":65.8,"knowledge":77.5,"math":71.1}}},
+      {"id":"github-copilot/gpt-5.6-luna","context_length":1050000,"tool_calling":true,"reasoning":true,"benchlm":{"overall_score":67.06,"evidence_status":"estimated","category_scores":{"agentic":51.44,"coding":73.24,"reasoning":57.9,"multimodal_grounded":60.7,"knowledge":83.6,"math":97}}},
+      {"id":"github-copilot/gpt-5.6-sol","context_length":1050000,"tool_calling":true,"reasoning":true,"benchlm":{"overall_score":81.84,"evidence_status":"supported","category_scores":{"agentic":68.89,"coding":78.99,"reasoning":85.2,"multimodal_grounded":83.2,"knowledge":85.9,"math":97}}},
+      {"id":"github-copilot/gpt-5.6-terra","context_length":1050000,"tool_calling":true,"reasoning":true,"benchlm":{"overall_score":72.63,"evidence_status":"estimated","category_scores":{"agentic":59.48,"coding":69.48,"reasoning":78.1,"multimodal_grounded":71.9,"knowledge":84.2,"math":97}}},
+      {"id":"github-copilot/grok-4.5","context_length":500000,"tool_calling":true,"reasoning":true,"benchlm":{"overall_score":75.08,"evidence_status":"supported","category_scores":{"agentic":63.9,"coding":59.15,"reasoning":52.1,"knowledge":68.3}}},
+      {"id":"github-copilot/grok-4.6","context_length":500000,"tool_calling":true,"reasoning":true,"benchlm":{"overall_score":75.18,"evidence_status":"estimated","category_scores":{"agentic":66.09,"coding":63.88,"knowledge":67.9}}},
+      {"id":"github-copilot/kimi-k2.7-code","context_length":256000,"tool_calling":true,"reasoning":true},
+      {"id":"github-copilot/kimi-k3","context_length":1048576,"tool_calling":true,"reasoning":true,"benchlm":{"overall_score":80.02,"evidence_status":"supported","category_scores":{"agentic":73,"coding":78.89,"multimodal_grounded":88.4,"knowledge":83.5}}},
+      {"id":"github-copilot/mai-code-1-flash-picker","context_length":256000,"tool_calling":true,"reasoning":true},
+      {"id":"github-copilot/mai-code-1.1-flash","context_length":256000,"tool_calling":true,"reasoning":true}
+    ]
+  },
+  "byok_provider": {
+    "available": false,
+    "reason": "COPILOT_PROVIDER_BASE_URL is not set"
+  },
+  "benchlm": {
+    "endpoint": "https://benchlm.ai/api/data/leaderboard?mode=bench-align-v5",
+    "last_updated": "2026-09-02",
+    "methodology": "bench-align-v5.4-2026-09-01",
+    "matching": "Exact normalized display-name matches only; absent scores are not inferred."
+  }
+}
