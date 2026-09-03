@@ -1,12 +1,12 @@
 {
   "runId": "cc1dad89-27a5-4765-8655-91bea28ec9c3",
   "startedAt": "2026-08-28T21:20:12.360Z",
-  "lastUpdatedAt": "2026-09-03T21:36:48.901Z",
+  "lastUpdatedAt": "2026-09-03T21:36:49.121Z",
   "manifestPath": "/home/mcfuzzysquirrel/Projects/human-gateway/docs/EXECUTION-MANIFEST.json",
   "manifestVersion": "1.0",
   "harness": "opencode",
-  "status": "running",
-  "currentPhase": "EXTERNAL-WEB-ACCESS-6",
+  "status": "paused",
+  "currentPhase": "FLOWFORGE-INTEGRATION-7",
   "tasks": {
     "PROTOCOL-0.1": {
       "taskId": "PROTOCOL-0.1",
@@ -747,7 +747,7 @@
       "taskId": "FLOWFORGE-INTEGRATION-7.1",
       "status": "pending",
       "ownerAgent": "workflow-engineer",
-      "attempt": 0,
+      "attempt": 1,
       "outputFiles": []
     },
     "FLOWFORGE-INTEGRATION-7.2": {
