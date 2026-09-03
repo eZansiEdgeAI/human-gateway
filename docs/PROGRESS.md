@@ -2,10 +2,11 @@
 
 ## Current State
 **Phase**: EXTERNAL-WEB-ACCESS-6
-**Status**: Paused
-**Last Updated**: 2026-09-02T20:35:51.452Z
+**Status**: In Progress
+**Last Updated**: 2026-09-03T21:30:22.377Z
 **Run ID**: cc1dad89-27a5-4765-8655-91bea28ec9c3
 **Harness**: opencode
+**Execution Mode**: auto
 
 ## Completed Tasks
 - [x] Phase PROTOCOL-0, Task PROTOCOL-0.1: [x] Define JSON schemas (@protocol-engineer)
@@ -57,6 +58,8 @@
 - [x] Phase EXTERNAL-WEB-ACCESS-6, Task EXTERNAL-WEB-ACCESS-6.1: [ ] Relay-hosted web entry point for the PWA (@pwa-engineer)
 - [x] Phase EXTERNAL-WEB-ACCESS-6, Task EXTERNAL-WEB-ACCESS-6.2: [ ] Rendezvous routing (@relay-engineer)
 - [x] Phase EXTERNAL-WEB-ACCESS-6, Task EXTERNAL-WEB-ACCESS-6.3: [ ] Remote login integration (uses identity-security) (@pwa-engineer)
+- [x] Phase EXTERNAL-WEB-ACCESS-6, Task EXTERNAL-WEB-ACCESS-6.4: [ ] Responses from remote users flow back to the school and, via correlation tokens, to the workflow consumer (@workflow-engineer)
+  - Files: src/HumanGateway.Edge/Api/LocalApiService.cs, src/HumanGateway.Edge/Program.cs, src/HumanGateway.Edge/Sync/SyncWorker.cs, src/HumanGateway.Edge/bin/Debug/net10.0/HumanGateway.Edge.xml, src/HumanGateway.Edge/obj/Debug/net10.0/HumanGateway.Edge.csproj.CoreCompileInputs.cache, src/HumanGateway.Edge/obj/Debug/net10.0/HumanGateway.Edge.xml, tests/HumanGateway.Edge.CrashProbe/bin/Debug/net10.0/HumanGateway.Edge.xml, tests/HumanGateway.Edge.Tests/bin/Debug/net10.0/HumanGateway.Edge.xml, tests/HumanGateway.Relay.Tests/bin/Debug/net10.0/HumanGateway.Edge.xml, src/HumanGateway.Edge/Sync/IInboundMessageHandler.cs, src/HumanGateway.Edge/Sync/InboundMessageProjector.cs
 
 ## Current Task
 - None currently running

@@ -3,11 +3,14 @@ import { readFileSync } from "node:fs";
 import type {
   AgentDescriptor,
   AuditEvent,
+  ExecutionMode,
   EngineOptions,
   ExecutionManifest,
   ManifestTask,
+  SelectionScope,
   TaskResult,
   TaskStatus,
+  TaskSelection,
   WorkflowState,
 } from "./types.ts";
 
@@ -22,8 +25,10 @@ import {
   markTaskFailed,
   markTaskSkipped,
   markTaskStarted,
+  reconcileState,
   saveState,
   setCurrentPhase,
+  setSelection,
   statePath as defaultStatePath,
   syncProgressMd,
   writeAuditEvent,
@@ -31,7 +36,7 @@ import {
 
 import { ArtifactStore } from "./artifacts.ts";
 import { commitTaskWork } from "./commit.ts";
-import { captureWorktree, runTaskValidation, verifyTaskResult } from "./verify.ts";
+import { captureWorktree, diffWorktree, runTaskValidation, verifyTaskResult } from "./verify.ts";
 import { clearControl, readControl } from "./control.ts";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -108,11 +113,86 @@ function flattenManifest(manifest: ExecutionManifest): FlatTask[] {
   );
 }
 
+/** Validate the graph before execution so malformed manifests fail clearly. */
+export function validateManifestDependencies(manifest: ExecutionManifest): string[] {
+  const owners = new Map<string, string>();
+  const orphanWarnings: string[] = [];
+  for (const phase of manifest.phases) {
+    for (const task of phase.tasks) {
+      const previous = owners.get(task.id);
+      if (previous) throw new Error(`Duplicate global task id '${task.id}' in phases '${previous}' and '${phase.id}'.`);
+      owners.set(task.id, phase.id);
+    }
+  }
+  for (const phase of manifest.phases) {
+    for (const phaseDependency of phase.dependencies ?? []) {
+      if (!manifest.phases.some((candidate) => candidate.id === phaseDependency)) {
+        orphanWarnings.push(`Phase '${phase.id}' depends on orphan phase '${phaseDependency}'.`);
+      }
+    }
+    for (const task of phase.tasks) {
+      for (const dependency of task.dependencies ?? []) {
+        if (!owners.has(dependency)) orphanWarnings.push(`Task '${task.id}' depends on orphan task '${dependency}'.`);
+      }
+    }
+  }
+  return orphanWarnings;
+}
+
+function scopedTaskSet(selection: TaskSelection | undefined): Set<string> | null {
+  return selection?.mode === "manual" && selection.taskIds.length > 0
+    ? new Set(selection.taskIds)
+    : null;
+}
+
+function findManifestTask(manifest: ExecutionManifest, taskId: string): ManifestTask | undefined {
+  return flattenManifest(manifest).find((entry) => entry.task.id === taskId)?.task;
+}
+
+function expandSelectedTaskIds(manifest: ExecutionManifest, selectedTaskIds: string[]): string[] {
+  const selected = new Set<string>();
+  const visiting = new Set<string>();
+
+  const visit = (taskId: string): void => {
+    if (selected.has(taskId) || visiting.has(taskId)) return;
+    const task = findManifestTask(manifest, taskId);
+    if (!task) return;
+    visiting.add(taskId);
+    for (const depId of task.dependencies ?? []) visit(depId);
+    visiting.delete(taskId);
+    selected.add(taskId);
+  };
+
+  for (const taskId of selectedTaskIds) visit(taskId);
+  return flattenManifest(manifest).map((entry) => entry.task.id).filter((id) => selected.has(id));
+}
+
+function resolveSelection(manifest: ExecutionManifest, state: WorkflowState, opts: EngineOptions): TaskSelection | undefined {
+  const executionMode = opts.executionMode === "manual" || state.selection?.mode === "manual" ? "manual" as ExecutionMode : "auto" as ExecutionMode;
+  const requested = opts.selectedTaskIds && opts.selectedTaskIds.length > 0
+    ? opts.selectedTaskIds
+    : state.selection?.mode === "manual"
+      ? state.selection.taskIds
+      : [];
+  if (executionMode !== "manual") return undefined;
+  const taskIds = expandSelectedTaskIds(manifest, requested);
+  if (taskIds.length === 0) {
+    throw new Error("Manual execution mode requires at least one valid selected task.");
+  }
+  return {
+    mode: "manual",
+    scope: opts.selectionScope ?? state.selection?.scope ?? (taskIds.length === 1 ? "single" : "list") as SelectionScope,
+    taskIds,
+  };
+}
+
 export function nextReadyTasks(manifest: ExecutionManifest, state: WorkflowState): FlatTask[] {
   const flat = flattenManifest(manifest);
   const ready: FlatTask[] = [];
+  const selected = scopedTaskSet(state.selection);
 
   for (const entry of flat) {
+    if (selected && !selected.has(entry.task.id)) continue;
     const record = state.tasks[entry.task.id];
     if (!record || record.status !== "pending") continue;
 
@@ -159,13 +239,17 @@ export function ownerUniqueReady(ready: FlatTask[]): FlatTask[] {
 }
 
 export function isComplete(manifest: ExecutionManifest, state: WorkflowState): boolean {
-  return flattenManifest(manifest).every(
+  const selected = scopedTaskSet(state.selection);
+  return flattenManifest(manifest)
+    .filter(({ task }) => !selected || selected.has(task.id))
+    .every(
     ({ task }) => isTaskDone(state.tasks[task.id]?.status),
   );
 }
 
 function hasFailed(state: WorkflowState): boolean {
-  return Object.values(state.tasks).some((t) => t.status === "failed");
+  const selected = scopedTaskSet(state.selection);
+  return Object.values(state.tasks).some((t) => t.status === "failed" && (!selected || selected.has(t.taskId)));
 }
 
 // ─── Single-task executor ─────────────────────────────────────────────────────
@@ -254,10 +338,10 @@ async function executeTask(
   saveState(opts.statePath, currentState);
 
   // Output-verification baseline: a snapshot of the working tree taken before
-  // the harness runs, so a "successful" call that changed nothing can be
-  // detected as a no-op instead of being reported complete. Only needed when
-  // the no-op heuristic is active (--allow-noop disables it).
-  const baseline = opts.allowNoop ? null : await captureWorktree(opts.repoRoot);
+  // the harness runs. It supports both the no-op heuristic and Git-based
+  // output-file enrichment for in-place edits, even when --allow-noop disables
+  // only the no-op rejection check.
+  const baseline = await captureWorktree(opts.repoRoot);
 
   console.log(`[engine] Starting task ${task.id}: ${task.title} (@${agent.name})`);
 
@@ -342,6 +426,20 @@ async function executeTask(
         continue; // hollow success → retry
       }
 
+      // ── Enrich output files from git diff ─────────────────────────────────
+      // Adapters only check `expectedOutputs` for output files, which misses
+      // files the agent modified in place.  Diff the worktree against the
+      // pre-task baseline to capture every file that changed during this task
+      // and merge with any files the adapter already reported.
+      if (baseline) {
+        const after = await captureWorktree(opts.repoRoot);
+        const gitChanged = diffWorktree(baseline, after);
+        if (gitChanged.length > 0) {
+          const merged = new Set([...result.outputFiles, ...gitChanged]);
+          result = { ...result, outputFiles: [...merged] };
+        }
+      }
+
       // ── Artifact creation ─────────────────────────────────────────────────
       let artifactId: string | undefined;
 
@@ -349,6 +447,8 @@ async function executeTask(
         const artifact = store.synthesise({
           type: task.produces,
           taskId: task.id,
+          taskTitle: task.title,
+          taskDescription: task.description,
           producedBy: agent.name,
           outputFiles: result.outputFiles,
           agentOutput: result.stdout,
@@ -402,9 +502,23 @@ async function executeTask(
 
 export async function runEngine(opts: EngineOptions): Promise<WorkflowState> {
   const manifest = loadManifest(opts.manifestPath);
+  const graphWarnings = validateManifestDependencies(manifest);
+  for (const warning of graphWarnings) console.warn(`[engine] Warning: ${warning}`);
 
   let state = loadState(opts.statePath)
     ?? initState(manifest, opts.manifestPath, opts.harness.name);
+  const reconciledState = reconcileState(state, manifest);
+  const wasReconciled = reconciledState !== state;
+  state = reconciledState;
+  if (wasReconciled) {
+    saveState(opts.statePath, state);
+    writeAuditEvent(opts.auditPath, {
+      timestamp: new Date().toISOString(), action: "state.reconciled", runId: state.runId,
+      note: `manifest=${manifest.generatedAt}`,
+    });
+  }
+  const selection = resolveSelection(manifest, state, opts);
+  state = setSelection(state, selection);
 
   // A previous run that died mid-task may have left tasks marked "running".
   // Reset those to "pending" so they are picked up again instead of deadlocking.
@@ -427,8 +541,11 @@ export async function runEngine(opts: EngineOptions): Promise<WorkflowState> {
   clearControl(opts.controlPath);
 
   if (state.status === "complete") {
-    console.log("[engine] Workflow already complete. Nothing to do.");
-    return state;
+    if (isComplete(manifest, state)) {
+      console.log("[engine] Workflow already complete. Nothing to do.");
+      return state;
+    }
+    console.log("[engine] Previous run was complete for a different selection. Continuing.");
   }
 
   if (state.status === "failed") {
@@ -455,9 +572,10 @@ export async function runEngine(opts: EngineOptions): Promise<WorkflowState> {
   }
 
   const store = new ArtifactStore({ artifactsPath: opts.artifactsPath });
-  const concurrency = opts.harness.supportsConcurrency && opts.maxConcurrency > 1
-    ? opts.maxConcurrency
-    : 1;
+  // Output attribution compares repository-wide worktree snapshots; running
+  // tasks concurrently can attribute another task's file changes to the current
+  // task. Keep execution serialized until task-isolated attribution is used.
+  const concurrency = 1;
   let currentPhaseId: string | undefined;
 
   // Stop signal: the in-process flag (SIGINT/SIGTERM) OR a pause/stop request
@@ -599,6 +717,7 @@ export async function replayTask(taskId: string, opts: EngineOptions): Promise<W
   state = {
     ...state,
     status: "running",
+    selection: undefined,
     tasks: {
       ...state.tasks,
       [taskId]: { ...record, status: "pending", errorMessage: undefined },

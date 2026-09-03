@@ -161,6 +161,9 @@
         <member name="M:HumanGateway.Relay.Api.RelayJson.Configure(System.Text.Json.JsonSerializerOptions)">
             <summary>Applies the Relay API JSON contract to a serializer options instance.</summary>
         </member>
+        <member name="T:HumanGateway.Relay.Api.RemoteMessageRequest">
+            <summary>Authenticated remote-user message submission (WEBX-FR-02).</summary>
+        </member>
         <member name="T:HumanGateway.Relay.Api.SyncPullRequest">
             <summary>
             Body of <c>POST /sync/pull</c> — a gateway requests its inbound (Relay → gateway) batch after its echoed
@@ -269,6 +272,12 @@
         </member>
         <member name="M:HumanGateway.Relay.Endpoints.RemoteAuthEndpoints.MapRemoteAuthEndpoints(Microsoft.AspNetCore.Builder.WebApplication)">
             <summary>Maps the remote auth endpoint group onto the app.</summary>
+        </member>
+        <member name="T:HumanGateway.Relay.Endpoints.RemoteMessageEndpoints">
+            <summary>
+            Remote message ingress. It deliberately has no Edge callback or websocket: the Relay queues the envelope
+            for the recipient gateway and that gateway obtains it on its next outbound sync pull (SP-01).
+            </summary>
         </member>
         <member name="T:HumanGateway.Relay.Endpoints.RendezvousEndpoints">
             <summary>
@@ -757,6 +766,13 @@
             recipient gateways' pull queues (RELAY-FR-04), applies inbound delivery acknowledgements (SYNC-FR-05),
             and returns the result batch carrying the new push cursor. The response is a keepalive result batch
             (empty items, cursor only) — the cursor is the durable acknowledgement the Edge flushes its outbox on.
+            </summary>
+        </member>
+        <member name="M:HumanGateway.Relay.Services.RelaySyncService.PublishRemoteMessageAsync(HumanGateway.Protocol.Models.Message,HumanGateway.Security.AuthenticatedUser,System.Threading.CancellationToken)">
+            <summary>
+            Publishes a message submitted by an authenticated remote user. The message is persisted before its
+            recipient gateway queues are populated, so an Edge that is offline is handled by the same durable
+            store-and-forward path as an Edge-originated message (WEBX-FR-02, RELAY-FR-04).
             </summary>
         </member>
         <member name="M:HumanGateway.Relay.Services.RelaySyncService.PullAsync(System.String,System.String,System.Threading.CancellationToken)">

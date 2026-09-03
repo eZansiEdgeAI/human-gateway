@@ -8,9 +8,10 @@
   "vizPort": "",
   "keepAlive": false,
   "attach": "",
-  "executionMode": "auto",
-  "selectionScope": "single",
+  "executionMode": "manual",
+  "selectionScope": "range",
   "selectedTaskIds": [
-    "EXTERNAL-WEB-ACCESS-6.2"
+    "EXTERNAL-WEB-ACCESS-6.4",
+    "EXTERNAL-WEB-ACCESS-6.5"
   ]
 }

@@ -1,42 +1,42 @@
 {
   "artifact-engineer": {
-    "primary": "gpt-5.6-luna",
+    "primary": "github-copilot/gpt-5.6-luna",
     "fallback": "mai-code-1.1-flash"
   },
   "edge-engineer": {
-    "primary": "gpt-5.6-luna",
+    "primary": "github-copilot/gpt-5.6-luna",
     "fallback": "mai-code-1.1-flash"
   },
   "infrastructure-engineer": {
-    "primary": "gpt-5.6-luna",
+    "primary": "github-copilot/gpt-5.6-luna",
     "fallback": "mai-code-1.1-flash"
   },
   "protocol-engineer": {
-    "primary": "gpt-5.6-luna",
+    "primary": "github-copilot/gpt-5.6-luna",
     "fallback": "mai-code-1.1-flash"
   },
   "security-engineer": {
-    "primary": "gpt-5.6-luna",
+    "primary": "github-copilot/gpt-5.6-luna",
     "fallback": "mai-code-1.1-flash"
   },
   "sync-engineer": {
-    "primary": "gpt-5.6-luna",
+    "primary": "github-copilot/gpt-5.6-luna",
     "fallback": "mai-code-1.1-flash"
   },
   "relay-engineer": {
-    "primary": "gpt-5.6-luna",
+    "primary": "github-copilot/gpt-5.6-luna",
     "fallback": "mai-code-1.1-flash"
   },
   "qa-engineer": {
-    "primary": "gpt-5.6-luna",
+    "primary": "github-copilot/gpt-5.6-luna",
     "fallback": "mai-code-1.1-flash"
   },
   "pwa-engineer": {
-    "primary": "gpt-5.6-luna",
+    "primary": "github-copilot/gpt-5.6-luna",
     "fallback": "mai-code-1.1-flash"
   },
   "workflow-engineer": {
-    "primary": "gpt-5.6-luna",
+    "primary": "github-copilot/gpt-5.6-luna",
     "fallback": "mai-code-1.1-flash"
   }
 }

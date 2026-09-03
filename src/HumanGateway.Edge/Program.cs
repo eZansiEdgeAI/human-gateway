@@ -143,6 +143,7 @@ builder.Services.AddHostedService<GatewayRegistrationWorker>();
 // ---------------------------------------------------------------------------
 builder.Services.Configure<SyncWorkerOptions>(builder.Configuration.GetSection(SyncWorkerOptions.SectionName));
 builder.Services.AddSingleton<IRelaySyncClient, DisabledRelaySyncClient>();
+builder.Services.AddSingleton<IInboundMessageHandler, InboundMessageProjector>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<SyncWorker>();
 builder.Services.AddHostedService(static sp => sp.GetRequiredService<SyncWorker>());

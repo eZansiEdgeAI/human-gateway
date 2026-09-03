@@ -20,13 +20,13 @@ Before running this skill, the following must exist in the repository:
   - `.github/agents/` (GitHub Copilot harness)
   - `.claude/agents/` (Claude Code harness)
   - `.opencode/agents/` (OpenCode harness)
-  - `.agents/agents/` (generic / default fallback)
+  - `.opencode/agents/` (generic / default fallback)
 - A configured execution harness (OpenCode CLI in `$PATH`, or `OPENAI_API_KEY` set)
 
 If the manifest does not exist yet, run the adapter first:
 
 ```bash
-cd .agents/skills/forge-execution-adapter
+cd .opencode/skills/forge-execution-adapter
 npm install
 npm run forge-execution-adapter -- compile
 ```
@@ -43,7 +43,7 @@ npm run forge-execution-adapter -- compile
 > gitignored in target repos and must never be committed.
 
 ```bash
-cd .agents/skills/forge-workflow-engine
+cd .opencode/skills/forge-workflow-engine
 npm install
 ```
 
@@ -404,8 +404,8 @@ This gives the same project two mutually exclusive execution modes for a given r
 For FlowForge-kernel execution, compile a workforce package first:
 
 ```bash
-cd .agents/skills/forge-workforce-compiler && npm install && npm run forge-workforce-compiler -- compile
-cd .agents/skills/forge-workflow-engine   && npm install && npm run workflow-engine -- run --harness flowforge-kernel
+cd .opencode/skills/forge-workforce-compiler && npm install && npm run forge-workforce-compiler -- compile
+cd .opencode/skills/forge-workflow-engine   && npm install && npm run workflow-engine -- run --harness flowforge-kernel
 ```
 
 ---

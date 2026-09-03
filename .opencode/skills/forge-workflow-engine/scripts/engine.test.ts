@@ -5,9 +5,10 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { allDepsComplete, isComplete, isTaskDone, mapLimit, nextReadyTasks, ownerUniqueReady, replayTask, runEngine } from "./engine.ts";
+import { allDepsComplete, isComplete, isTaskDone, mapLimit, nextReadyTasks, ownerUniqueReady, replayTask, runEngine, validateManifestDependencies } from "./engine.ts";
 import { runCommand } from "./harness/run.ts";
 import { readControl, writeControl } from "./control.ts";
+import { reconcileState } from "./state.ts";
 import type { EngineOptions, ExecutionManifest, HarnessAdapter, ManifestTask, TaskResult, TaskStatus, WorkflowState } from "./types.ts";
 
 type ManifestPhase = ExecutionManifest["phases"][number];
@@ -36,6 +37,19 @@ function makePhase(id: string, tasks: ManifestTask[], dependencies: string[] = [
     tasks,
   };
 }
+
+test("validateManifestDependencies reports orphan task and phase dependencies", () => {
+  const manifest = makeManifest([makePhase("one", [makeTask("one.1", ["missing"]),], ["missing-phase"])]);
+  assert.deepEqual(validateManifestDependencies(manifest), [
+    "Phase 'one' depends on orphan phase 'missing-phase'.",
+    "Task 'one.1' depends on orphan task 'missing'.",
+  ]);
+});
+
+test("validateManifestDependencies rejects duplicate global task ids", () => {
+  const manifest = makeManifest([makePhase("one", [makeTask("same")]), makePhase("two", [makeTask("same")])]);
+  assert.throws(() => validateManifestDependencies(manifest), /Duplicate global task id/);
+});
 
 function makeManifest(phases: ManifestPhase[]): ExecutionManifest {
   return {
@@ -81,6 +95,14 @@ test("isTaskDone treats complete and skipped as done", () => {
   assert.equal(isTaskDone(undefined), false);
 });
 
+test("reconcileState preserves completed records and adds pending tasks", () => {
+  const old = makeState({ "1.1": "complete" });
+  const manifest = makeManifest([makePhase("1", [makeTask("1.1"), makeTask("1.2", ["1.1"])])]);
+  const next = reconcileState(old, manifest);
+  assert.equal(next.tasks["1.1"]?.status, "complete");
+  assert.equal(next.tasks["1.2"]?.status, "pending");
+});
+
 test("allDepsComplete accepts skipped dependencies", () => {
   const state = makeState({ "1.1": "complete", "1.2": "skipped" });
   assert.equal(allDepsComplete("1.3", ["1.1", "1.2"], state), true);
@@ -104,6 +126,19 @@ test("nextReadyTasks blocks a downstream phase while its dependency is pending",
     makePhase("2", [makeTask("2.1")], ["1"]),
   ]);
   const state = makeState({ "1.1": "complete", "1.2": "pending", "2.1": "pending" });
+
+  const ready = nextReadyTasks(manifest, state);
+  assert.deepEqual(ready.map((entry) => entry.task.id), ["1.2"]);
+});
+
+test("nextReadyTasks filters to the manual selection", () => {
+  const manifest = makeManifest([
+    makePhase("1", [makeTask("1.1"), makeTask("1.2")]),
+  ]);
+  const state = {
+    ...makeState({ "1.1": "pending", "1.2": "pending" }),
+    selection: { mode: "manual" as const, scope: "single" as const, taskIds: ["1.2"] },
+  };
 
   const ready = nextReadyTasks(manifest, state);
   assert.deepEqual(ready.map((entry) => entry.task.id), ["1.2"]);
@@ -185,16 +220,18 @@ class RecordingHarness implements HarnessAdapter {
   readonly supportsConcurrency = false;
   timeouts: number[] = [];
   retries: number[] = [];
+  taskIds: string[] = [];
 
   async invoke(
     _agent: Parameters<HarnessAdapter["invoke"]>[0],
-    _task: ManifestTask,
+    task: ManifestTask,
     _context: WorkflowState,
     _repoRoot: string,
     _contextBlock?: string,
     timeoutMs?: number,
     maxRetries?: number,
   ) {
+    this.taskIds.push(task.id);
     this.timeouts.push(timeoutMs ?? -1);
     this.retries.push(maxRetries ?? -1);
     return {
@@ -393,6 +430,84 @@ test("engine forwards maxRetries to the harness invoke call", async () => {
 
   assert.equal(state.status, "complete");
   assert.deepEqual(harness.retries, [3]);
+});
+
+test("manual execution expands dependencies and runs only the selected slice", async () => {
+  const fixture = makeEngineFixture();
+  const manifest = JSON.parse(readFileSync(fixture.manifestPath, "utf8")) as ExecutionManifest;
+  manifest.phases[0]!.tasks.push({
+    id: "1.2",
+    title: "Follow-up",
+    description: "Depends on 1.1",
+    ownerAgent: "worker",
+    dependencies: ["1.1"],
+    expectedOutputs: [],
+    validationCommands: [],
+    approvalRequired: false,
+    sourceLines: ["- Task 1.2: Follow-up"],
+  });
+  manifest.phases[0]!.tasks.push({
+    id: "1.3",
+    title: "Unselected",
+    description: "Should stay pending",
+    ownerAgent: "worker",
+    dependencies: [],
+    expectedOutputs: [],
+    validationCommands: [],
+    approvalRequired: false,
+    sourceLines: ["- Task 1.3: Unselected"],
+  });
+  writeFileSync(fixture.manifestPath, JSON.stringify(manifest), "utf8");
+
+  const harness = new RecordingHarness();
+  const state = await runEngine(engineOptionsFor(fixture, harness, 1_000, {
+    executionMode: "manual",
+    selectionScope: "single",
+    selectedTaskIds: ["1.2"],
+  }));
+
+  assert.equal(state.status, "complete");
+  assert.deepEqual(harness.taskIds, ["1.1", "1.2"]);
+  assert.deepEqual(state.selection?.taskIds, ["1.1", "1.2"]);
+  assert.equal(state.tasks["1.3"]?.status, "pending");
+});
+
+test("manual run can continue with a new selection after a previous selected run completed", async () => {
+  const fixture = makeEngineFixture();
+  const manifest = JSON.parse(readFileSync(fixture.manifestPath, "utf8")) as ExecutionManifest;
+  manifest.phases[0]!.tasks.push({
+    id: "1.2",
+    title: "Second manual task",
+    description: "Should run on the second manual run",
+    ownerAgent: "worker",
+    dependencies: [],
+    expectedOutputs: [],
+    validationCommands: [],
+    approvalRequired: false,
+    sourceLines: ["- Task 1.2: Second manual task"],
+  });
+  writeFileSync(fixture.manifestPath, JSON.stringify(manifest), "utf8");
+
+  const firstHarness = new RecordingHarness();
+  const first = await runEngine(engineOptionsFor(fixture, firstHarness, 1_000, {
+    executionMode: "manual",
+    selectionScope: "single",
+    selectedTaskIds: ["1.1"],
+  }));
+  assert.equal(first.status, "complete");
+  assert.deepEqual(firstHarness.taskIds, ["1.1"]);
+  assert.equal(first.tasks["1.2"]?.status, "pending");
+
+  const secondHarness = new RecordingHarness();
+  const second = await runEngine(engineOptionsFor(fixture, secondHarness, 1_000, {
+    executionMode: "manual",
+    selectionScope: "single",
+    selectedTaskIds: ["1.2"],
+  }));
+  assert.equal(second.status, "complete");
+  assert.deepEqual(secondHarness.taskIds, ["1.2"]);
+  assert.equal(second.tasks["1.1"]?.status, "complete");
+  assert.equal(second.tasks["1.2"]?.status, "complete");
 });
 
 test("runEngine recovers a leftover 'running' task as pending (crash recovery)", async () => {
@@ -604,6 +719,28 @@ class FileWritingHarness implements HarnessAdapter {
   }
 }
 
+/** A harness that edits an already tracked file without reporting outputFiles. */
+class TrackedFileEditingHarness implements HarnessAdapter {
+  readonly name = "tracked-file-editing";
+  readonly supportsConcurrency = false;
+
+  async invoke(
+    _agent: Parameters<HarnessAdapter["invoke"]>[0],
+    _task: ManifestTask,
+    _context: WorkflowState,
+    repoRoot: string,
+  ) {
+    writeFileSync(join(repoRoot, "src", "thing.ts"), "export const thing = 2;\n", "utf8");
+    return {
+      success: true,
+      outputFiles: [],
+      stdout: "Ready for the task.",
+      stderr: "",
+      durationMs: 1,
+    };
+  }
+}
+
 function initGit(root: string): void {
   execFileSync("git", ["init", "-q"], { cwd: root });
   execFileSync("git", ["config", "user.email", "forge-test@local"], { cwd: root });
@@ -637,6 +774,22 @@ test("output gate: --allow-noop relaxes the no-op heuristic", async () => {
 
   assert.equal(state.status, "complete");
   assert.equal(state.tasks["1.1"]?.status, "complete");
+});
+
+test("output gate: --allow-noop still records tracked files changed during the task", async () => {
+  const fixture = makeEngineFixture();
+  initGit(fixture.root);
+  mkdirSync(join(fixture.root, "src"), { recursive: true });
+  writeFileSync(join(fixture.root, "src", "thing.ts"), "export const thing = 1;\n", "utf8");
+  execFileSync("git", ["add", "src/thing.ts"], { cwd: fixture.root });
+  execFileSync("git", ["commit", "-qm", "seed tracked file"], { cwd: fixture.root });
+
+  const harness = new TrackedFileEditingHarness();
+  const state = await runEngine(engineOptionsFor(fixture, harness, 1_000, { allowNoop: true, autoCommit: false }));
+
+  assert.equal(state.status, "complete");
+  assert.equal(state.tasks["1.1"]?.status, "complete");
+  assert.deepEqual(state.tasks["1.1"]?.outputFiles, ["src/thing.ts"]);
 });
 
 test("output gate: a substantive agent response passes the no-op heuristic", async () => {
@@ -788,7 +941,7 @@ test("same-owner ready tasks run in separate waves (serialized) even with concur
   assert.ok(harness.maxOverlap <= 1, `same-owner tasks must never overlap (saw max ${harness.maxOverlap})`);
 });
 
-test("different-owner ready tasks run concurrently with concurrency 2", async () => {
+test("different-owner ready tasks are serialized while using repository-wide output attribution", async () => {
   const fixture = makeEngineFixture();
   writeFileSync(join(fixture.root, ".agents", "agents", "designer.md"), `---
 name: designer
@@ -817,13 +970,13 @@ description: Designs things.
   const harness = new GatedConcurrentHarness();
   const runPromise = runEngine(engineOptionsFor(fixture, harness, 1_000, { maxConcurrency: 2 }));
 
-  // Both different-owner tasks start in the same wave.
+  // Different-owner tasks are still serialized because output attribution
+  // currently relies on repository-wide snapshots.
   await harness.whenStarted("1.1");
-  await harness.whenStarted("1.2");
-  assert.deepEqual(harness.startedOrder, ["1.1", "1.2"], "both should start in wave 1");
-  assert.equal(harness.maxOverlap, 2, "different-owner tasks should overlap");
-
   harness.release("1.1");
+  await harness.whenStarted("1.2");
+  assert.deepEqual(harness.startedOrder, ["1.1", "1.2"]);
+  assert.ok(harness.maxOverlap <= 1, `tasks should not overlap (saw max ${harness.maxOverlap})`);
   harness.release("1.2");
 
   const state = await runPromise;

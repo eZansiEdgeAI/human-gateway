@@ -1,7 +1,7 @@
 ---
 name: qa-engineer
 description: "Owns testing across HumanGateway: the xUnit / Vitest / Playwright / Testcontainers / chaos test infrastructure, unit and integration tests, schema conformance fixtures, property and chaos tests for sync convergence, offline PWA flows, security negative tests, and the quality gates. Use this agent for any test writing, test infrastructure, chaos testing, or quality-gate work."
-model: gpt-5.6-luna
+model: github-copilot/gpt-5.6-luna
 modelFallback: mai-code-1.1-flash
 ---
 

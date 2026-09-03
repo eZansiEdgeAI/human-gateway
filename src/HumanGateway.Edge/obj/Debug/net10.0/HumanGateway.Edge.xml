@@ -1650,6 +1650,18 @@
         <member name="M:HumanGateway.Edge.Sync.HttpArtifactTransport.TryReadHashPair(HumanGateway.Protocol.Models.ProtocolError,System.String@,System.String@)">
             <summary>Extracts the declared/actual hash pair from a HASH_MISMATCH error's structured details.</summary>
         </member>
+        <member name="T:HumanGateway.Edge.Sync.IInboundMessageHandler">
+            <summary>Projects messages received from the Relay into local consumers (including workflow adapters).</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Sync.NullInboundMessageHandler">
+            <summary>No-op default for hosts that only use the sync engine.</summary>
+        </member>
+        <member name="T:HumanGateway.Edge.Sync.InboundMessageProjector">
+            <summary>
+            Persists Relay-delivered messages and reconstructs workflow task envelopes from the structured message
+            payload. The Relay remains transport-only; workflow state and task semantics stay with the consumer.
+            </summary>
+        </member>
         <member name="T:HumanGateway.Edge.Sync.IRelaySyncClient">
             <summary>
             The Edge Gateway's outbound sync hook to the Cloud Relay (EDGE-FR-05, SP-01). The worker dials out to push
@@ -1732,7 +1744,7 @@
              lose or duplicate a message (EDGE-FR-07).
              </summary>
         </member>
-        <member name="M:HumanGateway.Edge.Sync.SyncWorker.#ctor(HumanGateway.Core.Sync.ISyncEngine,HumanGateway.Core.Outbox.IOutbox,HumanGateway.Core.Cursor.ISyncCursorStore,HumanGateway.Edge.Sync.IRelaySyncClient,HumanGateway.Core.Artifacts.IArtifactStore,HumanGateway.Core.Artifacts.IArtifactTransfer,Microsoft.Extensions.Options.IOptions{HumanGateway.Edge.Api.GatewayOptions},Microsoft.Extensions.Options.IOptions{HumanGateway.Edge.Sync.SyncWorkerOptions},Microsoft.Extensions.Logging.ILogger{HumanGateway.Edge.Sync.SyncWorker},System.TimeProvider)">
+        <member name="M:HumanGateway.Edge.Sync.SyncWorker.#ctor(HumanGateway.Core.Sync.ISyncEngine,HumanGateway.Core.Outbox.IOutbox,HumanGateway.Core.Cursor.ISyncCursorStore,HumanGateway.Edge.Sync.IRelaySyncClient,HumanGateway.Core.Artifacts.IArtifactStore,HumanGateway.Core.Artifacts.IArtifactTransfer,Microsoft.Extensions.Options.IOptions{HumanGateway.Edge.Api.GatewayOptions},Microsoft.Extensions.Options.IOptions{HumanGateway.Edge.Sync.SyncWorkerOptions},Microsoft.Extensions.Logging.ILogger{HumanGateway.Edge.Sync.SyncWorker},System.TimeProvider,HumanGateway.Edge.Sync.IInboundMessageHandler)">
             <summary>Creates the worker over the sync engine, durable outbox, durable cursor store, transport hook, and options.</summary>
         </member>
         <member name="P:HumanGateway.Edge.Sync.SyncWorker.State">

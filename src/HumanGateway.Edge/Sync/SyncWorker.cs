@@ -43,6 +43,7 @@ public sealed class SyncWorker : BackgroundService
     private readonly IOptions<SyncWorkerOptions> _options;
     private readonly ILogger<SyncWorker> _logger;
     private readonly TimeProvider _time;
+    private readonly IInboundMessageHandler _inboundMessages;
 
     // Durable cursor state, loaded once from ISyncCursorStore on reconcile/first cycle (SYNC-FR-03). Cursors
     // are opaque tokens: the worker stores and echoes them, never interprets them.
@@ -68,7 +69,8 @@ public sealed class SyncWorker : BackgroundService
         IOptions<GatewayOptions> gateway,
         IOptions<SyncWorkerOptions> options,
         ILogger<SyncWorker> logger,
-        TimeProvider? time = null)
+        TimeProvider? time = null,
+        IInboundMessageHandler? inboundMessages = null)
     {
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
         _outbox = outbox ?? throw new ArgumentNullException(nameof(outbox));
@@ -80,6 +82,7 @@ public sealed class SyncWorker : BackgroundService
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _time = time ?? TimeProvider.System;
+        _inboundMessages = inboundMessages ?? new NullInboundMessageHandler();
     }
 
     /// <summary>The worker's current lifecycle state (product vision §10), surfaced for observability (NF-09).</summary>
@@ -313,6 +316,12 @@ public sealed class SyncWorker : BackgroundService
                 applied.AppliedItems.Count,
                 _pullCursor);
         }
+
+        var messages = applied.AppliedItems
+            .Where(i => i.Kind == SyncItemKind.Message && i.Message is not null)
+            .Select(i => i.Message!)
+            .ToList();
+        await _inboundMessages.HandleAsync(messages, ct).ConfigureAwait(false);
 
         // Download any artifact bytes the applied items reference that this gateway does not already hold
         // (dedup ARTF-FR-01). Resumable per artifact: a partial temp file survives a mid-way interruption and

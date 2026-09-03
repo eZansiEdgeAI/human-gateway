@@ -1,3 +1,4 @@
+using System.Text.Json;
 using HumanGateway.Core.Artifacts;
 using HumanGateway.Core.Hashing;
 using HumanGateway.Core.Ids;
@@ -362,7 +363,17 @@ public sealed class LocalApiService
             Recipients = request.Assignees.ToList(),
             ConversationId = conversationId,
             HumanTaskId = taskId,
-            Payload = new MessagePayload { Body = request.Prompt, Format = MessageFormat.Plaintext },
+            CorrelationTokens = request.CorrelationToken is null
+                ? null
+                : new Dictionary<string, string> { ["correlationToken"] = request.CorrelationToken },
+            Payload = new MessagePayload
+            {
+                Body = request.Prompt,
+                Format = MessageFormat.Plaintext,
+                // The message is the transport envelope. Keep the complete task alongside the prompt so a
+                // remote Edge can reconstruct the pending task without owning workflow semantics.
+                Data = JsonSerializer.SerializeToElement(new { humanTask = task }, ProtocolJson.Options),
+            },
             CreatedAt = now,
             UpdatedAt = now,
             ContentHash = null!,
@@ -525,11 +536,21 @@ public sealed class LocalApiService
             HumanTaskId = task.Id,
             Payload = new MessagePayload { Body = BuildResponseBody(request), Format = MessageFormat.Plaintext },
             ArtifactRefs = request.ArtifactRefs?.ToList(),
+            CorrelationTokens = task.CorrelationToken is null
+                ? null
+                : new Dictionary<string, string> { ["correlationToken"] = task.CorrelationToken },
             CreatedAt = now,
             UpdatedAt = now,
             ContentHash = null!,
         };
-        responseMessage = responseMessage with { ContentHash = ContentHasher.ComputeMessageHash(responseMessage) };
+        responseMessage = responseMessage with
+        {
+            Payload = responseMessage.Payload with
+            {
+                Data = JsonSerializer.SerializeToElement(new { humanTask = updated }, ProtocolJson.Options),
+            },
+            ContentHash = ContentHasher.ComputeMessageHash(responseMessage),
+        };
         ProtocolValidator.Default.Message.Validate(responseMessage).ThrowIfInvalid();
 
         var deliveries = responseMessage.Recipients!

@@ -1,11 +1,11 @@
 {
   "runId": "cc1dad89-27a5-4765-8655-91bea28ec9c3",
   "startedAt": "2026-08-28T21:20:12.360Z",
-  "lastUpdatedAt": "2026-09-02T20:35:51.385Z",
+  "lastUpdatedAt": "2026-09-03T21:30:22.374Z",
   "manifestPath": "/home/mcfuzzysquirrel/Projects/human-gateway/docs/EXECUTION-MANIFEST.json",
   "manifestVersion": "1.0",
   "harness": "opencode",
-  "status": "paused",
+  "status": "running",
   "currentPhase": "EXTERNAL-WEB-ACCESS-6",
   "tasks": {
     "PROTOCOL-0.1": {
@@ -613,10 +613,29 @@
     },
     "EXTERNAL-WEB-ACCESS-6.4": {
       "taskId": "EXTERNAL-WEB-ACCESS-6.4",
-      "status": "pending",
+      "status": "complete",
       "ownerAgent": "workflow-engineer",
-      "attempt": 0,
-      "outputFiles": []
+      "attempt": 3,
+      "outputFiles": [
+        "src/HumanGateway.Edge/Api/LocalApiService.cs",
+        "src/HumanGateway.Edge/Program.cs",
+        "src/HumanGateway.Edge/Sync/SyncWorker.cs",
+        "src/HumanGateway.Edge/bin/Debug/net10.0/HumanGateway.Edge.xml",
+        "src/HumanGateway.Edge/obj/Debug/net10.0/HumanGateway.Edge.csproj.CoreCompileInputs.cache",
+        "src/HumanGateway.Edge/obj/Debug/net10.0/HumanGateway.Edge.xml",
+        "tests/HumanGateway.Edge.CrashProbe/bin/Debug/net10.0/HumanGateway.Edge.xml",
+        "tests/HumanGateway.Edge.Tests/bin/Debug/net10.0/HumanGateway.Edge.xml",
+        "tests/HumanGateway.Relay.Tests/bin/Debug/net10.0/HumanGateway.Edge.xml",
+        "src/HumanGateway.Edge/Sync/IInboundMessageHandler.cs",
+        "src/HumanGateway.Edge/Sync/InboundMessageProjector.cs"
+      ],
+      "startedAt": "2026-09-03T21:26:08.728Z",
+      "completedAt": "2026-09-03T21:30:22.374Z",
+      "agentOutput": "Implemented remote human-response routing from Relay → Edge with workflow correlation preservation.\n\n### Changes made\n\n- Added `IInboundMessageHandler` abstraction and no-op implementation.\n- Added `InboundMessageProjector` to:\n  - Persist inbound Relay messages locally.\n  - Reconstruct and persist `HumanTask` envelopes from message payload data.\n  - Preserve task IDs, workflow references, node IDs, roles, subjects, status, responses, and response message IDs.\n  - Create local delivery records for inbound messages.\n- Updated `SyncWorker` to dispatch newly applied inbound messages to the handler after successful pull/application.\n- Updated task request messages to carry the complete `HumanTask` envelope in structured payload data.\n- Updated task response messages to:\n  - Carry the updated task envelope.\n  - Preserve the original correlation token in `correlationTokens`.\n  - Preserve response artifacts through `artifactRefs`.\n- Registered the inbound projector in Edge dependency injection.\n\n### Files created\n\n- `src/HumanGateway.Edge/Sync/IInboundMessageHandler.cs`\n- `src/HumanGateway.Edge/Sync/InboundMessageProjector.cs`\n\n### Files changed\n\n- `src/HumanGateway.Edge/Api/LocalApiService.cs`\n- `src/HumanGateway.Edge/Sync/SyncWorker.cs`\n- `src/HumanGateway.Edge/Program.cs`\n\n### Validation\n\n- Edge tests: **143 passed**\n- PWA Vitest suite: **156 passed**\n- Full .NET test run: Edge tests passed; Relay integration tests could not run because Docker is unavailable in the environment.\n",
+      "artifactId": "work-external-web-access-6-4-001",
+      "inputArtifactIds": [
+        "work-external-web-access-6-3-001"
+      ]
     },
     "EXTERNAL-WEB-ACCESS-6.5": {
       "taskId": "EXTERNAL-WEB-ACCESS-6.5",

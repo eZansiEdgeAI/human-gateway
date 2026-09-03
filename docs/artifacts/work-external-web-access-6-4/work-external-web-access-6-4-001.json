@@ -1,0 +1,32 @@
+{
+  "type": "work.external-web-access-6.4",
+  "category": "work",
+  "taskId": "EXTERNAL-WEB-ACCESS-6.4",
+  "producedBy": "workflow-engineer",
+  "status": "complete",
+  "summary": "[ ] Responses from remote users flow back to the school and, via correlation tokens, to the workflow consumer: [ ] Responses from remote users flow back to the school and, via correlation tokens, to t",
+  "confidence": 0.9,
+  "inputs": [
+    "work-external-web-access-6-3-001"
+  ],
+  "filesChanged": [
+    "src/HumanGateway.Edge/Api/LocalApiService.cs",
+    "src/HumanGateway.Edge/Program.cs",
+    "src/HumanGateway.Edge/Sync/SyncWorker.cs",
+    "src/HumanGateway.Edge/bin/Debug/net10.0/HumanGateway.Edge.xml",
+    "src/HumanGateway.Edge/obj/Debug/net10.0/HumanGateway.Edge.csproj.CoreCompileInputs.cache",
+    "src/HumanGateway.Edge/obj/Debug/net10.0/HumanGateway.Edge.xml",
+    "tests/HumanGateway.Edge.CrashProbe/bin/Debug/net10.0/HumanGateway.Edge.xml",
+    "tests/HumanGateway.Edge.Tests/bin/Debug/net10.0/HumanGateway.Edge.xml",
+    "tests/HumanGateway.Relay.Tests/bin/Debug/net10.0/HumanGateway.Edge.xml",
+    "src/HumanGateway.Edge/Sync/IInboundMessageHandler.cs",
+    "src/HumanGateway.Edge/Sync/InboundMessageProjector.cs"
+  ],
+  "payload": {
+    "agentOutputExcerpt": "Implemented remote human-response routing from Relay → Edge with workflow correlation preservation.\n\n### Changes made\n\n- Added `IInboundMessageHandler` abstraction and no-op implementation.\n- Added `InboundMessageProjector` to:\n  - Persist inbound Relay messages locally.\n  - Reconstruct and persist `HumanTask` envelopes from message payload data.\n  - Preserve task IDs, workflow references, node IDs, roles, subjects, status, responses, and response message IDs.\n  - Create local delivery records f",
+    "taskDescription": "[ ] Responses from remote users flow back to the school and, via correlation tokens, to the workflow consumer"
+  },
+  "nextActions": [],
+  "artifactId": "work-external-web-access-6-4-001",
+  "createdAt": "2026-09-03T21:30:22.373Z"
+}

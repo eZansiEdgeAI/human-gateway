@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
 
 import type { AuditEvent, TaskRecord, WorkflowState } from "./types.ts";
-import type { ExecutionManifest } from "./types.ts";
+import type { ExecutionManifest, TaskSelection } from "./types.ts";
 import { broadcastAudit } from "./viz/bus.ts";
 
 // ─── State file helpers ───────────────────────────────────────────────────────
@@ -50,6 +50,33 @@ export function initState(
     tasks,
     blockers: [],
     auditLog: [],
+  };
+}
+
+/** Preserve persisted task records by stable ID while adopting a new manifest. */
+export function reconcileState(state: WorkflowState, manifest: ExecutionManifest): WorkflowState {
+  const nextTasks: Record<string, TaskRecord> = {};
+  for (const phase of manifest.phases) {
+    for (const task of phase.tasks) {
+      nextTasks[task.id] = state.tasks[task.id] ?? {
+        taskId: task.id, status: "pending", ownerAgent: task.ownerAgent, attempt: 0, outputFiles: [],
+      };
+      if (state.tasks[task.id]) nextTasks[task.id] = { ...state.tasks[task.id], ownerAgent: task.ownerAgent };
+    }
+  }
+  const added = Object.keys(nextTasks).filter((id) => !state.tasks[id]);
+  const removed = Object.keys(state.tasks).filter((id) => !nextTasks[id]);
+  const changed = new Set(manifest.reconciliation?.changedTaskIds ?? []);
+  if (added.length === 0 && removed.length === 0 && changed.size === 0 && state.manifestVersion === manifest.version) return state;
+  return {
+    ...state,
+    manifestVersion: manifest.version,
+    tasks: nextTasks,
+    blockers: [...state.blockers,
+      ...(added.length ? [`Manifest reconciliation added ${added.length} pending task(s): ${added.join(", ")}`] : []),
+      ...(removed.length ? [`Manifest reconciliation removed ${removed.length} task(s): ${removed.join(", ")}`] : []),
+      ...(changed.size ? [`Manifest reconciliation changed ${changed.size} existing task(s): ${[...changed].join(", ")}`] : [])],
+    lastUpdatedAt: new Date().toISOString(),
   };
 }
 
@@ -142,6 +169,10 @@ export function setCurrentPhase(state: WorkflowState, phaseId: string): Workflow
   return { ...state, currentPhase: phaseId, lastUpdatedAt: new Date().toISOString() };
 }
 
+export function setSelection(state: WorkflowState, selection: TaskSelection | undefined): WorkflowState {
+  return { ...state, selection, lastUpdatedAt: new Date().toISOString() };
+}
+
 export function appendAuditEvent(state: WorkflowState, event: AuditEvent): WorkflowState {
   return {
     ...state,
@@ -159,9 +190,15 @@ export function syncProgressMd(
   mkdirSync(dirname(progressPath), { recursive: true });
   const now = new Date().toISOString();
 
+  const scoped = state.selection?.mode === "manual" && state.selection.taskIds.length > 0
+    ? new Set(state.selection.taskIds)
+    : null;
+  const inScope = (taskId: string) => !scoped || scoped.has(taskId);
+
   const completedLines: string[] = [];
   for (const phase of manifest.phases) {
     for (const task of phase.tasks) {
+      if (!inScope(task.id)) continue;
       const record = state.tasks[task.id];
       if (record?.status === "complete") {
         const agentTag = task.ownerAgent ? ` (@${task.ownerAgent})` : "";
@@ -178,7 +215,7 @@ export function syncProgressMd(
   if (currentEntry) {
     const phaseId = findPhaseForTask(manifest, currentEntry.taskId);
     const task = findTask(manifest, currentEntry.taskId);
-    if (task && phaseId) {
+    if (task && phaseId && inScope(task.id)) {
       currentLines.push(`- [ ] Phase ${phaseId}, Task ${task.id}: ${task.title}${task.ownerAgent ? ` (@${task.ownerAgent})` : ""}`);
       currentLines.push("  - Status: In progress");
     }
@@ -190,6 +227,7 @@ export function syncProgressMd(
 
   const remainingPhases = manifest.phases.filter((phase) =>
     phase.tasks.some((task) => {
+      if (!inScope(task.id)) return false;
       const record = state.tasks[task.id];
       return record?.status === "pending" || record?.status === "running";
     }),
@@ -217,6 +255,10 @@ export function syncProgressMd(
     `**Last Updated**: ${now}`,
     `**Run ID**: ${state.runId}`,
     `**Harness**: ${state.harness}`,
+    `**Execution Mode**: ${state.selection?.mode ?? "auto"}`,
+    ...(state.selection?.mode === "manual"
+      ? [`**Selected Tasks**: ${state.selection.taskIds.join(", ") || "none"}`]
+      : []),
     "",
     "## Completed Tasks",
     ...(completedLines.length > 0 ? completedLines : ["- None"]),

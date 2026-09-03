@@ -1,7 +1,7 @@
 ---
 name: pwa-engineer
 description: "Owns the HumanGateway client: the React + TypeScript Progressive Web App with Service Worker + IndexedDB offline support, a local outbox, task answering (input and approval) with artifact attachments, per-message delivery status, and WCAG 2.1 AA accessibility on inexpensive Android devices and old desktops. Use this agent for any PWA UI, offline store, outbox, service worker, or accessibility work."
-model: gpt-5.6-luna
+model: github-copilot/gpt-5.6-luna
 modelFallback: mai-code-1.1-flash
 ---
 
