@@ -92,6 +92,22 @@ The bootstrap account is an administrator. Accounts created through the administ
 regular users. The PWA shows the **Users** screen only for administrators; use it to create additional accounts and
 give each person their own password.
 
+### Manage User Accounts
+
+After signing in with the bootstrap administrator account:
+
+1. Select **Users** in the top navigation.
+2. Enter a username, display name, and temporary password.
+3. Select **Create account**.
+4. Give the temporary password to the account owner through a secure channel.
+
+The account directory shows each account’s role and status. The list remains visible while it refreshes after account
+creation. Creating users requires the administrator session; regular users cannot access the user-management API or
+the Users screen.
+
+If the list is still loading, wait for the **Loading accounts** message rather than refreshing the page. A failed
+request remains visible as an error while preserving the creation form.
+
 When using `--yes` without `HG_EDGE_AUTH_BOOTSTRAP_USERNAME`, `HG_EDGE_AUTH_BOOTSTRAP_PASSWORD`,
 `HG_RELAY_AUTH_BOOTSTRAP_USERNAME`, and `HG_RELAY_AUTH_BOOTSTRAP_PASSWORD` already exported, Compose starts with
 blank bootstrap credentials. This is suitable for a local smoke environment but does not provision a login account;

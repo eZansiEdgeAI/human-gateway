@@ -151,6 +151,171 @@ body {
 .app-nav__user { margin-right: auto; color: var(--color-text-muted); }
 
 /* ---------------------------------------------------------------------------
+   Administrator user directory
+   --------------------------------------------------------------------------- */
+
+.admin-users {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.admin-users__header,
+.admin-users__accounts-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-users__header h2,
+.admin-users__accounts-heading h3,
+.admin-users__form h3 {
+  margin: 0;
+}
+
+.admin-users__eyebrow {
+  margin: 0 0 0.25rem;
+  color: var(--color-accent-light);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.admin-users__intro,
+.admin-users__form-heading p {
+  margin: 0.4rem 0 0;
+  color: var(--color-text-muted);
+}
+
+.admin-users__form {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: linear-gradient(135deg, var(--color-surface), color-mix(in srgb, var(--color-surface) 80%, var(--color-accent) 20%));
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+}
+
+.admin-users__fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.admin-users__fields label {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.admin-users__fields input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.75rem;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 0.4rem;
+  font: inherit;
+}
+
+.admin-users__form > .button {
+  justify-self: start;
+}
+
+.admin-users__count {
+  padding: 0.3rem 0.6rem;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 0.8rem;
+}
+
+.admin-users__list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  opacity: 1;
+  transition: opacity 160ms ease;
+}
+
+.admin-users__list[aria-busy='true'] { opacity: 0.6; }
+
+.admin-users__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.5rem;
+  padding: 0.7rem 0.85rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.65rem;
+}
+
+.admin-users__avatar {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  color: #fff;
+  background: var(--color-accent);
+  border-radius: 50%;
+  font-weight: 700;
+}
+
+.admin-users__identity {
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+.admin-users__identity strong,
+.admin-users__identity span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-users__identity span { color: var(--color-text-muted); font-size: 0.85rem; }
+
+.admin-users__badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.admin-users__badge--admin { color: #c9d8ff; background: rgba(37, 99, 235, 0.24); }
+.admin-users__badge--user { color: var(--color-text-muted); background: var(--color-bg); }
+.admin-users__badge--active { color: #a7f3d0; background: rgba(16, 185, 129, 0.16); }
+.admin-users__badge--disabled { color: #fecaca; background: rgba(239, 68, 68, 0.16); }
+
+.admin-users__loading {
+  min-height: 5rem;
+  padding: 1.5rem;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  border-radius: 0.65rem;
+  text-align: center;
+}
+
+@media (max-width: 42rem) {
+  .admin-users__header { align-items: stretch; flex-direction: column; }
+  .admin-users__header .button { align-self: flex-start; }
+  .admin-users__fields { grid-template-columns: 1fr; }
+  .admin-users__item { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .admin-users__item .admin-users__badge--user,
+  .admin-users__item .admin-users__badge--admin { grid-column: 2; justify-self: start; }
+  .admin-users__item .admin-users__badge--active,
+  .admin-users__item .admin-users__badge--disabled { grid-column: 3; grid-row: 1; }
+}
+
+/* ---------------------------------------------------------------------------
    Accessibility primitives (ACC-01, ACC-03)
    --------------------------------------------------------------------------- */
 
