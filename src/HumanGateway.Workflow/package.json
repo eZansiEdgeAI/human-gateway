@@ -6,7 +6,7 @@
   "description": "FlowForge HumanInteractionProvider contracts and HumanGateway adapters.",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run tests",
     "build": "tsc --noEmit false --outDir dist",
     "headless": "npm run build && node bin/headless.mjs"
   },
