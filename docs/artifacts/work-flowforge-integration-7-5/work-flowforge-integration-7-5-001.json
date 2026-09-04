@@ -1,0 +1,23 @@
+{
+  "type": "work.flowforge-integration-7.5",
+  "category": "work",
+  "taskId": "FLOWFORGE-INTEGRATION-7.5",
+  "producedBy": "workflow-engineer",
+  "status": "complete",
+  "summary": "[ ] Correlate `PendingHumanTask` (`nodeId`, `kind: [ ] Correlate `PendingHumanTask` (`nodeId`, `kind: input|approval`, `role`, `prompt`, `subject`) through the message envelope",
+  "confidence": 0.9,
+  "inputs": [
+    "work-flowforge-integration-7-4-001"
+  ],
+  "filesChanged": [
+    "src/HumanGateway.Workflow/src/human-gateway.ts",
+    "src/HumanGateway.Workflow/tests/human-gateway.test.ts"
+  ],
+  "payload": {
+    "agentOutputExcerpt": "Implemented `PendingHumanTask` correlation through the HumanGateway workflow adapter.\n\n### Changes made\n\n- Updated `HumanGatewayTaskResponse` to optionally carry an echoed task snapshot.\n- Added response correlation verification for:\n  - `id`\n  - `kind`\n  - `workflowRef`\n  - `nodeId`\n  - `role`\n  - `prompt`\n  - `subject`\n  - `options`\n  - `correlationToken`\n  - `expiresAt`\n- A mismatched response now fails before the workflow can resume, preventing responses from being applied to another FlowFor",
+    "taskDescription": "[ ] Correlate `PendingHumanTask` (`nodeId`, `kind: input|approval`, `role`, `prompt`, `subject`) through the message envelope"
+  },
+  "nextActions": [],
+  "artifactId": "work-flowforge-integration-7-5-001",
+  "createdAt": "2026-09-04T19:39:01.176Z"
+}

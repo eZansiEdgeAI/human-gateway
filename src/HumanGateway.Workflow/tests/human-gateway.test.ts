@@ -26,6 +26,7 @@ describe('HumanGatewayInteractionProvider', () => {
         sent = message
         return {
           status: 'completed',
+          task: message.task,
           response: { text: '42', respondedAt: '2026-01-01T00:00:02.000Z' },
           artifacts: [{ id: 'a-1', hash: 'sha256:abc', filename: 'evidence.txt' }],
         }
@@ -58,6 +59,42 @@ describe('HumanGatewayInteractionProvider', () => {
 
     expect(result.response.decision).toBe('approved')
     expect(result.response.artifacts?.map(artifact => artifact.id)).toEqual(['a-1', 'a-2'])
+  })
+
+  it('preserves and verifies input and approval correlation fields on the response envelope', async () => {
+    for (const kind of ['input', 'approval'] as const) {
+      let sent: HumanGatewayTaskMessage | undefined
+      const result = await new HumanGatewayInteractionProvider({
+        transport: { sendHumanTask: async message => {
+          sent = message
+          return {
+            status: 'completed',
+            task: { ...message.task },
+            response: kind === 'input' ? { text: 'answer' } : { decision: 'approved' },
+          }
+        } },
+      }).requestInteraction(request(kind))
+
+      expect(sent?.task).toMatchObject({
+        kind,
+        workflowRef: 'run-1',
+        nodeId: 'node-1',
+        role: 'teacher',
+        prompt: kind === 'approval' ? 'Approve?' : 'What is your answer?',
+        subject: 'Test task',
+      })
+      expect(result.taskId).toBe('task-1')
+    }
+  })
+
+  it('rejects a response for a different workflow node', async () => {
+    await expect(new HumanGatewayInteractionProvider({
+      transport: { sendHumanTask: async message => ({
+        status: 'completed',
+        task: { ...message.task, nodeId: 'other-node' },
+        response: { text: 'wrong task' },
+      }) },
+    }).requestInteraction(request())).rejects.toThrow(/correlation mismatch for nodeId/)
   })
 
   it('surfaces an expired gateway interaction as a provider error and event', async () => {

@@ -35,6 +35,12 @@ export interface HumanGatewayTaskMessage {
 /** Result returned by the HumanGateway transport after the task is answered. */
 export interface HumanGatewayTaskResponse {
   status: 'completed' | 'expired'
+  /**
+   * The task snapshot returned by the gateway envelope.  Gateways should echo
+   * the consumer-owned correlation fields; the provider verifies them and
+   * never lets a response resume a different FlowForge node.
+   */
+  task?: HumanGatewayTaskMessage['task']
   response?: HumanInteractionResponse
   artifacts?: ArtifactReference[]
   expiredAt?: string
@@ -95,6 +101,7 @@ export class HumanGatewayInteractionProvider implements HumanInteractionProvider
 
     const gatewayResult = await this.options.transport.sendHumanTask(message, { signal })
     this.throwIfAborted(signal)
+    this.verifyCorrelation(task, gatewayResult.task)
     if (gatewayResult.status === 'expired') {
       const expiredAt = gatewayResult.expiredAt ?? now().toISOString()
       await this.emit(eventSink, translateHumanInteractionExpired(request, expiredAt))
@@ -109,6 +116,26 @@ export class HumanGatewayInteractionProvider implements HumanInteractionProvider
     }
     await this.emit(eventSink, translateHumanInteractionCompleted(request, response))
     return { taskId: task.id, response }
+  }
+
+  /** Verify the complete PendingHumanTask identity when the response echoes it. */
+  private verifyCorrelation(
+    expected: HumanGatewayTaskMessage['task'],
+    actual?: HumanGatewayTaskMessage['task'],
+  ): void {
+    if (!actual) return
+    const fields: Array<keyof HumanGatewayTaskMessage['task']> = [
+      'id', 'kind', 'workflowRef', 'nodeId', 'role', 'prompt', 'subject',
+      'correlationToken', 'expiresAt',
+    ]
+    for (const field of fields) {
+      if (actual[field] !== expected[field]) {
+        throw new Error(`HumanGateway response correlation mismatch for ${String(field)} on task ${expected.id}`)
+      }
+    }
+    if (JSON.stringify(actual.options) !== JSON.stringify(expected.options)) {
+      throw new Error(`HumanGateway response correlation mismatch for options on task ${expected.id}`)
+    }
   }
 
   private mergeArtifacts(response: HumanInteractionResponse, artifacts?: ArtifactReference[]): HumanInteractionResponse {
