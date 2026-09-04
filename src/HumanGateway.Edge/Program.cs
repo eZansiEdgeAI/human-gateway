@@ -17,6 +17,21 @@ using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// The Vite development server runs on a separate localhost origin. Keep this
+// allowlist development-only; production deployments should serve the PWA
+// through the configured trusted origin instead of enabling broad CORS.
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddCors(options => options.AddPolicy("PwaDevelopment", policy =>
+        policy.WithOrigins(
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+                "http://localhost:4173",
+                "http://127.0.0.1:4173")
+            .AllowAnyHeader()
+            .AllowAnyMethod()));
+}
+
 // ---------------------------------------------------------------------------
 // SQLite store (LOCAL-EDGE-1.2, EDGE-FR-02): the durable local schema for
 // conversations, messages, deliveries, tasks, artifacts, and participants. The
@@ -246,6 +261,11 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
     var result = exception is null ? ApiErrors.InternalError() : ApiErrors.FromException(exception);
     await result.ExecuteAsync(context);
 }));
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("PwaDevelopment");
+}
 
 // TLS everywhere (AUTH-FR-04, SP-01): when an HTTPS endpoint is configured the local API redirects
 // plain HTTP; without one this is a no-op (a LAN-only PoC can run over http, but production and any
