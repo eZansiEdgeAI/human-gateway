@@ -21,6 +21,9 @@ sign in. The backend is normally available at `http://127.0.0.1:8080`, and the b
 
 Administrators create user accounts and provide the login credentials. Users cannot create accounts themselves.
 
+Administrators may see a **Users** option after signing in. That area is for account administration and is not needed
+for normal messaging or task work.
+
 ## Sign In and Install
 
 1. Open the HumanGateway address.

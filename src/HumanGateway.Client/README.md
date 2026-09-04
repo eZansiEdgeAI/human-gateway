@@ -5,7 +5,7 @@ installable and fully usable offline via a Workbox Service Worker + IndexedDB (P
 
 > **Status:** implemented for the `0.1.0` release. The client includes Service Worker app-shell caching,
 > IndexedDB repositories and outbox, offline-first Edge API access, conversations, compose, tasks,
-> attachments, authentication, and delivery status.
+> attachments, authentication, delivery status, and administrator user management.
 
 ## Stack
 
@@ -54,9 +54,10 @@ src/HumanGateway.Client/
 └── src/
     ├── main.tsx               # entry; registers the service worker
     ├── App.tsx                # composition root
-    ├── components/
-    │   ├── AppShell.tsx       # persistent shell (header, main, footer)
-    │   └── SyncBanner.tsx     # offline/online status banner
+     ├── components/
+     │   ├── AdminUsers.tsx      # administrator account directory and creation form
+     │   ├── AppShell.tsx         # persistent shell (header, main, footer)
+     │   └── SyncBanner.tsx       # offline/online status banner
     ├── hooks/useOnlineStatus.ts
     ├── lib/
     │   ├── connectivity.ts    # offline detection source of truth (isOnline / subscribe)
@@ -80,5 +81,5 @@ events. The `useOnlineStatus` hook and the offline-first Edge API client both co
 the sync banner and the fetch wrapper never disagree about connectivity.
 
 For user workflows, offline behavior, task responses, and attachment guidance, see the
-[user guide](../../../docs/user-guide.md). For deployment and configuration, see the
-[administrator guide](../../../docs/admin-guide.md).
+[user guide](../../docs/user-guide.md). For deployment and configuration, see the
+[administrator guide](../../docs/admin-guide.md).
