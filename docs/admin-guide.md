@@ -14,6 +14,32 @@ The Edge Gateway serves the local REST API, SQLite metadata, filesystem artifact
 - PostgreSQL 16+ for local Relay development; use the supported PostgreSQL version selected for your deployment.
 - TLS termination and a secret store for production Relay traffic.
 
+The container runtime must be both installed and running. Having the `podman` or `docker` executable on `PATH` is
+not sufficient. Verify the runtime before setup:
+
+```bash
+podman info       # Podman
+docker info       # Docker
+```
+
+On Linux with Docker, start the daemon with:
+
+```bash
+sudo systemctl enable --now docker
+```
+
+On macOS or Windows with Podman, start its virtual machine first:
+
+```bash
+podman machine init    # first time only
+podman machine start
+podman info
+```
+
+Install Docker Desktop from [docker.com](https://www.docker.com/products/docker-desktop/) or Podman from
+[podman.io](https://podman.io/getting-started/installation). On Debian/Ubuntu Linux, install Podman and its Compose
+wrapper with `sudo apt-get install podman podman-compose`.
+
 ## Full Stack Development Deployment
 
 The recommended setup path is the repository CLI. It checks prerequisites, installs JavaScript dependencies, builds
@@ -26,6 +52,42 @@ npm run setup -- --mode compose --yes
 
 Use `npm run setup:check`, `npm run setup:verify`, and `npm run setup:status` for individual operations. The CLI also
 supports `--mode edge` for Edge-only container deployment. It will not overwrite an existing `.env` file.
+
+The setup command starts the PostgreSQL, Relay, and Edge backend services, but it does not start the PWA development
+server. Start the PWA separately from a second terminal and point it at the Compose Edge port:
+
+```bash
+cd src/HumanGateway.Client
+VITE_EDGE_BASE_URL=http://127.0.0.1:8080 npm run dev
+```
+
+Open the Vite URL shown in the terminal, normally `http://localhost:5173`. The client defaults to port `5187` for
+bare-metal Edge development, so the `VITE_EDGE_BASE_URL` override is required when using the Compose stack, which
+publishes Edge on port `8080`.
+
+If Docker or Podman is not available, use development mode instead. It starts the Edge API and PWA server in the
+background without PostgreSQL or the Relay:
+
+```bash
+npm run setup -- --mode dev
+```
+
+Development mode uses Edge `http://127.0.0.1:5187` and PWA `http://127.0.0.1:5173`. Use
+`npm run setup:status` to check the Edge and PWA processes, or run `npm run setup:verify -- --mode dev` to run the
+Edge health probes without requiring a Relay.
+
+When using `--yes` without `HG_EDGE_AUTH_BOOTSTRAP_USERNAME`, `HG_EDGE_AUTH_BOOTSTRAP_PASSWORD`,
+`HG_RELAY_AUTH_BOOTSTRAP_USERNAME`, and `HG_RELAY_AUTH_BOOTSTRAP_PASSWORD` already exported, Compose starts with
+blank bootstrap credentials. This is suitable for a local smoke environment but does not provision a login account;
+use the interactive setup or exported secret variables when authentication is required. For example:
+
+```bash
+HG_EDGE_AUTH_BOOTSTRAP_USERNAME=admin \
+HG_EDGE_AUTH_BOOTSTRAP_PASSWORD='change-this-password' \
+HG_RELAY_AUTH_BOOTSTRAP_USERNAME=admin \
+HG_RELAY_AUTH_BOOTSTRAP_PASSWORD='change-this-password' \
+npm run setup -- --mode compose --yes
+```
 
 Production TLS, secret-store integration, backup automation, and other operational layers are tracked in the
 [production backlog](backlog.md).
@@ -44,7 +106,7 @@ curl http://127.0.0.1:5275/healthz
 curl http://127.0.0.1:8080/healthz
 ```
 
-Stop the stack with `docker compose down`. Add `-v` only when intentionally deleting the `relay-pgdata` and `edge-data` volumes.
+Stop the stack with `docker compose down`. Add `-v` only when intentionally deleting the `relay-pgdata` and `edge-data` volumes. The same checks are available through `npm run setup:status` and `npm run setup:verify`.
 
 ## Edge Installation
 
@@ -135,6 +197,10 @@ Do not remove volumes as part of a normal upgrade. `docker compose down -v` dele
 **Edge is healthy but messages do not leave the site.** Check `/sync/status`, the Relay URL, TLS trust, gateway registration, outbound firewall rules, and Relay health. The local queue is expected to retain entries during an outage.
 
 **Relay fails at startup.** Check PostgreSQL reachability, credentials, migrations, and the database health check. Preserve logs before restarting repeatedly.
+
+**Setup reports that the container runtime is not ready.** Start Docker Engine, Docker Desktop, or the Podman
+machine/service, then confirm `docker info` or `podman info` succeeds. Rerun `npm run setup:check` before rerunning
+`npm run setup`.
 
 **Users cannot sign in.** Confirm the configured bootstrap user, account status, clock accuracy, and whether the user is accessing the correct Edge or Relay address.
 

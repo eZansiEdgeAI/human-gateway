@@ -127,14 +127,77 @@ For a repeatable full-stack setup with defaults:
 npm run setup -- --mode compose --yes
 ```
 
+`npm run setup` starts the PostgreSQL, Relay, and Edge backend services. It does not start the PWA development
+server. After setup completes, start the PWA from a second terminal:
+
+```bash
+cd src/HumanGateway.Client
+VITE_EDGE_BASE_URL=http://127.0.0.1:8080 npm run dev
+```
+
+Open the Vite URL shown in the terminal, normally `http://localhost:5173`. Sign in with the Edge bootstrap
+credentials entered during setup. For a non-interactive setup, provide credentials explicitly rather than leaving
+the bootstrap account empty:
+
+```bash
+HG_EDGE_AUTH_BOOTSTRAP_USERNAME=admin \
+HG_EDGE_AUTH_BOOTSTRAP_PASSWORD='change-this-password' \
+HG_RELAY_AUTH_BOOTSTRAP_USERNAME=admin \
+HG_RELAY_AUTH_BOOTSTRAP_PASSWORD='change-this-password' \
+npm run setup -- --mode compose --yes
+```
+
+The default local endpoints are Edge `http://127.0.0.1:8080` and Relay `http://127.0.0.1:5275`. Check the running
+services with:
+
+```bash
+npm run setup:status
+npm run setup:verify
+```
+
+Stop the backend stack with `docker compose down`. Do not add `-v` unless you intentionally want to delete the
+durable PostgreSQL and Edge data volumes.
+
 The CLI also supports `--mode edge` for an Edge-only container deployment. Production TLS, secret stores, backup
 automation, and other operational layers are tracked in the [backlog](docs/backlog.md).
+
+For local development without containers, use `--mode dev`. This starts the Edge API and the Vite PWA server in the
+background, using Edge port `5187` and the PWA at `http://127.0.0.1:5173`:
+
+```bash
+npm run setup -- --mode dev
+```
 
 ### Prerequisites
 
 - .NET 10 SDK
 - Node.js 20+ and npm
-- Docker or Podman for containerized deployment
+- Docker Engine with Compose v2, or Podman with `podman-compose`, for containerized deployment
+
+The container runtime must be installed and running before Compose setup. On Linux, Docker normally runs as a
+system service:
+
+```bash
+sudo systemctl enable --now docker
+```
+
+For rootless Podman on Linux, Podman does not usually need a daemon; verify it is usable with:
+
+```bash
+podman info
+```
+
+On macOS or Windows, start the Podman virtual machine before setup:
+
+```bash
+podman machine init    # first time only
+podman machine start
+podman info
+```
+
+Install Docker Desktop from [docker.com](https://www.docker.com/products/docker-desktop/) or Podman from
+[podman.io](https://podman.io/getting-started/installation). On Debian/Ubuntu Linux, Podman can be installed with
+`sudo apt-get install podman podman-compose`.
 
 ### Run the Edge service
 

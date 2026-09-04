@@ -15,6 +15,10 @@ It is not live chat: a message may remain queued while a site or remote recipien
 - Have the username and password supplied by your administrator.
 - For attachments, allow the browser to access the camera or device files when prompted.
 
+For a local development installation, the administrator must start the backend stack and the PWA before users can
+sign in. The backend is normally available at `http://127.0.0.1:8080`, and the browser app is normally available at
+`http://localhost:5173`. In a deployed site, use the address supplied by the administrator instead.
+
 ## Sign In and Install
 
 1. Open the HumanGateway address.

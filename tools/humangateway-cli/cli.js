@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const readline = require('node:readline/promises');
 const { stdin, stdout } = require('node:process');
-const { spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '../..');
 const CLIENT = path.join(ROOT, 'src', 'HumanGateway.Client');
@@ -54,9 +54,14 @@ Options:
 }
 
 function commandExists(command, args = ['--version']) { return spawnSync(command, args, { stdio: 'ignore' }).status === 0; }
+function containerRuntimeReady() {
+  if (commandExists('docker', ['info'])) return 'Docker daemon';
+  if (commandExists('podman', ['info'])) return 'Podman service';
+  return false;
+}
 function composeCommand() {
-  if (commandExists('docker', ['compose', 'version'])) return ['docker', ['compose']];
-  if (commandExists('podman-compose')) return ['podman-compose', []];
+  if (commandExists('docker', ['info']) && commandExists('docker', ['compose', 'version'])) return ['docker', ['compose']];
+  if (commandExists('podman', ['info']) && commandExists('podman-compose')) return ['podman-compose', []];
   throw new Error('Docker Compose v2 or podman-compose is required for compose mode.');
 }
 function checkPort(value) { const port = Number(value); if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error(`Invalid port: ${value}`); }
@@ -74,8 +79,11 @@ function preflight(mode = 'compose') {
   add('Node.js >= 20', Number(process.versions.node.split('.')[0]) >= 20, process.version);
   add('npm', commandExists('npm'));
   add('.NET SDK', commandExists('dotnet'), 'required for Edge and Relay builds');
-  if (mode === 'compose' || mode === 'edge') add('container runtime', commandExists('docker') || commandExists('podman'), 'Docker or Podman');
-  if (mode === 'compose') add('Docker Compose', commandExists('docker', ['compose', 'version']) || commandExists('podman-compose'), 'Docker Compose v2 or podman-compose');
+  if (mode === 'compose' || mode === 'edge') {
+    add('container runtime installed', commandExists('docker') || commandExists('podman'), 'Docker or Podman');
+    add('container runtime ready', Boolean(containerRuntimeReady()), 'Start Docker Engine or Podman machine/service');
+  }
+  if (mode === 'compose') add('Compose runtime', (commandExists('docker', ['info']) && commandExists('docker', ['compose', 'version'])) || (commandExists('podman', ['info']) && commandExists('podman-compose')), 'Docker Compose v2 or Podman Compose with a running runtime');
   add('client package', fs.existsSync(path.join(CLIENT, 'package.json')), CLIENT);
   add('workflow package', fs.existsSync(path.join(WORKFLOW, 'package.json')), WORKFLOW);
   return checks;
@@ -105,11 +113,12 @@ async function ask(question, fallback, secret = false) {
 }
 
 async function collectConfig(args) {
-  if (args.yes) return validateConfig({ mode: args.mode || 'compose', gatewayId: args.gatewayId || 'edge:compose', gatewayName: args.gatewayName || 'HumanGateway Edge', edgePort: args.edgePort || '8080', relayPort: args.relayPort || '5275', dbPort: args.dbPort || '127.0.0.1:5433', dataDir: args.dataDir || '', relayUrl: args.relayUrl || 'http://127.0.0.1:5275', username: process.env.HG_EDGE_AUTH_BOOTSTRAP_USERNAME || '', password: process.env.HG_EDGE_AUTH_BOOTSTRAP_PASSWORD || '', relayUsername: process.env.HG_RELAY_AUTH_BOOTSTRAP_USERNAME || '', relayPassword: process.env.HG_RELAY_AUTH_BOOTSTRAP_PASSWORD || '' });
-  const mode = args.mode || await ask('Setup mode (compose, edge, dev)', 'compose');
+  const mode = args.mode || (args.yes ? 'compose' : await ask('Setup mode (compose, edge, dev)', 'compose'));
+  const defaultEdgePort = mode === 'dev' ? '5187' : '8080';
+  if (args.yes) return validateConfig({ mode, gatewayId: args.gatewayId || 'edge:compose', gatewayName: args.gatewayName || 'HumanGateway Edge', edgePort: args.edgePort || defaultEdgePort, relayPort: args.relayPort || '5275', dbPort: args.dbPort || '127.0.0.1:5433', dataDir: args.dataDir || '', relayUrl: args.relayUrl || 'http://127.0.0.1:5275', username: process.env.HG_EDGE_AUTH_BOOTSTRAP_USERNAME || '', password: process.env.HG_EDGE_AUTH_BOOTSTRAP_PASSWORD || '', relayUsername: process.env.HG_RELAY_AUTH_BOOTSTRAP_USERNAME || '', relayPassword: process.env.HG_RELAY_AUTH_BOOTSTRAP_PASSWORD || '' });
   const config = {
     mode, gatewayId: args.gatewayId || await ask('Gateway ID', 'edge:compose'), gatewayName: args.gatewayName || await ask('Gateway display name', 'HumanGateway Edge'),
-    edgePort: args.edgePort || await ask('Edge port', '8080'), relayPort: args.relayPort || await ask('Relay port', '5275'), dbPort: args.dbPort || await ask('PostgreSQL host port', '127.0.0.1:5433'),
+    edgePort: args.edgePort || await ask('Edge port', defaultEdgePort), relayPort: args.relayPort || await ask('Relay port', '5275'), dbPort: args.dbPort || await ask('PostgreSQL host port', '127.0.0.1:5433'),
     dataDir: args.dataDir || await ask('Edge data directory (blank uses named volume)', ''), relayUrl: args.relayUrl || await ask('Relay URL', 'http://127.0.0.1:5275'),
     username: await ask('Edge bootstrap username', 'admin'), password: await ask('Edge bootstrap password', '', true), relayUsername: await ask('Relay bootstrap username', 'admin'), relayPassword: await ask('Relay bootstrap password', '', true),
   };
@@ -149,24 +158,55 @@ function start(config) {
     run(command, [...prefix, 'up', '-d', '--build'], { env });
   }
   if (config.mode === 'edge') { const env = { HG_PORT: String(config.edgePort), HG_GATEWAY_ID: config.gatewayId }; if (config.dataDir) env.HG_DATA_DIR = config.dataDir; if (config.relayUrl) env.HG_RELAY_URL = config.relayUrl; run(path.join(ROOT, 'deployment', 'docker', 'run-edge.sh'), [], { env }); }
+  if (config.mode === 'dev') {
+    const edgeEnv = {
+      ...process.env,
+      ASPNETCORE_URLS: `http://127.0.0.1:${config.edgePort}`,
+      Edge__GatewayId: config.gatewayId,
+      Edge__DataDirectory: path.join(ROOT, 'data', 'dev'),
+    };
+    const edge = spawn('dotnet', ['run', '--project', path.join(ROOT, 'src', 'HumanGateway.Edge'), '--no-launch-profile'], { cwd: ROOT, env: edgeEnv, detached: true, stdio: 'ignore' });
+    edge.unref();
+
+    const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+    const clientEnv = { ...process.env, VITE_EDGE_BASE_URL: `http://127.0.0.1:${config.edgePort}` };
+    const client = spawn(npm, ['run', 'dev', '--', '--host', '127.0.0.1'], { cwd: CLIENT, env: clientEnv, detached: true, stdio: 'ignore' });
+    client.unref();
+  }
 }
 function request(url) { const result = spawnSync('curl', ['-fsS', '--max-time', '5', url], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }); return result.status === 0 ? result.stdout : null; }
+function wait(seconds) { spawnSync(process.execPath, ['-e', `setTimeout(() => process.exit(0), ${seconds * 1000})`], { stdio: 'ignore' }); }
 function verify(config = {}) {
-  const edge = config.edgeUrl || `http://127.0.0.1:${config.edgePort || '8080'}`; const relay = `http://127.0.0.1:${config.relayPort || '5275'}`;
-  const results = [{ name: 'Edge health', url: `${edge}/healthz` }, { name: 'Edge sync status', url: `${edge}/sync/status` }]; if (config.mode !== 'edge') results.splice(1, 0, { name: 'Relay health', url: `${relay}/healthz` });
-  for (const result of results) { result.body = request(result.url); console.log(`${result.body ? 'OK' : '!!'} ${result.name}${result.body ? `: ${result.body.trim()}` : ` (${result.url})`}`); }
+  const edge = config.edgeUrl || `http://127.0.0.1:${config.edgePort || (config.mode === 'dev' ? '5187' : '8080')}`; const relay = `http://127.0.0.1:${config.relayPort || '5275'}`;
+  const results = [{ name: 'Edge health', url: `${edge}/healthz` }]; if (config.mode === 'compose') results.push({ name: 'Relay health', url: `${relay}/healthz` });
+  for (const result of results) {
+    result.body = request(result.url);
+    for (let attempt = 1; !result.body && attempt < 20; attempt += 1) {
+      wait(1);
+      result.body = request(result.url);
+    }
+    console.log(`${result.body ? 'OK' : '!!'} ${result.name}${result.body ? `: ${result.body.trim()}` : ` (${result.url})`}`);
+  }
   return results.every((result) => result.body);
 }
-function status(config = {}) { console.log(`Edge:  ${request(`${config.edgeUrl || 'http://127.0.0.1:8080'}/healthz`) || 'not responding'}`); console.log(`Relay: ${request('http://127.0.0.1:5275/healthz') || 'not responding'}`); console.log(`Sync:  ${request(`${config.edgeUrl || 'http://127.0.0.1:8080'}/sync/status`) || 'not responding'}`); }
+function status(config = {}) {
+  const edgeUrls = config.edgeUrl ? [config.edgeUrl] : ['http://127.0.0.1:8080', 'http://127.0.0.1:5187'];
+  const edge = edgeUrls.map((url) => ({ url, health: request(`${url}/healthz`) })).find((result) => result.health);
+  const edgeUrl = edge?.url || edgeUrls[0];
+  console.log(`Edge:  ${edge?.health || 'not responding'}${edge ? ` (${edgeUrl})` : ''}`);
+  console.log(`Relay: ${request('http://127.0.0.1:5275/healthz') || 'not responding'}`);
+  console.log(`Sync:  ${request(`${edgeUrl}/sync/status`) || 'not responding'}`);
+  console.log(`PWA:   ${request('http://127.0.0.1:5173/') ? 'responding (http://127.0.0.1:5173)' : 'not responding'}`);
+}
 
 async function setup(args) {
   const config = await collectConfig(args); if (!printChecks(preflight(config.mode))) throw new Error('Preflight failed. Install the missing prerequisite and rerun setup.');
   if (config.mode === 'compose' && writeEnv(config)) console.log('Wrote .env with mode 0600.'); else if (config.mode === 'compose') console.log('.env already exists; leaving it unchanged.');
   if (!args.skipdeps) installDependencies(); if (!args.skipbuild) buildProjects(config, args.skiptests); if (!args.nostart) start(config);
-  if (!args.nostart && config.mode !== 'dev' && !verify(config)) throw new Error('Services started but health verification failed.');
-  console.log(`\nSetup complete.\nGateway ID: ${config.gatewayId}\nEdge API:  http://127.0.0.1:${config.edgePort}${config.mode === 'compose' ? `\nRelay:     http://127.0.0.1:${config.relayPort}` : ''}\nNext: npm run setup:status | npm run setup:verify`);
+  if (!args.nostart && !verify({ ...config, edgeUrl: `http://127.0.0.1:${config.edgePort}` })) throw new Error('Services started but health verification failed. Check the startup logs and rerun npm run setup:status.');
+  console.log(`\nSetup complete.\nGateway ID: ${config.gatewayId}\nEdge API:  http://127.0.0.1:${config.edgePort}${config.mode === 'compose' ? `\nRelay:     http://127.0.0.1:${config.relayPort}` : ''}${config.mode === 'dev' ? '\nPWA:       http://127.0.0.1:5173' : ''}\nNext: npm run setup:status | npm run setup:verify`);
 }
 
-async function main() { try { const args = parseArgs(process.argv.slice(2)); if (args.help) return usage(); if (args.command === 'preflight') return process.exitCode = printChecks(preflight(args.mode || 'compose')) ? 0 : 1; if (args.command === 'verify') return process.exitCode = verify(args) ? 0 : 1; if (args.command === 'status') return status(args); if (args.command === 'setup') return setup(args); throw new Error(`Unknown command: ${args.command}`); } catch (error) { console.error(`\nSetup failed: ${error.message}`); process.exitCode = 1; } }
+async function main() { try { const args = parseArgs(process.argv.slice(2)); if (args.help) return usage(); if (args.command === 'preflight') return process.exitCode = printChecks(preflight(args.mode || 'compose')) ? 0 : 1; if (args.command === 'verify') return process.exitCode = verify({ ...args, mode: args.mode || 'compose' }) ? 0 : 1; if (args.command === 'status') return status(args); if (args.command === 'setup') return setup(args); throw new Error(`Unknown command: ${args.command}`); } catch (error) { console.error(`\nSetup failed: ${error.message}`); process.exitCode = 1; } }
 module.exports = { parseArgs, checkGatewayId, checkPort, checkUrl, preflight, validateConfig, writeEnv, verify };
 if (require.main === module) main();
