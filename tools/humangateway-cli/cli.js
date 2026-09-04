@@ -192,7 +192,22 @@ function start(config) {
     client.unref();
   }
 }
-function request(url) { const result = spawnSync('curl', ['-fsS', '--max-time', '5', url], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }); return result.status === 0 ? result.stdout : null; }
+function request(url, options = {}) {
+  const args = ['-fsS', '--max-time', '5'];
+  if (options.authorization) args.push('-H', `Authorization: Bearer ${options.authorization}`);
+  if (options.body !== undefined) args.push('-H', 'Content-Type: application/json', '-d', JSON.stringify(options.body));
+  args.push(url);
+  const result = spawnSync('curl', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  return result.status === 0 ? result.stdout : null;
+}
+function sessionToken(edgeUrl) {
+  const username = existingEnvValue('HG_EDGE_AUTH_BOOTSTRAP_USERNAME');
+  const password = existingEnvValue('HG_EDGE_AUTH_BOOTSTRAP_PASSWORD');
+  if (!username || !password) return null;
+  const body = request(`${edgeUrl}/auth/login`, { body: { username, password } });
+  if (!body) return null;
+  try { return JSON.parse(body).token || null; } catch { return null; }
+}
 function wait(seconds) { spawnSync(process.execPath, ['-e', `setTimeout(() => process.exit(0), ${seconds * 1000})`], { stdio: 'ignore' }); }
 function verify(config = {}) {
   const edge = config.edgeUrl || `http://127.0.0.1:${config.edgePort || (config.mode === 'dev' ? '5187' : '8080')}`; const relay = `http://127.0.0.1:${config.relayPort || '5275'}`;
@@ -213,7 +228,11 @@ function status(config = {}) {
   const edgeUrl = edge?.url || edgeUrls[0];
   console.log(`Edge:  ${edge?.health || 'not responding'}${edge ? ` (${edgeUrl})` : ''}`);
   console.log(`Relay: ${request('http://127.0.0.1:5275/healthz') || 'not responding'}`);
-  console.log(`Sync:  ${request(`${edgeUrl}/sync/status`) || 'not responding'}`);
+  const token = edge ? sessionToken(edgeUrl) : null;
+  const sync = token
+    ? request(`${edgeUrl}/sync/status`, { authorization: token }) || 'not responding or unauthorized'
+    : 'not checked (Edge bootstrap credentials unavailable)';
+  console.log(`Sync:  ${sync}`);
   console.log(`PWA:   ${request('http://127.0.0.1:5173/') ? 'responding (http://127.0.0.1:5173)' : 'not responding'}`);
 }
 
