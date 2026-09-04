@@ -1,0 +1,25 @@
+{
+  "type": "work.flowforge-integration-7.6",
+  "category": "work",
+  "taskId": "FLOWFORGE-INTEGRATION-7.6",
+  "producedBy": "workflow-engineer",
+  "status": "complete",
+  "summary": "[ ] CLI/test harness driving the provider headlessly (comparable to FlowForge `--answers`): [ ] CLI/test harness driving the provider headlessly (comparable to FlowForge `--answers`)",
+  "confidence": 0.9,
+  "inputs": [
+    "work-flowforge-integration-7-5-001"
+  ],
+  "filesChanged": [
+    "src/HumanGateway.Workflow/package.json",
+    "src/HumanGateway.Workflow/src/index.ts",
+    "src/HumanGateway.Workflow/src/headless.ts",
+    "src/HumanGateway.Workflow/tests/headless.test.ts"
+  ],
+  "payload": {
+    "agentOutputExcerpt": "Implemented the headless `--answers` harness for the FlowForge integration.\n\n### Changes\n\n- Added `src/HumanGateway.Workflow/src/headless.ts`\n  - `HeadlessAnswers`\n  - `StubWorkflowRunner`\n  - `compareHeadlessProviders`\n  - `parseAnswersArgument`\n  - Runs identical task scripts through both Console and HumanGateway providers.\n  - Supports answers keyed by task ID or node ID.\n  - Supports input strings, approval booleans, and full response objects.\n\n- Added `src/HumanGateway.Workflow/bin/headless",
+    "taskDescription": "[ ] CLI/test harness driving the provider headlessly (comparable to FlowForge `--answers`)"
+  },
+  "nextActions": [],
+  "artifactId": "work-flowforge-integration-7-6-001",
+  "createdAt": "2026-09-04T19:41:04.231Z"
+}

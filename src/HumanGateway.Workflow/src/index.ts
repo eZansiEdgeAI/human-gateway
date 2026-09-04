@@ -24,6 +24,17 @@ export {
   HumanGatewayInteractionProvider,
 } from './human-gateway.js'
 export {
+  StubWorkflowRunner,
+  compareHeadlessProviders,
+  parseAnswersArgument,
+} from './headless.js'
+export type {
+  HeadlessAnswers,
+  HeadlessComparison,
+  HeadlessRun,
+  HeadlessWorkflowRunner,
+} from './headless.js'
+export {
   translateArtifactReceived,
   translateHumanInteractionCompleted,
   translateHumanInteractionExpired,
