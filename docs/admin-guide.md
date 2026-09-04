@@ -9,6 +9,7 @@ The Edge Gateway serves the local REST API, SQLite metadata, filesystem artifact
 ## Prerequisites
 
 - .NET 10 SDK for development or bare-metal operation.
+- Node.js 22.22.2+ and npm for the setup CLI and PWA development server.
 - Docker Compose v2 or Podman for the full stack.
 - Linux Raspberry Pi-class hardware or an old PC for the Edge.
 - PostgreSQL 16+ for local Relay development; use the supported PostgreSQL version selected for your deployment.
@@ -39,6 +40,10 @@ podman info
 Install Docker Desktop from [docker.com](https://www.docker.com/products/docker-desktop/) or Podman from
 [podman.io](https://podman.io/getting-started/installation). On Debian/Ubuntu Linux, install Podman and its Compose
 wrapper with `sudo apt-get install podman podman-compose`.
+
+The setup CLI uses the committed lockfiles and runs `npm ci` for the client and workflow packages. This makes setup
+repeatable and avoids re-resolving the workflow test dependency tree. Pull the latest repository changes before
+running setup on an older checkout so `src/HumanGateway.Workflow/package-lock.json` is present.
 
 ## Full Stack Development Deployment
 
@@ -201,6 +206,11 @@ Do not remove volumes as part of a normal upgrade. `docker compose down -v` dele
 **Setup reports that the container runtime is not ready.** Start Docker Engine, Docker Desktop, or the Podman
 machine/service, then confirm `docker info` or `podman info` succeeds. Rerun `npm run setup:check` before rerunning
 `npm run setup`.
+
+**Setup fails with `Cannot read properties of null (reading 'edgesOut')` during npm install.** This is an npm resolver
+failure in the workflow package dependency tree. Update Node.js to 22.22.2 or newer, pull the latest repository
+changes, and rerun setup. The current setup uses the committed workflow lockfile with `npm ci` to avoid that resolver
+path. Do not delete the database or container volumes; this error occurs before services start.
 
 **Users cannot sign in.** Confirm the configured bootstrap user, account status, clock accuracy, and whether the user is accessing the correct Edge or Relay address.
 

@@ -171,7 +171,7 @@ npm run setup -- --mode dev
 ### Prerequisites
 
 - .NET 10 SDK
-- Node.js 20+ and npm
+- Node.js 22.22.2+ and npm
 - Docker Engine with Compose v2, or Podman with `podman-compose`, for containerized deployment
 
 The container runtime must be installed and running before Compose setup. On Linux, Docker normally runs as a
@@ -198,6 +198,11 @@ podman info
 Install Docker Desktop from [docker.com](https://www.docker.com/products/docker-desktop/) or Podman from
 [podman.io](https://podman.io/getting-started/installation). On Debian/Ubuntu Linux, Podman can be installed with
 `sudo apt-get install podman podman-compose`.
+
+The setup CLI installs the client and workflow packages from their committed npm lockfiles using `npm ci`. This keeps
+dependency versions reproducible and avoids npm re-resolving the workflow test dependency tree on every setup run. If
+you are updating an older checkout that does not contain the workflow lockfile, pull the latest changes before running
+setup again.
 
 ### Run the Edge service
 

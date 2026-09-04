@@ -71,12 +71,16 @@ function checkUrl(value, allowEmpty = false) {
   let parsed; try { parsed = new URL(value); } catch { throw new Error(`Invalid URL: ${value}`); }
   if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error(`URL must use http or https: ${value}`);
 }
+function nodeVersionAtLeast(major, minor, patch) {
+  const [currentMajor, currentMinor, currentPatch] = process.versions.node.split('.').map(Number);
+  return currentMajor > major || (currentMajor === major && (currentMinor > minor || (currentMinor === minor && currentPatch >= patch)));
+}
 
 function preflight(mode = 'compose') {
   const checks = [];
   const add = (name, ok, detail = '') => checks.push({ name, ok, detail });
   add('repository root', fs.existsSync(path.join(ROOT, 'HumanGateway.slnx')), ROOT);
-  add('Node.js >= 20', Number(process.versions.node.split('.')[0]) >= 20, process.version);
+  add('Node.js >= 22.22.2', nodeVersionAtLeast(22, 22, 2), process.version);
   add('npm', commandExists('npm'));
   add('.NET SDK', commandExists('dotnet'), 'required for Edge and Relay builds');
   if (mode === 'compose' || mode === 'edge') {
@@ -143,9 +147,14 @@ function writeEnv(config) {
 function run(command, args, options = {}) {
   console.log(`> ${command} ${args.join(' ')}`);
   const result = spawnSync(command, args, { cwd: options.cwd || ROOT, stdio: options.stdio || 'inherit', env: { ...process.env, ...(options.env || {}) } });
-  if (result.status !== 0) throw new Error(`${command} failed with exit code ${result.status}`);
+  if (result.status !== 0) throw new Error(`${options.label || command} failed with exit code ${result.status}`);
 }
-function installDependencies() { run('npm', ['install'], { cwd: CLIENT }); run('npm', ['install'], { cwd: WORKFLOW }); }
+function installDependencies() {
+  for (const [label, cwd] of [['client', CLIENT], ['workflow', WORKFLOW]]) {
+    const command = fs.existsSync(path.join(cwd, 'package-lock.json')) ? 'ci' : 'install';
+    run('npm', [command], { cwd, label: `${label} dependency install` });
+  }
+}
 function buildProjects(config, skipTests) {
   run('dotnet', ['build', 'HumanGateway.slnx'], { cwd: ROOT }); run('npm', ['run', 'build'], { cwd: CLIENT }); run('npm', ['run', 'build'], { cwd: WORKFLOW });
   if (!skipTests) { run('npm', ['test'], { cwd: CLIENT }); run('npm', ['test'], { cwd: WORKFLOW }); }
