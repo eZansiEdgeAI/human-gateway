@@ -349,3 +349,13 @@
 {"timestamp":"2026-09-03T21:36:49.120Z","action":"phase.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","phaseId":"FLOWFORGE-INTEGRATION-7"}
 {"timestamp":"2026-09-03T21:36:49.121Z","action":"task.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"FLOWFORGE-INTEGRATION-7.1","phaseId":"FLOWFORGE-INTEGRATION-7","attempt":1}
 {"timestamp":"2026-09-03T21:38:03.817Z","action":"run.paused","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","note":"Stop/pause requested (control file or signal)"}
+{"timestamp":"2026-09-04T19:18:15.156Z","action":"run.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","note":"harness=opencode"}
+{"timestamp":"2026-09-04T19:18:15.212Z","action":"phase.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","phaseId":"FLOWFORGE-INTEGRATION-7"}
+{"timestamp":"2026-09-04T19:18:15.213Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"FLOWFORGE-INTEGRATION-7.1","note":"No agent matched owner 'workflow-engineer'"}
+{"timestamp":"2026-09-04T19:18:15.216Z","action":"task.skipped","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"FLOWFORGE-INTEGRATION-7.2","note":"No agent matched owner 'workflow-engineer'"}
+{"timestamp":"2026-09-04T19:18:15.219Z","action":"run.complete","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3"}
+{"timestamp":"2026-09-04T19:27:56.810Z","action":"run.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","note":"harness=opencode"}
+{"timestamp":"2026-09-04T19:27:56.886Z","action":"phase.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","phaseId":"FLOWFORGE-INTEGRATION-7"}
+{"timestamp":"2026-09-04T19:27:56.887Z","action":"task.started","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"FLOWFORGE-INTEGRATION-7.1","phaseId":"FLOWFORGE-INTEGRATION-7","attempt":1}
+{"timestamp":"2026-09-04T19:30:21.296Z","action":"artifact.created","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"FLOWFORGE-INTEGRATION-7.1","artifactId":"work-flowforge-integration-7-1-001","artifactType":"work.flowforge-integration-7.1","inputArtifacts":[]}
+{"timestamp":"2026-09-04T19:30:21.296Z","action":"task.complete","runId":"cc1dad89-27a5-4765-8655-91bea28ec9c3","taskId":"FLOWFORGE-INTEGRATION-7.1","phaseId":"FLOWFORGE-INTEGRATION-7","outputFiles":["src/HumanGateway.Workflow","src/HumanGateway.Workflow/package.json","src/HumanGateway.Workflow/src/index.ts","src/HumanGateway.Workflow/src/provider.ts","src/HumanGateway.Workflow/src/types.ts","src/HumanGateway.Workflow/tsconfig.json"],"durationMs":144376}

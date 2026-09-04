@@ -4,7 +4,9 @@ import matter from "gray-matter";
 
 import type { AgentDescriptor, ForgeRepo, HarnessRoot, SkillDescriptor } from "./types.ts";
 
-const HARNESS_ROOTS: HarnessRoot[] = [".agents", ".github", ".claude", ".opencode"];
+// OpenCode is the active runtime for this repository. Keep generic Forge
+// templates as a fallback without letting them shadow the runtime team.
+const HARNESS_ROOTS: HarnessRoot[] = [".opencode", ".agents", ".github", ".claude"];
 
 function isDir(path: string): boolean {
   return existsSync(path) && statSync(path).isDirectory();
@@ -98,8 +100,7 @@ function parseAgent(path: string, repoRoot: string): AgentDescriptor {
 }
 
 function canonicalModelId(model: string): string {
-  const value = model.trim();
-  return value.includes("/") ? value.slice(value.lastIndexOf("/") + 1).trim() : value;
+  return model.trim();
 }
 
 function parseSkill(path: string, repoRoot: string): SkillDescriptor {

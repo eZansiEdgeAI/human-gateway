@@ -11,7 +11,7 @@
   "executionMode": "manual",
   "selectionScope": "range",
   "selectedTaskIds": [
-    "EXTERNAL-WEB-ACCESS-6.4",
-    "EXTERNAL-WEB-ACCESS-6.5"
+    "FLOWFORGE-INTEGRATION-7.1",
+    "FLOWFORGE-INTEGRATION-7.2"
   ]
 }
