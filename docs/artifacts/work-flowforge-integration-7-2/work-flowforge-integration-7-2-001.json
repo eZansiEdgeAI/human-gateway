@@ -1,0 +1,24 @@
+{
+  "type": "work.flowforge-integration-7.2",
+  "category": "work",
+  "taskId": "FLOWFORGE-INTEGRATION-7.2",
+  "producedBy": "workflow-engineer",
+  "status": "complete",
+  "summary": "[ ] `ConsoleHumanInteractionProvider` (baseline): [ ] `ConsoleHumanInteractionProvider` (baseline)",
+  "confidence": 0.9,
+  "inputs": [
+    "work-flowforge-integration-7-1-001"
+  ],
+  "filesChanged": [
+    "src/HumanGateway.Workflow/src/index.ts",
+    "src/HumanGateway.Workflow/src/console.ts",
+    "src/HumanGateway.Workflow/tests/console.test.ts"
+  ],
+  "payload": {
+    "agentOutputExcerpt": "Implemented the `ConsoleHumanInteractionProvider` baseline.\n\n### Files created\n- `src/HumanGateway.Workflow/src/console.ts`\n- `src/HumanGateway.Workflow/tests/console.test.ts`\n\n### Files changed\n- `src/HumanGateway.Workflow/src/index.ts`\n\n### Included\n- Headless answer mapping by task ID or node ID\n- Input and approval task support\n- Configurable answer callback\n- Lifecycle event emission:\n  - `HumanInteractionRequested`\n  - `HumanResponseReceived`\n  - `ArtifactReceived`\n  - `HumanInteractionCom",
+    "taskDescription": "[ ] `ConsoleHumanInteractionProvider` (baseline)"
+  },
+  "nextActions": [],
+  "artifactId": "work-flowforge-integration-7-2-001",
+  "createdAt": "2026-09-04T19:31:59.000Z"
+}

@@ -12,3 +12,11 @@ export type {
   HumanInteractionProvider,
   HumanInteractionProviderOptions,
 } from './provider.js'
+export {
+  ConsoleHumanInteractionProvider,
+  HumanInteractionExpiredError,
+} from './console.js'
+export type {
+  ConsoleAnswer,
+  ConsoleHumanInteractionProviderOptions,
+} from './console.js'
