@@ -11,5 +11,7 @@
     "setup:status": "node tools/humangateway-cli/cli.js status",
     "setup:test": "node --test tools/humangateway-cli/*.test.js"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=22.22.2"
+  }
 }

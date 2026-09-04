@@ -45,6 +45,13 @@ The setup CLI uses the committed lockfiles and runs `npm ci` for the client and 
 repeatable and avoids re-resolving the workflow test dependency tree. Pull the latest repository changes before
 running setup on an older checkout so `src/HumanGateway.Workflow/package-lock.json` is present.
 
+npm upgrade notices are informational and do not block setup. The project does not modify a user’s global npm
+installation automatically. To opt into npm 12 explicitly, use:
+
+```bash
+npm install --global npm@12.0.2
+```
+
 ## Full Stack Development Deployment
 
 The recommended setup path is the repository CLI. It checks prerequisites, installs JavaScript dependencies, builds

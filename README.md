@@ -204,6 +204,13 @@ dependency versions reproducible and avoids npm re-resolving the workflow test d
 you are updating an older checkout that does not contain the workflow lockfile, pull the latest changes before running
 setup again.
 
+npm may report that a newer major npm release is available. This is informational; setup does not upgrade npm
+automatically. If desired, update npm explicitly after confirming your Node.js version:
+
+```bash
+npm install --global npm@12.0.2
+```
+
 ### Run the Edge service
 
 From the repository root:
