@@ -16,6 +16,20 @@ The Edge Gateway serves the local REST API, SQLite metadata, filesystem artifact
 
 ## Full Stack Development Deployment
 
+The recommended setup path is the repository CLI. It checks prerequisites, installs JavaScript dependencies, builds
+the services, starts Compose, and verifies service health:
+
+```bash
+npm run setup
+npm run setup -- --mode compose --yes
+```
+
+Use `npm run setup:check`, `npm run setup:verify`, and `npm run setup:status` for individual operations. The CLI also
+supports `--mode edge` for Edge-only container deployment. It will not overwrite an existing `.env` file.
+
+Production TLS, secret-store integration, backup automation, and other operational layers are tracked in the
+[production backlog](backlog.md).
+
 Copy `.env.example` to `.env`, set bootstrap credentials, and start from the repository root:
 
 ```bash
@@ -38,6 +52,12 @@ The recommended container installation is:
 
 ```bash
 sudo ./deployment/docker/run-edge.sh
+```
+
+The CLI provides the same flow and can pass the gateway identity, port, data directory, and Relay URL:
+
+```bash
+npm run setup -- --mode edge --gateway-id edge:school-a --relay-url https://relay.example.org
 ```
 
 The script uses Podman when available, otherwise Docker. It bind-mounts durable state at `/data`, publishes port `8080` by default, runs as an unprivileged user, and restarts after reboot. For bare metal:

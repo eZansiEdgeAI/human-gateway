@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HumanGateway.Edge.CrashProbe")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9c1e7bff09e47e6d5adaf3ed6a7078d3ca519551")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1a3a25c67f1e58a872b808c60b383b16f8e95f8d")]
 [assembly: System.Reflection.AssemblyProductAttribute("HumanGateway.Edge.CrashProbe")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HumanGateway.Edge.CrashProbe")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

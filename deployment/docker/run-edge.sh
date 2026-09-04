@@ -25,6 +25,7 @@
 #                  (advanced: use this to control where data lives on disk).
 #   HG_PORT        host port published to the container's 8080; default 8080.
 #   HG_GATEWAY_ID  gateway identity (AUTH-FR-01); default "edge:local".
+#   HG_RELAY_URL   Relay base URL for outbound registration/sync; optional.
 #   HG_NAME        container name; default "humangateway-edge".
 #
 # The container runs as the unprivileged `app` user (uid 1654). A named volume
@@ -63,12 +64,14 @@ IMAGE="${HG_IMAGE:-humangateway-edge:latest}"
 NAME="${HG_NAME:-humangateway-edge}"
 PORT="${HG_PORT:-8080}"
 GATEWAY_ID="${HG_GATEWAY_ID:-edge:local}"
+RELAY_URL="${HG_RELAY_URL:-}"
 VOLUME="${HG_VOLUME:-humangateway-edge-data}"
 
 echo "== HumanGateway Edge Gateway (runtime: $RUNTIME) =="
 echo "   image:      $IMAGE"
 echo "   host port:  $PORT"
 echo "   gateway id: $GATEWAY_ID"
+[[ -n "$RELAY_URL" ]] && echo "   relay url:  $RELAY_URL"
 
 # --- image: build (native arch) or pull -------------------------------------
 if [[ "${HG_PULL:-0}" == "1" ]]; then
@@ -97,6 +100,9 @@ if [[ -n "${HG_DATA_DIR:-}" ]]; then
     data_desc="bind mount '$HG_DATA_DIR'"
 else
     run_args+=(-v "$VOLUME:/data")
+fi
+if [[ -n "$RELAY_URL" ]]; then
+    run_args+=(-e "Edge__RelayBaseUrl=$RELAY_URL" -e "Relay__BaseUrl=$RELAY_URL")
 fi
 echo "   data:       $data_desc"
 

@@ -1,0 +1,15 @@
+{
+  "name": "humangateway",
+  "private": true,
+  "version": "0.1.0",
+  "description": "HumanGateway setup and development orchestration",
+  "type": "commonjs",
+  "scripts": {
+    "setup": "node tools/humangateway-cli/cli.js setup",
+    "setup:check": "node tools/humangateway-cli/cli.js preflight",
+    "setup:verify": "node tools/humangateway-cli/cli.js verify",
+    "setup:status": "node tools/humangateway-cli/cli.js status",
+    "setup:test": "node --test tools/humangateway-cli/*.test.js"
+  },
+  "engines": { "node": ">=20" }
+}

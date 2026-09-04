@@ -114,6 +114,22 @@ This is not a real-time messenger. It is designed for eventual consistency, dura
 
 ## Getting started
 
+The recommended path is the interactive setup CLI. It checks prerequisites, installs JavaScript dependencies, builds
+the services, starts the local stack, and verifies service health:
+
+```bash
+npm run setup
+```
+
+For a repeatable full-stack setup with defaults:
+
+```bash
+npm run setup -- --mode compose --yes
+```
+
+The CLI also supports `--mode edge` for an Edge-only container deployment. Production TLS, secret stores, backup
+automation, and other operational layers are tracked in the [backlog](docs/backlog.md).
+
 ### Prerequisites
 
 - .NET 10 SDK
@@ -188,6 +204,7 @@ See the [administrator guide](docs/admin-guide.md) for production deployment, co
 - [Client PWA](src/HumanGateway.Client/README.md)
 - [Core sync engine](src/HumanGateway.Core/README.md)
 - [Workflow integration](docs/features/flowforge-integration.md)
+- [Setup and production backlog](docs/backlog.md)
 
 ## Design principles
 

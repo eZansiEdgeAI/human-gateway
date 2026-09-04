@@ -1,6 +1,6 @@
 ---
 name: create-project-documentation
-description: Create or refresh a complete software-project documentation suite: README, ADRs, user guide, administrator guide, changelog, and versioned release notes. Use when a project needs launch documentation, a documentation audit, release preparation, or consistent operational and user-facing docs.
+description: Create or refresh a complete software-project documentation suite: ADRs, user guide, administrator guide, changelog, and versioned release notes. Use when a project needs launch documentation, a documentation audit, release preparation, or consistent operational and user-facing docs.
 ---
 
 # Create Project Documentation
@@ -15,7 +15,7 @@ Use this skill to turn an implemented project into a coherent, fact-checked docu
 4. **Write ADRs from evidence.** Record durable architectural decisions, not every implementation detail. Each ADR must include status, date, context, decision, alternatives, consequences, and implementation references. Link the ADR index from the README.
 5. **Write task-oriented guides.** The user guide should describe goals, workflows, visible states, recovery, accessibility, and privacy. The administrator guide should describe prerequisites, installation, configuration, secrets, operations, backups, upgrades, troubleshooting, and security hardening. Use exact commands and configuration names found in the project.
 6. **Prepare release communication.** Add a Keep a Changelog-compatible changelog and release notes for the resolved version. Include highlights, compatibility, installation/upgrade notes, known limitations, validation status, and links to detailed docs. Do not claim tests, integrations, or production support that were not verified.
-7. **Refresh navigation and stale docs.** Update the README to be a concise entry point. Correct stale status statements in component docs and add links to canonical guides and release notes. Preserve historical requirements and design documents; label their status rather than rewriting history.
+7. **Refresh navigation and stale docs.** Correct stale status statements in component docs and add links to canonical guides and release notes. Preserve historical requirements and design documents; label their status rather than rewriting history.
 8. **Validate.** Check local Markdown links, headings and navigation, commands against scripts, configuration names against source, version references, secret leakage, unsupported claims, and spelling of product terms. Run the project’s available build/test/lint gates and `git diff --check`.
 
 ## Required Evidence Rules
@@ -28,7 +28,7 @@ Use this skill to turn an implemented project into a coherent, fact-checked docu
 
 ## Outputs
 
-Default paths are `README.md`, `CHANGELOG.md`, `docs/adr/`, `docs/user-guide.md`, `docs/admin-guide.md`, and `docs/releases/`. Adapt paths to the repository’s existing convention when one exists. Keep `SKILL.md` generic; project facts belong in generated documentation.
+Default paths are `CHANGELOG.md`, `docs/adr/`, `docs/user-guide.md`, `docs/admin-guide.md`, and `docs/releases/`. Adapt paths to the repository’s existing convention when one exists. Keep `SKILL.md` generic; project facts belong in generated documentation.
 
 Load these references when writing the corresponding artifact:
 
@@ -37,7 +37,6 @@ Load these references when writing the corresponding artifact:
 - Load `references/admin-guide-template.md` when the project is deployed, hosted, configured, or operated.
 - Load `references/changelog-template.md` when establishing or refreshing change history.
 - Load `references/release-notes-template.md` when preparing a versioned release.
-- Load `references/readme-template.md` when restructuring the repository README.
 
 ## Validation Checklist
 
