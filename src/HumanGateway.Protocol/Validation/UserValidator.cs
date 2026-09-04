@@ -57,6 +57,11 @@ public sealed class UserValidator : IProtocolValidator<User>
             status = s;
         }
 
+        if (!Enum.IsDefined(value.Role))
+        {
+            sink.Add(ValidationErrorCodes.UndefinedEnum, $"{path}role", $"'{value.Role}' is not a defined user role.");
+        }
+
         if (value.LastLoginAt is not null)
         {
             CommonRules.Timestamp(value.LastLoginAt, $"{path}lastLoginAt", sink);

@@ -95,6 +95,7 @@ public sealed class LocalAuthEndpointTests : IClassFixture<LocalAuthEndpointTest
         Assert.StartsWith("hgsu_", token, StringComparison.Ordinal);
         Assert.Equal(_factory.Bootstrap.Username, doc.RootElement.GetProperty("user").GetProperty("username").GetString());
         Assert.False(doc.RootElement.GetProperty("user").TryGetProperty("passwordVerifier", out _), "verifier must never be returned");
+        Assert.Equal("ADMIN", doc.RootElement.GetProperty("user").GetProperty("role").GetString());
     }
 
     [Fact]
@@ -198,13 +199,14 @@ public sealed class LocalAuthEndpointTests : IClassFixture<LocalAuthEndpointTest
     public async Task CreateUser_ThenLogin_Succeeds()
     {
         var client = _factory.CreateClient();
+        var adminToken = await LoginAsync(client, _factory.Bootstrap.Username, _factory.Bootstrap.Password);
 
-        var created = await client.PostAsync("/auth/users", JsonBody(new
+        var createRequest = new HttpRequestMessage(HttpMethod.Post, "/auth/users")
         {
-            username = "alice",
-            displayName = "Alice Reviewer",
-            password = "alice-password",
-        }));
+            Content = JsonBody(new { username = "alice", displayName = "Alice Reviewer", password = "alice-password" }),
+        };
+        createRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        var created = await client.SendAsync(createRequest);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         using (var doc = JsonDocument.Parse(await created.Content.ReadAsStringAsync()))
         {
@@ -221,6 +223,8 @@ public sealed class LocalAuthEndpointTests : IClassFixture<LocalAuthEndpointTest
     public async Task CreateUser_DuplicateUsername_Returns409()
     {
         var client = _factory.CreateClient();
+        var token = await LoginAsync(client, _factory.Bootstrap.Username, _factory.Bootstrap.Password);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         await client.PostAsync("/auth/users", JsonBody(new
         {
             username = "bob",
@@ -244,6 +248,8 @@ public sealed class LocalAuthEndpointTests : IClassFixture<LocalAuthEndpointTest
     public async Task CreateUser_InvalidUsername_Returns400()
     {
         var client = _factory.CreateClient();
+        var token = await LoginAsync(client, _factory.Bootstrap.Username, _factory.Bootstrap.Password);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var response = await client.PostAsync("/auth/users", JsonBody(new
         {
@@ -261,13 +267,23 @@ public sealed class LocalAuthEndpointTests : IClassFixture<LocalAuthEndpointTest
     public async Task ListUsers_ReturnsSeededBootstrapUser()
     {
         var client = _factory.CreateClient();
+        var token = await LoginAsync(client, _factory.Bootstrap.Username, _factory.Bootstrap.Password);
+        var request = new HttpRequestMessage(HttpMethod.Get, "/auth/users");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await client.GetAsync("/auth/users");
+        var response = await client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Contains(doc.RootElement.EnumerateArray(), u =>
             u.GetProperty("username").GetString() == _factory.Bootstrap.Username);
+    }
+
+    [Fact]
+    public async Task UserManagement_WithoutSession_Returns401()
+    {
+        var response = await _factory.CreateClient().GetAsync("/auth/users");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     // -----------------------------------------------------------------------------------------------

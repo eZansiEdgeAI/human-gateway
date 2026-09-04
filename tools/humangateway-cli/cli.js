@@ -71,6 +71,13 @@ function checkUrl(value, allowEmpty = false) {
   let parsed; try { parsed = new URL(value); } catch { throw new Error(`Invalid URL: ${value}`); }
   if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error(`URL must use http or https: ${value}`);
 }
+function existingEnvValue(key) {
+  if (process.env[key]) return process.env[key];
+  const envPath = path.join(ROOT, '.env');
+  if (!fs.existsSync(envPath)) return '';
+  const line = fs.readFileSync(envPath, 'utf8').split(/\r?\n/).find((entry) => entry.startsWith(`${key}=`));
+  return line ? line.slice(key.length + 1).trim() : '';
+}
 function nodeVersionAtLeast(major, minor, patch) {
   const [currentMajor, currentMinor, currentPatch] = process.versions.node.split('.').map(Number);
   return currentMajor > major || (currentMajor === major && (currentMinor > minor || (currentMinor === minor && currentPatch >= patch)));
@@ -119,7 +126,7 @@ async function ask(question, fallback, secret = false) {
 async function collectConfig(args) {
   const mode = args.mode || (args.yes ? 'compose' : await ask('Setup mode (compose, edge, dev)', 'compose'));
   const defaultEdgePort = mode === 'dev' ? '5187' : '8080';
-  if (args.yes) return validateConfig({ mode, gatewayId: args.gatewayId || 'edge:compose', gatewayName: args.gatewayName || 'HumanGateway Edge', edgePort: args.edgePort || defaultEdgePort, relayPort: args.relayPort || '5275', dbPort: args.dbPort || '127.0.0.1:5433', dataDir: args.dataDir || '', relayUrl: args.relayUrl || 'http://127.0.0.1:5275', username: process.env.HG_EDGE_AUTH_BOOTSTRAP_USERNAME || '', password: process.env.HG_EDGE_AUTH_BOOTSTRAP_PASSWORD || '', relayUsername: process.env.HG_RELAY_AUTH_BOOTSTRAP_USERNAME || '', relayPassword: process.env.HG_RELAY_AUTH_BOOTSTRAP_PASSWORD || '' });
+  if (args.yes) return validateConfig({ mode, gatewayId: args.gatewayId || 'edge:compose', gatewayName: args.gatewayName || 'HumanGateway Edge', edgePort: args.edgePort || defaultEdgePort, relayPort: args.relayPort || '5275', dbPort: args.dbPort || '127.0.0.1:5433', dataDir: args.dataDir || '', relayUrl: args.relayUrl || 'http://127.0.0.1:5275', username: existingEnvValue('HG_EDGE_AUTH_BOOTSTRAP_USERNAME'), password: existingEnvValue('HG_EDGE_AUTH_BOOTSTRAP_PASSWORD'), relayUsername: existingEnvValue('HG_RELAY_AUTH_BOOTSTRAP_USERNAME'), relayPassword: existingEnvValue('HG_RELAY_AUTH_BOOTSTRAP_PASSWORD') });
   const config = {
     mode, gatewayId: args.gatewayId || await ask('Gateway ID', 'edge:compose'), gatewayName: args.gatewayName || await ask('Gateway display name', 'HumanGateway Edge'),
     edgePort: args.edgePort || await ask('Edge port', defaultEdgePort), relayPort: args.relayPort || await ask('Relay port', '5275'), dbPort: args.dbPort || await ask('PostgreSQL host port', '127.0.0.1:5433'),
@@ -131,6 +138,8 @@ async function collectConfig(args) {
 
 function validateConfig(config) {
   if (!['compose', 'edge', 'dev'].includes(config.mode)) throw new Error(`Unsupported setup mode: ${config.mode}`);
+  if ((config.mode === 'compose' || config.mode === 'edge') && (!config.username || !config.password)) throw new Error('Bootstrap username and password are required for container setup. Set HG_EDGE_AUTH_BOOTSTRAP_USERNAME and HG_EDGE_AUTH_BOOTSTRAP_PASSWORD or run interactive setup without --yes.');
+  if (config.mode === 'compose' && (!config.relayUsername || !config.relayPassword)) throw new Error('Relay bootstrap username and password are required for compose setup. Set HG_RELAY_AUTH_BOOTSTRAP_USERNAME and HG_RELAY_AUTH_BOOTSTRAP_PASSWORD or run interactive setup without --yes.');
   checkGatewayId(config.gatewayId); checkPort(config.edgePort); checkPort(config.relayPort); checkUrl(config.relayUrl, config.mode === 'dev');
   if (config.mode === 'compose' && !/^([^:]+:)?[0-9]+$/.test(config.dbPort)) throw new Error(`Invalid PostgreSQL host port: ${config.dbPort}`);
   return config;

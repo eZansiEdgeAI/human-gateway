@@ -19,6 +19,8 @@ public sealed record UserView
     /// <summary>Wire-token user status (<c>ACTIVE</c> | <c>DISABLED</c>).</summary>
     public required string Status { get; init; }
 
+    public required string Role { get; init; }
+
     /// <summary>RFC 3339 UTC instant of the last successful login.</summary>
     public string? LastLoginAt { get; init; }
 

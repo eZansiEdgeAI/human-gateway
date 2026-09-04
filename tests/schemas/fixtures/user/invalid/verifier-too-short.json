@@ -4,5 +4,6 @@
   "displayName": "Ms. Okafor",
   "passwordVerifier": "$2b$",
   "status": "ACTIVE",
+  "role": "USER",
   "createdAt": "2026-08-28T08:00:00Z"
 }

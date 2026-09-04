@@ -135,6 +135,8 @@ public sealed class RemoteAuthEndpointTests : IClassFixture<PostgresRelayFixture
     public async Task CreateRemoteUser_ThenLogin_Succeeds()
     {
         using var client = _factory.CreateClient();
+        var adminToken = await LoginAsync(client, _factory.Bootstrap.Username, _factory.Bootstrap.Password);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
 
         var created = await client.PostAsync("/auth/users", JsonBody(new
         {
@@ -152,6 +154,8 @@ public sealed class RemoteAuthEndpointTests : IClassFixture<PostgresRelayFixture
     public async Task CreateRemoteUser_DuplicateUsername_Returns409()
     {
         using var client = _factory.CreateClient();
+        var adminToken = await LoginAsync(client, _factory.Bootstrap.Username, _factory.Bootstrap.Password);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
         await client.PostAsync("/auth/users", JsonBody(new
         {
             username = "bob.remote",

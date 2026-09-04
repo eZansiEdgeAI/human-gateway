@@ -23,6 +23,13 @@ public static class CurrentUser
     public static AuthenticatedUser Require(HttpContext context)
         => TryGetCurrentUser(context)
            ?? throw new UnauthenticatedRequestException();
+
+    public static AuthenticatedUser RequireAdministrator(HttpContext context)
+    {
+        var user = Require(context);
+        if (!user.IsAdministrator) throw new ForbiddenRequestException();
+        return user;
+    }
 }
 
 /// <summary>Raised when an endpoint that requires a session is reached without one.</summary>
@@ -31,6 +38,14 @@ public sealed class UnauthenticatedRequestException : Exception
     /// <summary>Creates the exception.</summary>
     public UnauthenticatedRequestException()
         : base("This endpoint requires an authenticated session.")
+    {
+    }
+}
+
+public sealed class ForbiddenRequestException : Exception
+{
+    public ForbiddenRequestException()
+        : base("Administrator access is required for this endpoint.")
     {
     }
 }

@@ -10,6 +10,7 @@ import { TaskView } from './components/TaskView'
 import { AuthProvider } from './auth/context'
 import { useAuth } from './auth/useAuth'
 import { LoginForm } from './components/LoginForm'
+import { AdminUsers } from './components/AdminUsers'
 
 type View =
   | { name: 'inbox' }
@@ -17,6 +18,7 @@ type View =
   | { name: 'compose'; conversationId?: string }
   | { name: 'tasks' }
   | { name: 'task'; taskId: string }
+  | { name: 'users' }
 
 export default function App() {
   return (
@@ -33,7 +35,7 @@ function AuthenticatedApp() {
   }
   return (
     <AppStoreProvider>
-      <Workspace userName={session.user.displayName} onSignOut={() => void signOut()} />
+      <Workspace userName={session.user.displayName} isAdmin={session.user.role === 'ADMIN'} onSignOut={() => void signOut()} />
     </AppStoreProvider>
   )
 }
@@ -43,7 +45,7 @@ function AuthenticatedApp() {
  * Compose, Tasks, and Task detail (no router dependency — offline-pwa Open
  * Q #1). Data and actions come from the app store.
  */
-function Workspace({ userName, onSignOut }: { userName: string; onSignOut: () => void }) {
+function Workspace({ userName, isAdmin, onSignOut }: { userName: string; isAdmin: boolean; onSignOut: () => void }) {
   const store = useAppStore()
   const [view, setView] = useState<View>({ name: 'inbox' })
 
@@ -56,7 +58,9 @@ function Workspace({ userName, onSignOut }: { userName: string; onSignOut: () =>
 
   let content: ReactNode
 
-  if (view.name === 'thread') {
+  if (view.name === 'users') {
+    content = <AdminUsers onBack={() => setView({ name: 'inbox' })} />
+  } else if (view.name === 'thread') {
     content = (
       <MessageThread
         messages={store.threads[view.conversationId] ?? []}
@@ -114,6 +118,7 @@ function Workspace({ userName, onSignOut }: { userName: string; onSignOut: () =>
     <AppShell>
       <nav className="app-nav" aria-label="Primary">
         <span className="app-nav__user">Signed in as {userName}</span>
+        {isAdmin && <button type="button" className="app-nav__tab" onClick={() => setView({ name: 'users' })}>Users</button>}
         <button type="button" className="app-nav__tab" onClick={onSignOut}>Sign out</button>
         <button
           type="button"

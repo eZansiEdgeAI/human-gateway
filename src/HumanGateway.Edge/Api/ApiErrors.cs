@@ -57,6 +57,12 @@ public static class ApiErrors
             "A valid session is required to access this resource.",
             null,
             retryable: false),
+        ForbiddenRequestException => Problem(
+            StatusCodes.Status403Forbidden,
+            ErrorCodes.Forbidden,
+            "Administrator access is required for this endpoint.",
+            null,
+            retryable: false),
         ArtifactHashMismatchException e => Problem(
             StatusCodes.Status422UnprocessableEntity,
             ErrorCodes.HashMismatch,

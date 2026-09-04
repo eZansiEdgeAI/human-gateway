@@ -18,6 +18,10 @@ public sealed record AuthenticatedUser
     /// <summary>Human-readable display name.</summary>
     public required string DisplayName { get; init; }
 
+    public string Role { get; init; } = "USER";
+
+    public bool IsAdministrator => Role == "ADMIN";
+
     /// <summary>RFC 3339 UTC instant when the session token expires.</summary>
     public required string ExpiresAt { get; init; }
 }

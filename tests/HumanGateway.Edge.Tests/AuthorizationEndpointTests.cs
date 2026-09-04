@@ -426,6 +426,8 @@ public sealed class AuthorizationEndpointTests : IClassFixture<AuthorizationEndp
         var login = await client.PostAsync("/auth/login", JsonBody(new { username, password }));
         if (login.StatusCode == HttpStatusCode.Unauthorized)
         {
+            var adminToken = await LoginAsync(client, _factory.Teacher.Username, _factory.Teacher.Password);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
             var created = await client.PostAsync("/auth/users", JsonBody(new { username, displayName = username, password }));
             Assert.True(created.StatusCode is HttpStatusCode.Created or HttpStatusCode.Conflict,
                 $"expected provisioned user {username}, got {created.StatusCode}");

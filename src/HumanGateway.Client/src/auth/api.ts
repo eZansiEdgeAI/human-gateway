@@ -25,3 +25,11 @@ export async function logout(): Promise<void> {
     clearAuthSession()
   }
 }
+
+export async function listUsers(): Promise<UserView[]> {
+  return httpRequest<UserView[]>({ url: resolveApiUrl('/auth/users'), method: 'GET' })
+}
+
+export async function createUser(request: { username: string; displayName: string; password: string }): Promise<UserView> {
+  return httpRequest<UserView>({ url: resolveApiUrl('/auth/users'), method: 'POST', body: request })
+}

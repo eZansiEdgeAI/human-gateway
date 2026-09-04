@@ -5,6 +5,7 @@ export interface UserView {
   username: string
   displayName: string
   status: 'ACTIVE' | 'DISABLED' | string
+  role: 'USER' | 'ADMIN' | string
   lastLoginAt?: string
   disabledAt?: string
   createdAt: string

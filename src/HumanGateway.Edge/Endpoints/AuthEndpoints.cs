@@ -56,17 +56,22 @@ public static class AuthEndpoints
 
         // Local account provisioning (AUTH-FR-02). The first account is usually the bootstrap user seeded
         // from configuration at startup (SP-07); the API covers the in-field case.
-        group.MapGet("/users", static async (LocalAuthService auth, CancellationToken ct) =>
-            Results.Ok(await auth.ListUsersAsync(ct)));
-
-        group.MapPost("/users", static async (CreateUserRequest request, LocalAuthService auth, CancellationToken ct) =>
+        group.MapGet("/users", static async (HttpContext context, LocalAuthService auth, CancellationToken ct) =>
         {
+            CurrentUser.RequireAdministrator(context);
+            return Results.Ok(await auth.ListUsersAsync(ct));
+        });
+
+        group.MapPost("/users", static async (HttpContext context, CreateUserRequest request, LocalAuthService auth, CancellationToken ct) =>
+        {
+            CurrentUser.RequireAdministrator(context);
             var user = await auth.CreateUserAsync(request.Username, request.DisplayName, request.Password, ct);
             return Results.Created($"/auth/users/{user.Id}", user);
         });
 
-        group.MapGet("/users/{id}", static async (string id, LocalAuthService auth, CancellationToken ct) =>
+        group.MapGet("/users/{id}", static async (HttpContext context, string id, LocalAuthService auth, CancellationToken ct) =>
         {
+            CurrentUser.RequireAdministrator(context);
             var user = await auth.GetUserByIdAsync(id, ct);
             return user is null ? ApiErrors.NotFound($"User {id} not found.") : Results.Ok(user);
         });

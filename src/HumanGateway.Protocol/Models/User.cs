@@ -12,6 +12,14 @@ public enum UserStatus
     Disabled,
 }
 
+public enum UserRole
+{
+    [EnumMember(Value = "USER")]
+    User,
+    [EnumMember(Value = "ADMIN")]
+    Admin,
+}
+
 /// <summary>
 /// A local Edge user account (user.schema.json, AUTH-FR-02). <see cref="PasswordVerifier"/> is the
 /// credential verifier (PHC string) and is a local-store-only field — it MUST NEVER be transmitted in any
@@ -39,6 +47,9 @@ public sealed record User
     /// <summary>ACTIVE users may log in; DISABLED users are rejected at authentication time.</summary>
     [JsonPropertyName("status")]
     public UserStatus? Status { get; init; }
+
+    [JsonPropertyName("role")]
+    public UserRole Role { get; init; } = UserRole.User;
 
     [JsonPropertyName("lastLoginAt")]
     public string? LastLoginAt { get; init; }

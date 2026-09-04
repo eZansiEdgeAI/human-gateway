@@ -6,7 +6,7 @@
   "description": "A local Edge user account (AUTH-FR-02). Users authenticate at the Edge with a username and password; successful logins issue signed opaque session tokens (v1 — identity-security Open Q #1). This entity is the Edge-local store representation: 'passwordVerifier' is the credential verifier (PHC string) and MUST NEVER be transmitted in any protocol payload — it exists only in Edge storage (SP-07). A user is referenced from message flows via participant.userId on human: participants. HumanGateway performs no role-checking (SP-09): what a user may access is governed by conversation/task membership, enforced by authorisation middleware (AUTH-FR-03). Remote users who log in at the Relay follow the same shape with a Relay-issued user record (external-web-access).",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "username", "displayName", "passwordVerifier", "status", "createdAt"],
+    "required": ["id", "username", "displayName", "passwordVerifier", "status", "role", "createdAt"],
   "properties": {
     "id": {
       "$ref": "common.schema.json#/$defs/id",
@@ -36,6 +36,11 @@
       "type": "string",
       "enum": ["ACTIVE", "DISABLED"],
       "description": "ACTIVE users may log in; DISABLED users are rejected at authentication time."
+    },
+    "role": {
+      "type": "string",
+      "enum": ["USER", "ADMIN"],
+      "description": "ADMIN users may manage accounts; USER accounts cannot provision other users."
     },
     "lastLoginAt": {
       "$ref": "common.schema.json#/$defs/timestamp",

@@ -19,6 +19,8 @@ For a local development installation, the administrator must start the backend s
 sign in. The backend is normally available at `http://127.0.0.1:8080`, and the browser app is normally available at
 `http://localhost:5173`. In a deployed site, use the address supplied by the administrator instead.
 
+Administrators create user accounts and provide the login credentials. Users cannot create accounts themselves.
+
 ## Sign In and Install
 
 1. Open the HumanGateway address.

@@ -88,6 +88,10 @@ Development mode uses Edge `http://127.0.0.1:5187` and PWA `http://127.0.0.1:517
 `npm run setup:status` to check the Edge and PWA processes, or run `npm run setup:verify -- --mode dev` to run the
 Edge health probes without requiring a Relay.
 
+The bootstrap account is an administrator. Accounts created through the administrator-only user-management API are
+regular users. The PWA shows the **Users** screen only for administrators; use it to create additional accounts and
+give each person their own password.
+
 When using `--yes` without `HG_EDGE_AUTH_BOOTSTRAP_USERNAME`, `HG_EDGE_AUTH_BOOTSTRAP_PASSWORD`,
 `HG_RELAY_AUTH_BOOTSTRAP_USERNAME`, and `HG_RELAY_AUTH_BOOTSTRAP_PASSWORD` already exported, Compose starts with
 blank bootstrap credentials. This is suitable for a local smoke environment but does not provision a login account;
@@ -119,6 +123,10 @@ curl http://127.0.0.1:8080/healthz
 ```
 
 Stop the stack with `docker compose down`. Add `-v` only when intentionally deleting the `relay-pgdata` and `edge-data` volumes. The same checks are available through `npm run setup:status` and `npm run setup:verify`.
+
+With Podman, use `podman-compose stop` to stop containers while keeping them defined, or `podman-compose down` to
+remove the containers and network while preserving volumes. Restart with `podman-compose up -d`. Avoid
+`podman-compose down -v` unless deleting durable data is intentional.
 
 ## Edge Installation
 

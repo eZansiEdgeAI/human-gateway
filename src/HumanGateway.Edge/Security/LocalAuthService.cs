@@ -46,6 +46,7 @@ public sealed class LocalAuthService : IUserSessionService
             DisplayName = string.IsNullOrWhiteSpace(displayName) ? normalised : displayName,
             PasswordVerifier = PasswordHasher.Hash(password),
             Status = UserStatus.Active,
+            Role = UserRole.User,
             CreatedAt = now,
             UpdatedAt = now,
         };
@@ -144,6 +145,7 @@ public sealed class LocalAuthService : IUserSessionService
             UserId = user.Id,
             Username = user.Username,
             DisplayName = user.DisplayName,
+            Role = user.Role == UserRole.Admin ? "ADMIN" : "USER",
             ExpiresAt = session.ExpiresAt,
         };
     }
@@ -191,6 +193,7 @@ public sealed class LocalAuthService : IUserSessionService
             DisplayName = string.IsNullOrWhiteSpace(bootstrap.DisplayName) ? normalised : bootstrap.DisplayName!,
             PasswordVerifier = PasswordHasher.Hash(bootstrap.Password),
             Status = UserStatus.Active,
+            Role = UserRole.Admin,
             CreatedAt = ProtocolTime.Now(),
             UpdatedAt = ProtocolTime.Now(),
         };
@@ -276,6 +279,7 @@ public sealed class LocalAuthService : IUserSessionService
             UserStatus.Disabled => "DISABLED",
             _ => "ACTIVE",
         },
+        Role = user.Role == UserRole.Admin ? "ADMIN" : "USER",
         LastLoginAt = user.LastLoginAt,
         DisabledAt = user.DisabledAt,
         CreatedAt = user.CreatedAt,

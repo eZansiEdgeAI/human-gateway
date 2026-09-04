@@ -158,6 +158,16 @@ npm run setup:verify
 Stop the backend stack with `docker compose down`. Do not add `-v` unless you intentionally want to delete the
 durable PostgreSQL and Edge data volumes.
 
+With Podman, use the equivalent commands from the repository root:
+
+```bash
+podman-compose stop       # stop containers, keep them defined
+podman-compose down       # stop and remove containers/network, keep volumes
+podman-compose up -d      # start again
+```
+
+Do not use `podman-compose down -v` unless you intentionally want to delete the durable PostgreSQL and Edge data.
+
 The CLI also supports `--mode edge` for an Edge-only container deployment. Production TLS, secret stores, backup
 automation, and other operational layers are tracked in the [backlog](docs/backlog.md).
 
@@ -203,6 +213,17 @@ The setup CLI installs the client and workflow packages from their committed npm
 dependency versions reproducible and avoids npm re-resolving the workflow test dependency tree on every setup run. If
 you are updating an older checkout that does not contain the workflow lockfile, pull the latest changes before running
 setup again.
+
+Container setup requires bootstrap credentials. In `--yes` mode, provide them through environment variables; setup
+will not prompt for passwords:
+
+```bash
+HG_EDGE_AUTH_BOOTSTRAP_USERNAME=admin \
+HG_EDGE_AUTH_BOOTSTRAP_PASSWORD='change-this-password' \
+HG_RELAY_AUTH_BOOTSTRAP_USERNAME=admin \
+HG_RELAY_AUTH_BOOTSTRAP_PASSWORD='change-this-password' \
+npm run setup -- --mode compose --yes
+```
 
 npm may report that a newer major npm release is available. This is informational; setup does not upgrade npm
 automatically. If desired, update npm explicitly after confirming your Node.js version:
