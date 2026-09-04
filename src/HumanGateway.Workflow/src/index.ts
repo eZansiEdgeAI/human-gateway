@@ -23,6 +23,13 @@ export type {
 export {
   HumanGatewayInteractionProvider,
 } from './human-gateway.js'
+export {
+  translateArtifactReceived,
+  translateHumanInteractionCompleted,
+  translateHumanInteractionExpired,
+  translateHumanInteractionRequested,
+  translateHumanResponseReceived,
+} from './translation.js'
 export type {
   HumanGatewayInteractionProviderOptions,
   HumanGatewayTaskMessage,

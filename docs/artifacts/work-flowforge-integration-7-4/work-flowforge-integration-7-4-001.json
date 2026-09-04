@@ -1,0 +1,26 @@
+{
+  "type": "work.flowforge-integration-7.4",
+  "category": "work",
+  "taskId": "FLOWFORGE-INTEGRATION-7.4",
+  "producedBy": "workflow-engineer",
+  "status": "complete",
+  "summary": "[ ] Map `HumanInteractionRequested / HumanResponseReceived / HumanInteractionCompleted / ArtifactReceived / HumanInteractionExpired`: [ ] Map `HumanInteractionRequested / HumanResponseReceived / Human",
+  "confidence": 0.9,
+  "inputs": [
+    "work-flowforge-integration-7-3-001"
+  ],
+  "filesChanged": [
+    "src/HumanGateway.Workflow/src/console.ts",
+    "src/HumanGateway.Workflow/src/human-gateway.ts",
+    "src/HumanGateway.Workflow/src/index.ts",
+    "src/HumanGateway.Workflow/src/translation.ts",
+    "src/HumanGateway.Workflow/tests/translation.test.ts"
+  ],
+  "payload": {
+    "agentOutputExcerpt": "Implemented the dedicated interaction concept translation layer.\n\n### Changed files\n\n- `src/HumanGateway.Workflow/src/translation.ts`\n  - Added pure translators for:\n    - `HumanInteractionRequested`\n    - `HumanResponseReceived`\n    - `HumanInteractionCompleted`\n    - `ArtifactReceived`\n    - `HumanInteractionExpired`\n\n- `src/HumanGateway.Workflow/src/human-gateway.ts`\n  - Updated `HumanGatewayInteractionProvider` to use the translation layer.\n\n- `src/HumanGateway.Workflow/src/console.ts`\n  - U",
+    "taskDescription": "[ ] Map `HumanInteractionRequested / HumanResponseReceived / HumanInteractionCompleted / ArtifactReceived / HumanInteractionExpired`"
+  },
+  "nextActions": [],
+  "artifactId": "work-flowforge-integration-7-4-001",
+  "createdAt": "2026-09-04T19:37:16.200Z"
+}

@@ -4,6 +4,13 @@ import type {
   HumanInteractionResponse,
   HumanInteractionResult,
 } from './types.js'
+import {
+  translateArtifactReceived,
+  translateHumanInteractionCompleted,
+  translateHumanInteractionExpired,
+  translateHumanInteractionRequested,
+  translateHumanResponseReceived,
+} from './translation.js'
 
 /** Values accepted by the headless console provider. */
 export type ConsoleAnswer = string | boolean | HumanInteractionResponse
@@ -53,7 +60,7 @@ export class ConsoleHumanInteractionProvider implements HumanInteractionProvider
     const now = this.options.now ?? (() => new Date())
 
     this.throwIfAborted(signal)
-    await this.emit(eventSink, { type: 'HumanInteractionRequested', request })
+    await this.emit(eventSink, translateHumanInteractionRequested(request))
     this.throwIfAborted(signal)
     await this.ensureNotExpired(request, now, eventSink)
 
@@ -62,11 +69,11 @@ export class ConsoleHumanInteractionProvider implements HumanInteractionProvider
     await this.ensureNotExpired(request, now, eventSink)
     const response = this.toResponse(request, answer, now)
 
-    await this.emit(eventSink, { type: 'HumanResponseReceived', request, response })
+    await this.emit(eventSink, translateHumanResponseReceived(request, response))
     for (const artifact of response.artifacts ?? []) {
-      await this.emit(eventSink, { type: 'ArtifactReceived', request, artifact })
+      await this.emit(eventSink, translateArtifactReceived(request, artifact))
     }
-    await this.emit(eventSink, { type: 'HumanInteractionCompleted', request, response })
+    await this.emit(eventSink, translateHumanInteractionCompleted(request, response))
     return { taskId: request.task.id, response }
   }
 
@@ -108,7 +115,7 @@ export class ConsoleHumanInteractionProvider implements HumanInteractionProvider
     const expiresAt = new Date(request.task.expiresAt)
     if (Number.isNaN(expiresAt.getTime()) || now().getTime() < expiresAt.getTime()) return
     const expiredAt = now().toISOString()
-    await this.emit(eventSink, { type: 'HumanInteractionExpired', request, expiredAt })
+    await this.emit(eventSink, translateHumanInteractionExpired(request, expiredAt))
     throw new HumanInteractionExpiredError(request.task.id, expiredAt)
   }
 

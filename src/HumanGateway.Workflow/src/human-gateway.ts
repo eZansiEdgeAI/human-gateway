@@ -6,6 +6,13 @@ import type {
   HumanInteractionResponse,
   HumanInteractionResult,
 } from './types.js'
+import {
+  translateArtifactReceived,
+  translateHumanInteractionCompleted,
+  translateHumanInteractionExpired,
+  translateHumanInteractionRequested,
+  translateHumanResponseReceived,
+} from './translation.js'
 
 /** The transport-independent request sent to a HumanGateway client/adapter. */
 export interface HumanGatewayTaskMessage {
@@ -67,7 +74,7 @@ export class HumanGatewayInteractionProvider implements HumanInteractionProvider
     const now = this.options.now ?? (() => new Date())
     this.throwIfAborted(signal)
 
-    await this.emit(eventSink, { type: 'HumanInteractionRequested', request })
+    await this.emit(eventSink, translateHumanInteractionRequested(request))
     const task = request.task
     const message: HumanGatewayTaskMessage = {
       type: 'human-task',
@@ -90,17 +97,17 @@ export class HumanGatewayInteractionProvider implements HumanInteractionProvider
     this.throwIfAborted(signal)
     if (gatewayResult.status === 'expired') {
       const expiredAt = gatewayResult.expiredAt ?? now().toISOString()
-      await this.emit(eventSink, { type: 'HumanInteractionExpired', request, expiredAt })
+      await this.emit(eventSink, translateHumanInteractionExpired(request, expiredAt))
       throw new HumanInteractionExpiredError(task.id, expiredAt)
     }
     if (!gatewayResult.response) throw new Error(`HumanGateway returned no response for task ${task.id}`)
 
     const response = this.mergeArtifacts(gatewayResult.response, gatewayResult.artifacts)
-    await this.emit(eventSink, { type: 'HumanResponseReceived', request, response })
+    await this.emit(eventSink, translateHumanResponseReceived(request, response))
     for (const artifact of response.artifacts ?? []) {
-      await this.emit(eventSink, { type: 'ArtifactReceived', request, artifact })
+      await this.emit(eventSink, translateArtifactReceived(request, artifact))
     }
-    await this.emit(eventSink, { type: 'HumanInteractionCompleted', request, response })
+    await this.emit(eventSink, translateHumanInteractionCompleted(request, response))
     return { taskId: task.id, response }
   }
 
