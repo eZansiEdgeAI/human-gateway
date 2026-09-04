@@ -294,6 +294,7 @@ See the [administrator guide](docs/admin-guide.md) for production deployment, co
 - [Product requirements](docs/PRD.md)
 - [Product vision](docs/product-vision.md)
 - [Deployment details](deployment/README.md)
+- [Database inspection guide](docs/database-guide.md)
 - [Protocol and schemas](schemas/README.md)
 - [Edge service](src/HumanGateway.Edge/README.md)
 - [Relay service](src/HumanGateway.Relay/README.md)

@@ -138,6 +138,9 @@ curl http://127.0.0.1:5275/healthz
 curl http://127.0.0.1:8080/healthz
 ```
 
+For read-only inspection of stored messages, Relay queues, and the Edge outbox, see the [database inspection
+guide](database-guide.md).
+
 Stop the stack with `docker compose down`. Add `-v` only when intentionally deleting the `relay-pgdata` and `edge-data` volumes. The same checks are available through `npm run setup:status` and `npm run setup:verify`.
 
 With Podman, use `podman-compose stop` to stop containers while keeping them defined, or `podman-compose down` to
