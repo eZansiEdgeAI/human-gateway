@@ -47,3 +47,5 @@ export type {
   HumanGatewayTaskResponse,
   HumanGatewayTransport,
 } from './human-gateway.js'
+export { ContractWorkflowRunner, pendingHumanTask } from './contract.js'
+export type { WorkflowRunner } from './contract.js'

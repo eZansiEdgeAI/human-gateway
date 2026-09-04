@@ -1,0 +1,24 @@
+{
+  "type": "work.flowforge-integration-7.7",
+  "category": "work",
+  "taskId": "FLOWFORGE-INTEGRATION-7.7",
+  "producedBy": "workflow-engineer",
+  "status": "complete",
+  "summary": "[ ] Add a stub `WorkflowRunner` / `PendingHumanTask` implementing the published interface shape for contract-based integration tests (no pinned FlowForge commit): [ ] Add a stub `WorkflowRunner` / `Pe",
+  "confidence": 0.9,
+  "inputs": [
+    "work-flowforge-integration-7-6-001"
+  ],
+  "filesChanged": [
+    "src/HumanGateway.Workflow/src/index.ts",
+    "src/HumanGateway.Workflow/src/contract.ts",
+    "src/HumanGateway.Workflow/tests/contract.test.ts"
+  ],
+  "payload": {
+    "agentOutputExcerpt": "Implemented the FlowForge contract-based integration fixtures and tests.\n\n### Files created\n- `src/HumanGateway.Workflow/src/contract.ts`\n  - Added the published `WorkflowRunner` interface.\n  - Added `pendingHumanTask()` fixture helper.\n  - Added `ContractWorkflowRunner` stub that resumes input and approval tasks through a provider while recording resumed task IDs.\n\n- `src/HumanGateway.Workflow/tests/contract.test.ts`\n  - Tests `human-input` task round-trip and resume.\n  - Tests `human-approval`",
+    "taskDescription": "[ ] Add a stub `WorkflowRunner` / `PendingHumanTask` implementing the published interface shape for contract-based integration tests (no pinned FlowForge commit)"
+  },
+  "nextActions": [],
+  "artifactId": "work-flowforge-integration-7-7-001",
+  "createdAt": "2026-09-04T19:42:37.882Z"
+}

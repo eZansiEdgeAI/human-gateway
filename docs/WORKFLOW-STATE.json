@@ -1,7 +1,7 @@
 {
   "runId": "cc1dad89-27a5-4765-8655-91bea28ec9c3",
   "startedAt": "2026-08-28T21:20:12.360Z",
-  "lastUpdatedAt": "2026-09-04T19:41:04.232Z",
+  "lastUpdatedAt": "2026-09-04T19:42:37.882Z",
   "manifestPath": "/home/mcfuzzysquirrel/Projects/human-gateway/docs/EXECUTION-MANIFEST.json",
   "manifestVersion": "1.0",
   "harness": "opencode",
@@ -855,10 +855,21 @@
     },
     "FLOWFORGE-INTEGRATION-7.7": {
       "taskId": "FLOWFORGE-INTEGRATION-7.7",
-      "status": "pending",
+      "status": "complete",
       "ownerAgent": "workflow-engineer",
-      "attempt": 0,
-      "outputFiles": []
+      "attempt": 1,
+      "outputFiles": [
+        "src/HumanGateway.Workflow/src/index.ts",
+        "src/HumanGateway.Workflow/src/contract.ts",
+        "src/HumanGateway.Workflow/tests/contract.test.ts"
+      ],
+      "startedAt": "2026-09-04T19:41:04.289Z",
+      "completedAt": "2026-09-04T19:42:37.882Z",
+      "agentOutput": "Implemented the FlowForge contract-based integration fixtures and tests.\n\n### Files created\n- `src/HumanGateway.Workflow/src/contract.ts`\n  - Added the published `WorkflowRunner` interface.\n  - Added `pendingHumanTask()` fixture helper.\n  - Added `ContractWorkflowRunner` stub that resumes input and approval tasks through a provider while recording resumed task IDs.\n\n- `src/HumanGateway.Workflow/tests/contract.test.ts`\n  - Tests `human-input` task round-trip and resume.\n  - Tests `human-approval` task round-trip and resume.\n  - Verifies `nodeId`, `workflowRef`, `role`, `prompt`, `subject`, and correlation data.\n  - Verifies lifecycle events.\n\n### Files changed\n- `src/HumanGateway.Workflow/src/index.ts`\n  - Exported the new contract types and fixtures.\n\n### Validation\n- `git diff --check` passed.\n- `npm test` could not run because dependencies are not installed (`vitest: not found`).\n- `npm run typecheck` was also blocked by missing Vitest type declarations; the contract test’s implicit parameter typing issue was corrected afterward.\n- Existing orchestrator state files were already modified:\n  - `docs/EXECUTION-AUDIT.jsonl`\n  - `docs/WORKFLOW-STATE.json`\n",
+      "artifactId": "work-flowforge-integration-7-7-001",
+      "inputArtifactIds": [
+        "work-flowforge-integration-7-6-001"
+      ]
     }
   },
   "blockers": [],
