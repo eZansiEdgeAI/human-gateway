@@ -20,3 +20,12 @@ export type {
   ConsoleAnswer,
   ConsoleHumanInteractionProviderOptions,
 } from './console.js'
+export {
+  HumanGatewayInteractionProvider,
+} from './human-gateway.js'
+export type {
+  HumanGatewayInteractionProviderOptions,
+  HumanGatewayTaskMessage,
+  HumanGatewayTaskResponse,
+  HumanGatewayTransport,
+} from './human-gateway.js'

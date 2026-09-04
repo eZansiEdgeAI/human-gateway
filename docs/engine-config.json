@@ -11,7 +11,10 @@
   "executionMode": "manual",
   "selectionScope": "range",
   "selectedTaskIds": [
-    "FLOWFORGE-INTEGRATION-7.1",
-    "FLOWFORGE-INTEGRATION-7.2"
+    "FLOWFORGE-INTEGRATION-7.3",
+    "FLOWFORGE-INTEGRATION-7.4",
+    "FLOWFORGE-INTEGRATION-7.5",
+    "FLOWFORGE-INTEGRATION-7.6",
+    "FLOWFORGE-INTEGRATION-7.7"
   ]
 }
