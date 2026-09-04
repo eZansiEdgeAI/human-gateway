@@ -7,7 +7,7 @@ with no Internet, queuing everything for later sync to the Relay (product vision
 - **Depends on:** `HumanGateway.Protocol` (entity model + schemas + validation) and `HumanGateway.Core`
   (sync engine, outbox/inbox, idempotency)
 
-## Status: local REST API + background sync worker skeleton (LOCAL-EDGE-1.6)
+## Status: implemented Edge Gateway (release 0.1.0)
 
 This project carries the durable SQLite (WAL) store (EDGE-FR-02): an EF Core schema for conversations,
 messages, deliveries, artifacts, and participants, with the durability PRAGMAs (WAL + synchronous=NORMAL +
@@ -26,13 +26,14 @@ write-then-queue dance for every create (EDGE-FR-04). All responses use the prot
 keys, exact string enum tokens, omit-null — and errors are `ProtocolError`-shaped via the global exception
 handler (`ApiErrors.FromException`) so the PWA always receives the stable machine-readable error contract.
 
-It also carries the background sync worker skeleton (`Sync/SyncWorker.cs`, EDGE-FR-05): a hosted
+It also carries the background sync worker (`Sync/SyncWorker.cs`, EDGE-FR-05): a hosted
 `BackgroundService` that periodically dials out to the Relay (outbound-only, SP-01) through the
 `IRelaySyncClient` hook, driving the `ISyncEngine` for push (durable outbox flush — entries marked sent only
 after the Relay acks) and pull (inbound apply + delivery-ack enqueue). It walks the product-vision §10
 lifecycle (`STARTING → RECOVERING → STARTED → SYNCING → STOPPING`) and retries transient failures with capped,
-jittered exponential backoff. The full HTTPS transport arrives with the synchronisation feature; until then the
-`DisabledRelaySyncClient` keeps outbound sync off and the durable outbox retains every entry for later sync.
+jittered exponential backoff. The Relay sync client supplies the HTTPS transport; the
+`DisabledRelaySyncClient` remains available for local-only development configurations and keeps the durable
+outbox available for later sync.
 
 ### Local REST API endpoints
 
@@ -63,7 +64,7 @@ jittered exponential backoff. The full HTTPS transport arrives with the synchron
  | LOCAL-EDGE-1.3 | **Done** — Durable SQLite inbox/outbox/idempotency (`SqliteOutbox`/`SqliteInbox`/`SqliteIdempotencyStore`) |
  | LOCAL-EDGE-1.4 | **Done** — Local REST API endpoints (conversations, messages, tasks, artifacts, sync status) |
  | LOCAL-EDGE-1.5 | **Done** — Local filesystem artifact store (content-hash naming, dedup) |
- | LOCAL-EDGE-1.6 | **Done** — Background sync worker skeleton (outbound `IRelaySyncClient` hook; full protocol in synchronisation feature) |
+ | LOCAL-EDGE-1.6 | **Done** — Background sync worker with outbound `IRelaySyncClient` transport hook and retry/backoff |
  | ARTF-FR-01/02/03 | **Done** — Artifact byte transfer (ARTF): Edge filesystem + Relay BYTEA stores, authenticated serving endpoints, hash-verified dedup transfer over sync, resumable chunked transfer, configurable limits/quotas |
 
 The `ISyncEngine` contract (Core) is already fixed; swapping the in-memory ports for durable stores requires

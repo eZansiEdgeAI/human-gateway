@@ -55,13 +55,13 @@ No new user-facing UI in HumanGateway; the PWA task view (offline-pwa) presents 
 ## 5. Implementation Tasks
 
 ### Phase 7: FlowForge Reference Integration
-- [ ] Add `HumanInteractionProvider` abstraction in `src/HumanGateway.Workflow`
-- [ ] `ConsoleHumanInteractionProvider` (baseline)
-- [ ] `HumanGatewayInteractionProvider`: request → HumanGateway message; response + artifacts → workflow events
-- [ ] Map `HumanInteractionRequested / HumanResponseReceived / HumanInteractionCompleted / ArtifactReceived / HumanInteractionExpired`
-- [ ] Correlate `PendingHumanTask` (`nodeId`, `kind: input|approval`, `role`, `prompt`, `subject`) through the message envelope
-- [ ] CLI/test harness driving the provider headlessly (comparable to FlowForge `--answers`)
-- [ ] Add a stub `WorkflowRunner` / `PendingHumanTask` implementing the published interface shape for contract-based integration tests (no pinned FlowForge commit)
+- [x] Add `HumanInteractionProvider` abstraction in `src/HumanGateway.Workflow`
+- [x] `ConsoleHumanInteractionProvider` (baseline)
+- [x] `HumanGatewayInteractionProvider`: request → HumanGateway message; response + artifacts → workflow events
+- [x] Map `HumanInteractionRequested / HumanResponseReceived / HumanInteractionCompleted / ArtifactReceived / HumanInteractionExpired`
+- [x] Correlate `PendingHumanTask` (`nodeId`, `kind: input|approval`, `role`, `prompt`, `subject`) through the message envelope
+- [x] CLI/test harness driving the provider headlessly (comparable to FlowForge `--answers`)
+- [x] Add a stub `WorkflowRunner` / `PendingHumanTask` implementing the published interface shape for contract-based integration tests (no pinned FlowForge commit)
 
 ---
 

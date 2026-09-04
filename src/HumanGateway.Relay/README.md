@@ -9,7 +9,7 @@ RELAY-FR-01..05).
   (shared sync engine contract)
 - **Storage:** PostgreSQL via Npgsql + EF Core (10.0.3 / 10.0.11)
 
-## Status: registration + rendezvous complete (CLOUD-RELAY-4.1..4.3)
+## Status: implemented Cloud Relay (release 0.1.0)
 
 This project is the cloud side. It carries the ASP.NET Core minimal API host wired to a PostgreSQL store and
 the EF Core entity model for the Relay's durable schema — gateways, conversations, messages, deliveries,

@@ -58,7 +58,7 @@ No UI. Protocol is schema/API-level.
 - [x] Define the sync model (IDs, sequence numbers, cursors, idempotency, content hashes)
 - [x] Define the identity model (gateway, participant, user) and error model
 - [x] Publish schemas under `schemas/` with validation tests (JSON Schema validators)
-- [ ] Scaffold `src/HumanGateway.Protocol` (.NET) with schema-backed entity model and validation
+- [x] Implement `src/HumanGateway.Protocol` (.NET) with schema-backed entity model and validation
 
 ---
 

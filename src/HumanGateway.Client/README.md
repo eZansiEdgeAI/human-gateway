@@ -3,9 +3,9 @@
 Offline-first Progressive Web App for HumanGateway (product vision §6.2). React + TypeScript + Vite,
 installable and fully usable offline via a Workbox Service Worker + IndexedDB (PWA-FR-01).
 
-> **Status:** scaffolded + Service Worker app-shell caching and offline detection (offline-pwa
-> Phase 2, tasks 1–2). The offline plumbing (IndexedDB stores, outbox, offline-first Edge API
-> client) and the Inbox/Compose/Task views arrive in subsequent tasks.
+> **Status:** implemented for the `0.1.0` release. The client includes Service Worker app-shell caching,
+> IndexedDB repositories and outbox, offline-first Edge API access, conversations, compose, tasks,
+> attachments, authentication, and delivery status.
 
 ## Stack
 
@@ -76,5 +76,9 @@ in the sync banner.
 
 Offline detection lives in `src/lib/connectivity.ts` — a framework-agnostic source of truth
 (`isOnline()` + `subscribeConnectivity()`) backed by `navigator.onLine` and the `online`/`offline`
-events. The `useOnlineStatus` hook and, later, the offline-first Edge API client both consume it, so
+events. The `useOnlineStatus` hook and the offline-first Edge API client both consume it, so
 the sync banner and the fetch wrapper never disagree about connectivity.
+
+For user workflows, offline behavior, task responses, and attachment guidance, see the
+[user guide](../../../docs/user-guide.md). For deployment and configuration, see the
+[administrator guide](../../../docs/admin-guide.md).

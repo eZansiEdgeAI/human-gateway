@@ -61,9 +61,9 @@
 - [x] User identity + authentication at the Edge (local) and Relay (remote) with signed tokens/sessions
 - [x] Authorisation middleware: per-conversation/task/artifact access control
 - [x] TLS everywhere; signed request tokens for Edge↔Relay traffic
-- [ ] Secure artifact access control; content-hash verification on download
-- [ ] Secret management (env/secret store, no secrets in repo)
-- [ ] Correlation-token passthrough so consumers (FlowForge) enforce role checks and audit
+- [x] Secure artifact access control; content-hash verification on download
+- [x] Secret management (env/secret store, no secrets in repo)
+- [x] Correlation-token passthrough so consumers (FlowForge) enforce role checks and audit
 
 ---
 

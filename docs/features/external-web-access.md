@@ -47,11 +47,11 @@ Remote users use the same PWA surface; a Relay-hosted entry point and remote log
 ## 5. Implementation Tasks
 
 ### Phase 6: External Web Access
-- [ ] Relay-hosted web entry point for the PWA
-- [ ] Rendezvous routing: map remote participant → school Edge → deliver via outbound sync channel
-- [ ] Remote login integration (uses identity-security)
-- [ ] Responses from remote users flow back to the school and, via correlation tokens, to the workflow consumer
-- [ ] End-to-end test: external user responds; school Edge + workflow receive it
+- [x] Relay-hosted web entry point for the PWA
+- [x] Rendezvous routing: map remote participant → school Edge → deliver via outbound sync channel
+- [x] Remote login integration (uses identity-security)
+- [x] Responses from remote users flow back to the school and, via correlation tokens, to the workflow consumer
+- [x] End-to-end test: external user responds; school Edge + workflow receive it
 
 ---
 

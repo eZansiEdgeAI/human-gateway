@@ -43,26 +43,25 @@ The repository is organized around a few clear layers:
 
 ## Current implementation status
 
-This repository already contains a substantial working foundation rather than a purely design-only prototype.
+HumanGateway `0.1.0` is an implemented reference release, not only a design prototype. The repository includes:
 
-Implemented today:
+- a durable SQLite/WAL Edge Gateway with local REST API, task handling, authentication, and filesystem artifacts
+- cursor-based Edge-to-Relay synchronization with idempotency, retry/backoff, acknowledgements, and convergence handling
+- a PostgreSQL-backed Cloud Relay with gateway registration, rendezvous routing, remote access, and artifact transfer
+- content-addressed, hash-verified, deduplicated, resumable artifact uploads and downloads with configurable limits and quotas
+- an installable React/TypeScript PWA with Service Worker caching, IndexedDB offline data, conversations, tasks, attachments, and delivery status
+- shared v1 JSON schemas and .NET/TypeScript protocol validation
+- FlowForge provider mappings for `human-input` and `human-approval`, validated against a published interface contract and in-repository stub
+- Docker Compose development deployment, Edge container packaging, health checks, and structured logging
 
-- SQLite-backed Edge Gateway service with local API endpoints
-- durable inbox/outbox and idempotency stores in the core engine
-- protocol and schema definitions for messages, participants, artifacts, delivery states, and sync batches
-- local artifact storage with content-addressed handling and hash verification
-- background sync worker skeleton and gateway registration/security wiring
-- React + TypeScript PWA scaffold with service worker and offline detection
-- .NET test projects covering core behavior and edge crash-safety paths
-
-The project is intentionally incremental. The durable local-first system and protocol backbone are in place; the relay sync transport and broader deployment layer continue as part of the planned extension path.
+See the [0.1.0 release notes](docs/releases/0.1.0.md) for scope and limitations. Live end-to-end testing against a FlowForge runtime remains outside this release.
 
 ## Repository layout
 
 ```text
 .
 ├── deployment/                  # docker and runtime deployment assets
-├── docs/                        # PRD, vision, execution state, research, and workflow notes
+├── docs/                        # Guides, ADRs, release notes, requirements, and feature docs
 ├── schemas/                     # JSON schemas for protocol and sync contracts
 ├── src/
 │   ├── HumanGateway.Protocol/   # protocol models, validation, and shared contracts
@@ -82,7 +81,7 @@ The project is intentionally incremental. The durable local-first system and pro
 ├── dotnet-tools.json
 ├── LICENSE
 ├── README.md
-└── docs/PRD.md
+└── CHANGELOG.md
 ```
 
 ## Core workflow
@@ -165,18 +164,30 @@ dotnet build HumanGateway.slnx
 ./deployment/docker/run-edge.sh
 ```
 
+For the full Relay, PostgreSQL, and Edge development stack:
+
+```bash
+docker compose up -d --build
+```
+
+See the [administrator guide](docs/admin-guide.md) for production deployment, configuration, secrets, TLS, backups, upgrades, and troubleshooting.
+
 ## Documentation
 
-The most relevant project documentation lives in the repository and is the best source for product intent and implementation details:
-
-- [docs/PRD.md](docs/PRD.md)
-- [docs/product-vision.md](docs/product-vision.md)
-- [docs/IDEA.md](docs/IDEA.md)
-- [docs/WORKFLOW-STATE.json](docs/WORKFLOW-STATE.json)
-- [deployment/README.md](deployment/README.md)
-- [src/HumanGateway.Edge/README.md](src/HumanGateway.Edge/README.md)
-- [src/HumanGateway.Core/README.md](src/HumanGateway.Core/README.md)
-- [src/HumanGateway.Client/README.md](src/HumanGateway.Client/README.md)
+- [User guide](docs/user-guide.md)
+- [Administrator guide](docs/admin-guide.md)
+- [Release notes for 0.1.0](docs/releases/0.1.0.md)
+- [Changelog](CHANGELOG.md)
+- [Architecture Decision Records](docs/adr/README.md)
+- [Product requirements](docs/PRD.md)
+- [Product vision](docs/product-vision.md)
+- [Deployment details](deployment/README.md)
+- [Protocol and schemas](schemas/README.md)
+- [Edge service](src/HumanGateway.Edge/README.md)
+- [Relay service](src/HumanGateway.Relay/README.md)
+- [Client PWA](src/HumanGateway.Client/README.md)
+- [Core sync engine](src/HumanGateway.Core/README.md)
+- [Workflow integration](docs/features/flowforge-integration.md)
 
 ## Design principles
 
@@ -191,11 +202,9 @@ The implementation follows a few guiding principles:
 - idempotent handling for replay, retries, and reconciliation
 - explicit protocol contracts instead of implicit or brittle app behavior
 
-## Project direction
+## Scope and limitations
 
-HumanGateway is positioned as a reusable communication fabric for human-in-the-loop automation. The initial design focus is a school or site edge gateway that works offline-first and remains operational even when connectivity is intermittent or unavailable.
-
-FlowForge is the first concrete consumer reference, but the system is designed to be reusable beyond a single workflow product. The repository is intentionally practical and incremental: it establishes the durable protocol, local edge runtime, and client foundation before broad cloud synchronization and deployment expansions are layered on top.
+HumanGateway is a reusable communication fabric for human-in-the-loop automation. FlowForge is the first reference consumer, but workflow execution, workflow role authorization, and consumer audit remain outside HumanGateway. Delivery is asynchronous and eventual rather than real-time. The initial release does not include SMS, USSD, WhatsApp, or email adapters.
 
 ## Contributing
 

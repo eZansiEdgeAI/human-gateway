@@ -59,12 +59,12 @@ No user-facing UI (service-side). Admin visibility via structured logs and (late
 ## 5. Implementation Tasks
 
 ### Phase 1: Local Edge
-- [ ] Scaffold `src/HumanGateway.Core` (outbox/inbox, idempotency, sync engine interface) and `src/HumanGateway.Edge`
-- [ ] Build ASP.NET Core minimal API with SQLite (WAL mode) schema for conversations, messages, deliveries, artifacts, participants
-- [ ] Implement durable inbox/outbox: every create is committed to SQLite before any network attempt
-- [ ] Implement local REST API endpoints: conversations, messages, tasks, artifacts, sync status
-- [ ] Local filesystem artifact store with content-hash naming and deduplication
-- [x] Background sync worker skeleton (outbound sync hooks; full protocol in synchronisation feature)
+- [x] Implement `src/HumanGateway.Core` (outbox/inbox, idempotency, sync engine interface) and `src/HumanGateway.Edge`
+- [x] Build ASP.NET Core minimal API with SQLite (WAL mode) schema for conversations, messages, deliveries, artifacts, participants
+- [x] Implement durable inbox/outbox: every create is committed to SQLite before any network attempt
+- [x] Implement local REST API endpoints: conversations, messages, tasks, artifacts, sync status
+- [x] Local filesystem artifact store with content-hash naming and deduplication
+- [x] Background sync worker and outbound sync transport (full cursor protocol is documented in the synchronisation feature)
 - [x] Docker/Podman image for the Edge; run script for Raspberry Pi / old PC
 
 ---
